@@ -171,8 +171,8 @@ tests/GrillMaster.Tests/
   GrillMenuClientTests.cs         WireMock-based client tests
   PackingInvariantsTests.cs       validity invariants for all strategies
   PackingOptimalityTests.cs       relative quality / known optima
-  EndToEndTests.cs                full pipeline via WireMock
-  Data/grill-menus.json           fixture payload
+   EndToEndTests.cs                full pipeline via WireMock
+   grill-menus.json                fixture payload (the live API's 15-menu response)
 ```
 
 ## Known limitations

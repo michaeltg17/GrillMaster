@@ -4,5 +4,5 @@ namespace GrillMaster.Tests;
 public static class TestData
 {
     public static string MenusJson => File.ReadAllText(
-        Path.Combine(AppContext.BaseDirectory, "Data", "grill-menus.json"));
+        Path.Combine(AppContext.BaseDirectory, "grill-menus.json"));
 }

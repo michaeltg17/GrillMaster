@@ -35,21 +35,25 @@ public sealed class GrillMenuClientTests : IDisposable
 
         var menus = await _client.GetMenusAsync(TestContext.Current.CancellationToken);
 
-        Assert.Equal(3, menus.Count);
+        // The live API returns exactly 15 menus (Menu 01 .. Menu 15).
+        Assert.Equal(15, menus.Count);
 
-        var menuA = menus.Single(m => m.Name == "Menu A");
-        Assert.Equal(2, menuA.Items.Count);
+        // Menu 04 (first in the API's response order) has two items.
+        var menu04 = menus.Single(m => m.Name == "Menu 04");
+        Assert.Equal(2, menu04.Items.Count);
 
-        var steak = menuA.Items.Single(i => i.Name == "Steak");
-        Assert.Equal(10, steak.Length);
-        Assert.Equal(5, steak.Width);
-        Assert.Equal(2, steak.Quantity);
+        var paprika = menu04.Items.Single(i => i.Name == "Paprika Sausage");
+        Assert.Equal(6, paprika.Length);
+        Assert.Equal(3, paprika.Width);
+        Assert.Equal(40, paprika.Quantity);
 
-        var sausage = menuA.Items.Single(i => i.Name == "Sausage");
-        Assert.Equal(4, sausage.Quantity);
+        var veal = menu04.Items.Single(i => i.Name == "Veal");
+        Assert.Equal(8, veal.Length);
+        Assert.Equal(4, veal.Width);
+        Assert.Equal(10, veal.Quantity);
 
         // Quantities expand into the right number of physical pieces.
-        Assert.Equal(6, menuA.ExpandPieces().Count); // 2 steaks + 4 sausages
+        Assert.Equal(50, menu04.ExpandPieces().Count); // 40 paprika + 10 veal
     }
 
     [Fact]
@@ -67,14 +71,25 @@ public sealed class GrillMenuClientTests : IDisposable
     [Fact]
     public async Task GetMenusAsync_EmptyItemsYieldsNoPieces()
     {
+        // The live dataset has no empty menus, so exercise this path with a dedicated fixture.
+        const string emptyMenuJson = """
+            [
+              {
+                "Id": "00000000-0000-0000-0000-000000000000",
+                "menu": "Menu Empty",
+                "items": []
+              }
+            ]
+            """;
+
         _server.Given(Request.Create().UsingGet().WithPath("/api/GrillMenu"))
-            .RespondWith(Response.Create().WithBody(TestData.MenusJson).WithHeader("Content-Type", "application/json"));
+            .RespondWith(Response.Create().WithBody(emptyMenuJson).WithHeader("Content-Type", "application/json"));
 
         var menus = await _client.GetMenusAsync(TestContext.Current.CancellationToken);
 
-        var menuC = menus.Single(m => m.Name == "Menu C");
-        Assert.Empty(menuC.Items);
-        Assert.Empty(menuC.ExpandPieces());
+        var menu = menus.Single(m => m.Name == "Menu Empty");
+        Assert.Empty(menu.Items);
+        Assert.Empty(menu.ExpandPieces());
     }
 
     [Fact]

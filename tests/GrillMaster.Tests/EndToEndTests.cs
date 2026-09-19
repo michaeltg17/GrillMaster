@@ -52,8 +52,6 @@ public sealed class EndToEndTests : IDisposable
 
         var lines = writer.ToString().Split('\n').Select(l => l.Trim()).Where(l => l.Length > 0).ToList();
 
-        // Menu C is empty in the fixture.
-        Assert.Contains("Menu C: 0 rounds", lines);
         Assert.Contains(lines, l => l.StartsWith("Total", StringComparison.Ordinal));
 
         var total = int.Parse(lines.Last(l => l.StartsWith("Total", StringComparison.Ordinal)).Split(':')[1].Trim().Split(' ')[0], CultureInfo.InvariantCulture);
@@ -63,6 +61,8 @@ public sealed class EndToEndTests : IDisposable
             .Select(l => int.Parse(l.Split(':')[1].Trim().Split(' ')[0], CultureInfo.InvariantCulture))
             .ToList();
 
+        // One line per menu (15 menus in the live dataset).
+        Assert.Equal(15, perMenu.Count);
         Assert.Equal(total, perMenu.Sum());
     }
 
