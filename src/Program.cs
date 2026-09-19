@@ -76,11 +76,15 @@ try
     var orchestrator = host.Services.GetRequiredService<GrillOrchestrator>();
     return await orchestrator.RunAsync();
 }
+// Top-level catch: a console app should surface a friendly message and a non-zero exit code for
+// any unhandled failure rather than crashing with a stack trace.
+#pragma warning disable CA1031 // Do not catch general exception types
 catch (Exception ex)
 {
     Console.Error.WriteLine($"Error: {ex.Message}");
     return 1;
 }
+#pragma warning restore CA1031 // Do not catch general exception types
 
 static string RequireValue(string[] args, ref int i, string option)
 {

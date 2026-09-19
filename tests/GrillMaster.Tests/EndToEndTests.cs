@@ -1,4 +1,4 @@
-using System.Text;
+using System.Globalization;
 using GrillMaster;
 using GrillMaster.Api;
 using GrillMaster.Output;
@@ -13,8 +13,8 @@ namespace GrillMaster.Tests;
 
 /// <summary>
 /// Runs the full pipeline (WireMock API -> client -> packing -> report) end to end and checks the
-/// output matches the required format: one "<menu>: N rounds" line per menu plus a "Total: N
-/// rounds" line equal to the sum of the per-menu rounds.
+/// output matches the required format: one "&lt;menu&gt;: N rounds" line per menu plus a
+/// "Total: N rounds" line equal to the sum of the per-menu rounds.
 /// </summary>
 public sealed class EndToEndTests : IDisposable
 {
@@ -25,7 +25,10 @@ public sealed class EndToEndTests : IDisposable
         _server = WireMockServer.Start();
     }
 
-    public void Dispose() => _server.Stop();
+    public void Dispose()
+    {
+        _server.Dispose();
+    }
 
     [Theory]
     [InlineData("greedy")]
@@ -36,14 +39,14 @@ public sealed class EndToEndTests : IDisposable
         _server.Given(Request.Create().UsingGet().WithPath("/api/GrillMenu"))
             .RespondWith(Response.Create().WithBody(TestData.MenusJson).WithHeader("Content-Type", "application/json"));
 
-        var httpClient = new HttpClient { BaseAddress = new Uri(_server.Url!) };
+        using var httpClient = new HttpClient { BaseAddress = new Uri(_server.Url!) };
         var client = new GrillMenuClient(httpClient);
         var strategy = PackStrategyFactory.Create(strategyName);
         var writer = new StringWriter();
         var printer = new ReportPrinter(writer);
         var orchestrator = new GrillOrchestrator(client, strategy, printer, verbose: false);
 
-        var exitCode = await orchestrator.RunAsync();
+        var exitCode = await orchestrator.RunAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(0, exitCode);
 
@@ -51,13 +54,13 @@ public sealed class EndToEndTests : IDisposable
 
         // Menu C is empty in the fixture.
         Assert.Contains("Menu C: 0 rounds", lines);
-        Assert.Contains(lines, l => l.StartsWith("Total"));
+        Assert.Contains(lines, l => l.StartsWith("Total", StringComparison.Ordinal));
 
-        var total = int.Parse(lines.Last(l => l.StartsWith("Total")).Split(':')[1].Trim().Split(' ')[0]);
+        var total = int.Parse(lines.Last(l => l.StartsWith("Total", StringComparison.Ordinal)).Split(':')[1].Trim().Split(' ')[0], CultureInfo.InvariantCulture);
 
         var perMenu = lines
-            .Where(l => l.Contains(":") && !l.StartsWith("Total"))
-            .Select(l => int.Parse(l.Split(':')[1].Trim().Split(' ')[0]))
+            .Where(l => l.Contains(':') && !l.StartsWith("Total", StringComparison.Ordinal))
+            .Select(l => int.Parse(l.Split(':')[1].Trim().Split(' ')[0], CultureInfo.InvariantCulture))
             .ToList();
 
         Assert.Equal(total, perMenu.Sum());
@@ -69,12 +72,12 @@ public sealed class EndToEndTests : IDisposable
         _server.Given(Request.Create().UsingGet().WithPath("/api/GrillMenu"))
             .RespondWith(Response.Create().WithBody(TestData.MenusJson).WithHeader("Content-Type", "application/json"));
 
-        var httpClient = new HttpClient { BaseAddress = new Uri(_server.Url!) };
+        using var httpClient = new HttpClient { BaseAddress = new Uri(_server.Url!) };
         var client = new GrillMenuClient(httpClient);
         var writer = new StringWriter();
         var orchestrator = new GrillOrchestrator(client, new GreedyShelfStrategy(), new ReportPrinter(writer), verbose: true);
 
-        await orchestrator.RunAsync();
+        await orchestrator.RunAsync(TestContext.Current.CancellationToken);
 
         var output = writer.ToString();
         Assert.Contains("Round 1", output);

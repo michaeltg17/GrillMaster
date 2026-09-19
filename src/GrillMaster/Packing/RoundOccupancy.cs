@@ -172,7 +172,7 @@ public sealed class RoundOccupancy
         }
 
         // Weight vertical gaps more heavily to encourage shelf formation.
-        return topFree * _width + leftFree;
+        return (topFree * _width) + leftFree;
     }
 
     /// <summary>

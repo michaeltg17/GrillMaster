@@ -5,7 +5,8 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace GrillMaster;
 
-public static class DependencyInjection
+/// <summary>Service registration extensions for the grill master.</summary>
+public static class ServiceCollectionExtensions
 {
     private const string DefaultBaseUrl = "http://isol-grillassessment.azurewebsites.net";
 

@@ -9,7 +9,7 @@ namespace GrillMaster.Api;
 /// <see cref="HttpClient"/> (configured via dependency injection), so it is trivially overridable
 /// for tests and different environments.
 /// </summary>
-public sealed class GrillMenuClient : IGrillMenuClient
+public sealed class GrillMenuClient(HttpClient http) : IGrillMenuClient
 {
     private const string MenusEndpoint = "api/GrillMenu";
 
@@ -19,13 +19,9 @@ public sealed class GrillMenuClient : IGrillMenuClient
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
-    private readonly HttpClient _http;
-
-    public GrillMenuClient(HttpClient http) => _http = http;
-
     public async Task<IReadOnlyList<GrillMenu>> GetMenusAsync(CancellationToken cancellationToken = default)
     {
-        var response = await _http.GetFromJsonAsync<List<GrillMenuDto>>(
+        var response = await http.GetFromJsonAsync<List<GrillMenuDto>>(
             MenusEndpoint, SerializerOptions, cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidOperationException("The grill menu API returned an empty response.");
 

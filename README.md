@@ -130,9 +130,16 @@ Menu 04: 2 rounds
 Tests live in `tests/GrillMaster.Tests` and use **WireMock.Net** to stand up a local HTTP server
 that mimics the grill API — no real network calls and no in‑memory HTTP fakes.
 
+The suite uses **xUnit v3**, which runs on the Microsoft Testing Platform (MTP) instead of VSTest.
+Run it directly with:
+
 ```bash
-dotnet test
+dotnet run --project tests/GrillMaster.Tests
 ```
+
+> `dotnet test` is also wired up for MTP (`global.json` + `UseMicrosoftTestingPlatformRunner`),
+> but on some .NET 10 SDK + xUnit v3 combinations it reports “zero tests” — the `dotnet run`
+> command above is the reliable way to run the suite.
 
 Coverage includes:
 

@@ -10,11 +10,9 @@ namespace GrillMaster.Output;
 /// Verbose mode additionally lists every round and the pieces placed in it.
 /// </para>
 /// </summary>
-public sealed class ReportPrinter
+public sealed class ReportPrinter(TextWriter? output = null)
 {
-    private readonly TextWriter _output;
-
-    public ReportPrinter(TextWriter? output = null) => _output = output ?? Console.Out;
+    private readonly TextWriter _output = output ?? Console.Out;
 
     /// <summary>Prints the summary: one line per menu plus the grand total.</summary>
     public void PrintSummary(IReadOnlyList<(GrillMenu Menu, PackResult Result)> results)

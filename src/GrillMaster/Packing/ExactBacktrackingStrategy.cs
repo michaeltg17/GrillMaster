@@ -22,7 +22,7 @@ public sealed class ExactBacktrackingStrategy : IPackStrategy
     /// <summary>Node budget before falling back to the best incumbent found so far.</summary>
     public long MaxNodes { get; init; } = 20_000_000;
 
-    private GrillSize _grill = default;
+    private GrillSize _grill;
     private IReadOnlyList<GrillPiece> _pieces = [];
     private RoundOccupancy[] _bins = [];
     private int[] _binUsedArea = [];
@@ -128,9 +128,12 @@ public sealed class ExactBacktrackingStrategy : IPackStrategy
             return;
         }
 
-        (int bin, Placement pos)? prevSame = index > 0 && IsIdentical(_pieces[index - 1], piece)
-            ? (_placementBin[index - 1], _placementPos[index - 1])
-            : null;
+        // Identical-piece symmetry breaking: if the previous piece is identical, record the bin and
+        // slot it was placed in so this copy is constrained to a later bin, or the same bin at a
+        // slot that is not earlier than the previous slot.
+        var hasPrevSame = index > 0 && IsIdentical(_pieces[index - 1], piece);
+        var prevBin = hasPrevSame ? _placementBin[index - 1] : 0;
+        var prevSlot = hasPrevSame ? SlotOrder(_placementPos[index - 1]) : 0;
 
         for (var bin = 0; bin < _maxBins; bin++)
         {
@@ -147,9 +150,7 @@ public sealed class ExactBacktrackingStrategy : IPackStrategy
                 break;
             }
 
-            // Identical-piece symmetry: an identical piece may only go to a later bin, or to the
-            // same bin at a slot that is not earlier than the previous identical piece's slot.
-            if (prevSame is not null && bin < prevSame.Value.bin)
+            if (hasPrevSame && bin < prevBin)
             {
                 continue;
             }
@@ -162,8 +163,7 @@ public sealed class ExactBacktrackingStrategy : IPackStrategy
 
             foreach (var placement in occupancy.EnumerateSkylinePositions(piece))
             {
-                if (prevSame is not null && bin == prevSame.Value.bin &&
-                    SlotOrder(placement) <= SlotOrder(prevSame.Value.pos))
+                if (hasPrevSame && bin == prevBin && SlotOrder(placement) <= prevSlot)
                 {
                     continue;
                 }
@@ -210,7 +210,8 @@ public sealed class ExactBacktrackingStrategy : IPackStrategy
     private static long SlotOrder(Placement p)
     {
         var rotation = p.Rotated ? 1L : 0L;
-        return (((long)p.Y * 100L) + p.X) * 2L + rotation;
+        var row = (p.Y * 100L) + p.X;
+        return (row * 2L) + rotation;
     }
 
     private static Placement[] Append(Placement[] array, Placement item)
@@ -233,7 +234,7 @@ public sealed class ExactBacktrackingStrategy : IPackStrategy
     }
 
     // We can only use at most (_best - 1) bins to improve, so that caps the usable capacity.
-    private int TotalFreeCapacity() => _grill.Area * (_best - 1) - _binUsedArea.Sum();
+    private int TotalFreeCapacity() => (_grill.Area * (_best - 1)) - _binUsedArea.Sum();
 
     private List<Round> SnapshotRounds()
     {

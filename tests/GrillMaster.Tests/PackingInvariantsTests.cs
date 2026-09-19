@@ -13,11 +13,11 @@ public class PackingInvariantsTests
 {
     private static readonly GrillSize Grill = GrillSize.Standard;
 
-    public static IEnumerable<object[]> AllStrategies()
+    public static IEnumerable<TheoryDataRow<IPackStrategy>> AllStrategies()
     {
-        yield return new object[] { new GreedyShelfStrategy() };
-        yield return new object[] { new ExactBacktrackingStrategy() };
-        yield return new object[] { new OptimizedHeuristicStrategy() };
+        yield return new TheoryDataRow<IPackStrategy>(new GreedyShelfStrategy());
+        yield return new TheoryDataRow<IPackStrategy>(new ExactBacktrackingStrategy());
+        yield return new TheoryDataRow<IPackStrategy>(new OptimizedHeuristicStrategy());
     }
 
     [Theory]
@@ -55,7 +55,7 @@ public class PackingInvariantsTests
     [Fact]
     public void Strategies_ThrowForOversizedPiece()
     {
-        var oversized = new List<GrillPiece> { new GrillPiece("Huge", 40, 5) };
+        List<GrillPiece> oversized = [new GrillPiece("Huge", 40, 5)];
         foreach (var strategy in new IPackStrategy[] { new GreedyShelfStrategy(), new ExactBacktrackingStrategy(), new OptimizedHeuristicStrategy() })
         {
             Assert.Throws<InvalidOperationException>(() => strategy.Pack(oversized, Grill));
