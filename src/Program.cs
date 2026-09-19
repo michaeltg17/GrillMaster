@@ -83,19 +83,9 @@ internal static class Program
             var orchestrator = host.Services.GetRequiredService<GrillOrchestrator>();
             return await orchestrator.RunAsync(cancellationToken);
         }
-        catch (ApiErrorException ex)
-        {
-            Console.Error.WriteLine($"API error with status code: {(int)ex.StatusCode} {ex.StatusCode}.");
-            return 1;
-        }
-        catch (MalformedApiResponseException)
-        {
-            Console.Error.WriteLine("API error: the response was not valid JSON.");
-            return 1;
-        }
         catch (GrillApiException ex)
         {
-            Console.Error.WriteLine($"API error: {ex.Message}");
+            Console.Error.WriteLine(ex.Message);
             return 1;
         }
 #pragma warning disable CA1031 // Do not catch general exception types
