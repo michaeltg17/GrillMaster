@@ -71,17 +71,47 @@ builder.Services.AddSingleton(sp => new GrillOrchestrator(
 
 using var host = builder.Build();
 
+// Last-resort safety net: if a failure escapes the handler below (e.g. raised on a thread we do
+// not await), still exit cleanly with a message instead of a raw crash.
+AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+{
+    Console.Error.WriteLine($"Fatal: {e.ExceptionObject}");
+    Environment.ExitCode = 1;
+};
+
+TaskScheduler.UnobservedTaskException += (_, e) =>
+{
+    Console.Error.WriteLine($"Fatal (unobserved task): {e.Exception}");
+    e.SetObserved();
+    Environment.ExitCode = 1;
+};
+
 try
 {
     var orchestrator = host.Services.GetRequiredService<GrillOrchestrator>();
     return await orchestrator.RunAsync();
 }
-// Top-level catch: a console app should surface a friendly message and a non-zero exit code for
-// any unhandled failure rather than crashing with a stack trace.
+catch (ApiErrorException ex)
+{
+    Console.Error.WriteLine($"API error with status code: {(int)ex.StatusCode} {ex.StatusCode}.");
+    return 1;
+}
+catch (MalformedApiResponseException)
+{
+    Console.Error.WriteLine("API error: the response was not valid JSON.");
+    return 1;
+}
+catch (GrillApiException ex)
+{
+    Console.Error.WriteLine($"API error: {ex.Message}");
+    return 1;
+}
+// Last resort: any other unexpected failure still gets a friendly message and a non-zero exit
+// code rather than a raw stack trace.
 #pragma warning disable CA1031 // Do not catch general exception types
 catch (Exception ex)
 {
-    Console.Error.WriteLine($"Error: {ex.Message}");
+    Console.Error.WriteLine($"Unexpected error: {ex.Message}");
     return 1;
 }
 #pragma warning restore CA1031 // Do not catch general exception types

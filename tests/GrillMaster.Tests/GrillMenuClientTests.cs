@@ -1,3 +1,4 @@
+using System.Net;
 using GrillMaster.Api;
 using GrillMaster.Domain;
 using WireMock;
@@ -93,11 +94,34 @@ public sealed class GrillMenuClientTests : IDisposable
     }
 
     [Fact]
-    public async Task GetMenusAsync_ThrowsWhenApiReturnsError()
+    public async Task GetMenusAsync_ThrowsApiErrorWhenStatusIsNot200()
     {
         _server.Given(Request.Create().UsingGet().WithPath("/api/GrillMenu"))
             .RespondWith(Response.Create().WithStatusCode(500).WithBody("boom"));
 
-        await Assert.ThrowsAnyAsync<Exception>(() => _client.GetMenusAsync(TestContext.Current.CancellationToken));
+        var ex = await Assert.ThrowsAsync<ApiErrorException>(
+            () => _client.GetMenusAsync(TestContext.Current.CancellationToken));
+        Assert.Equal(HttpStatusCode.InternalServerError, ex.StatusCode);
+    }
+
+    [Fact]
+    public async Task GetMenusAsync_ThrowsMalformedWhenBodyIsNotJson()
+    {
+        _server.Given(Request.Create().UsingGet().WithPath("/api/GrillMenu"))
+            .RespondWith(Response.Create().WithStatusCode(200).WithBody("this is not json").WithHeader("Content-Type", "application/json"));
+
+        await Assert.ThrowsAsync<MalformedApiResponseException>(
+            () => _client.GetMenusAsync(TestContext.Current.CancellationToken));
+    }
+
+    [Fact]
+    public async Task GetMenusAsync_ReturnsEmptyListWhenArrayIsEmpty()
+    {
+        _server.Given(Request.Create().UsingGet().WithPath("/api/GrillMenu"))
+            .RespondWith(Response.Create().WithStatusCode(200).WithBody("[]").WithHeader("Content-Type", "application/json"));
+
+        var menus = await _client.GetMenusAsync(TestContext.Current.CancellationToken);
+
+        Assert.Empty(menus);
     }
 }

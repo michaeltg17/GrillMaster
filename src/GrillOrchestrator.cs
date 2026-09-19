@@ -18,6 +18,13 @@ public sealed class GrillOrchestrator(
     public async Task<int> RunAsync(CancellationToken cancellationToken = default)
     {
         var menus = await client.GetMenusAsync(cancellationToken).ConfigureAwait(false);
+
+        if (menus.Count == 0)
+        {
+            printer.PrintNoMenus();
+            return 0;
+        }
+
         var grill = GrillSize.Standard;
 
         var results = new List<(GrillMenu Menu, PackResult Result)>();

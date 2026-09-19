@@ -83,4 +83,21 @@ public sealed class EndToEndTests : IDisposable
         Assert.Contains("Round 1", output);
         Assert.Contains("Steak", output);
     }
+
+    [Fact]
+    public async Task Pipeline_PrintsNoMenusWhenApiReturnsEmpty()
+    {
+        _server.Given(Request.Create().UsingGet().WithPath("/api/GrillMenu"))
+            .RespondWith(Response.Create().WithStatusCode(200).WithBody("[]").WithHeader("Content-Type", "application/json"));
+
+        using var httpClient = new HttpClient { BaseAddress = new Uri(_server.Url!) };
+        var client = new GrillMenuClient(httpClient);
+        var writer = new StringWriter();
+        var orchestrator = new GrillOrchestrator(client, new GreedyShelfStrategy(), new ReportPrinter(writer), verbose: false);
+
+        var exitCode = await orchestrator.RunAsync(TestContext.Current.CancellationToken);
+
+        Assert.Equal(0, exitCode);
+        Assert.Equal("The API returned no menus.", writer.ToString().Trim());
+    }
 }

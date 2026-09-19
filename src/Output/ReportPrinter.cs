@@ -14,6 +14,12 @@ public sealed class ReportPrinter(TextWriter? output = null)
 {
     private readonly TextWriter _output = output ?? Console.Out;
 
+    /// <summary>Prints a message when the API returned no menus to pack.</summary>
+    public void PrintNoMenus()
+    {
+        _output.WriteLine("The API returned no menus.");
+    }
+
     /// <summary>Prints the summary: one line per menu plus the grand total.</summary>
     public void PrintSummary(IReadOnlyList<(GrillMenu Menu, PackResult Result)> results)
     {
