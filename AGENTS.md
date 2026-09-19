@@ -18,3 +18,18 @@
 ## Conventions
 - Packing strategies implement `IPackStrategy` and are selected by name; the 30×20 cm grill is the fixed frame.
 - API failures surface as typed exceptions (`src/Api/ApiExceptions.cs`); the mock base is `Infra/ApiMock` (owns/disposes the `WireMockServer`, exposes `Url` as `Uri`).
+
+## Branching & PR workflow (dev → main)
+
+- **All work happens on the `dev` branch.** Commit directly to `dev`; do **not** create feature/topic branches that open a PR straight to `main`.
+- `main` only ever changes via a merged **`dev` → `main`** PR. There is exactly one PR in flight at a time, from `dev` to `main`.
+- The loop is: commit on `dev` → push `dev` → open (or update) the `dev` → `main` PR.
+
+When creating or updating the `dev` → `main` PR:
+
+1. **Always run `git fetch origin main` first** — this is critical. The local `main` branch is often outdated and will show stale committed changes as part of the diff if not refreshed.
+2. Compare `origin/main..dev` to identify only the actual new changes.
+3. Check if a PR already exists (use `github_list_pull_requests`).
+4. If none exists, create one with an accurate title and description summarizing the changes.
+5. If one exists, update its title and description to reflect the actual current diff.
+6. **Stop there. Never merge the PR (no `gh pr merge`, no merge via the API).** The user reviews the diff and merges it themselves; merging on the user's behalf defeats the review.
