@@ -1,4 +1,4 @@
-﻿using GrillMaster;
+﻿using System.CommandLine;
 using GrillMaster.Api;
 using GrillMaster.Packing;
 using Microsoft.Extensions.DependencyInjection;
@@ -6,153 +6,148 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Serilog;
 
-// --- Command line parsing -------------------------------------------------
-var strategyName = "greedy";
-string? url = null;
-var verbose = false;
+namespace GrillMaster;
 
-for (var i = 0; i < args.Length; i++)
+internal static class Program
 {
-    switch (args[i])
+    private const string DefaultBaseUrl = "http://isol-grillassessment.azurewebsites.net";
+
+    private static async Task<int> Main(string[] args)
     {
-        case "--url" or "-u":
-            url = RequireValue(args, ref i, "--url");
-            break;
-        case "--strategy" or "-s":
-            strategyName = RequireValue(args, ref i, "--strategy");
-            break;
-        case "--verbose" or "-v":
-            verbose = true;
-            break;
-        case "--help" or "-h":
-            PrintHelp();
-            return 0;
-        default:
-            if (args[i].StartsWith('-'))
-            {
-                Console.Error.WriteLine($"Unknown option '{args[i]}'.");
-                PrintHelp();
-                return 1;
-            }
-
-            strategyName = args[i];
-            break;
+        var parseResult = BuildCommand().Parse(args);
+        return await parseResult.InvokeAsync();
     }
-}
 
-// --- Logging ---------------------------------------------------------------
-// Plain message + newline: the report output stays exactly as before (no timestamp, no level).
-Log.Logger = new LoggerConfiguration()
-    .WriteTo.Console(outputTemplate: "{Message:lj}{NewLine}")
-    .CreateLogger();
+    private static RootCommand BuildCommand()
+    {
+        var strategyOption = new Option<string?>("--strategy", "-s")
+        {
+            Description = "Packing strategy (greedy | exact | optimized).",
+        };
 
-// --- Host / dependency injection -----------------------------------------
-var builder = Host.CreateApplicationBuilder();
-builder.Logging.ClearProviders();
+        var strategyArgument = new Argument<string?>("strategy")
+        {
+            Description = "Packing strategy (greedy | exact | optimized).",
+            Arity = ArgumentArity.ZeroOrOne,
+        };
 
-if (url is not null)
-{
-    builder.Configuration["Grill:ApiBaseUrl"] = url;
-}
+        var urlOption = new Option<string?>("--url", "-u")
+        {
+            Description = "API base URL (overrides appsettings.json).",
+        };
 
-builder.Services.AddGrillMaster(builder.Configuration);
+        var verboseOption = new Option<bool>("--verbose", "-v")
+        {
+            Description = "Print the full per-round placement breakdown.",
+            DefaultValueFactory = _ => false,
+        };
 
-IPackStrategy strategy;
-try
-{
-    strategy = PackStrategyFactory.Create(strategyName);
-}
-catch (ArgumentException ex)
-{
-    Console.Error.WriteLine(ex.Message);
-    return 1;
-}
+        var root = new RootCommand("Grill Master - minimise the number of grill rounds for each menu.")
+        {
+            Options = { strategyOption, urlOption, verboseOption },
+            Arguments = { strategyArgument },
+        };
 
-builder.Services.AddSingleton(strategy);
-builder.Services.AddSingleton(sp => new GrillOrchestrator(
-    sp.GetRequiredService<IGrillMenuClient>(),
-    strategy,
-    Log.Logger,
-    verbose));
+        root.SetAction(Run);
+        return root;
+    }
 
-using var host = builder.Build();
+    private static async Task<int> Run(ParseResult parseResult, CancellationToken cancellationToken)
+    {
+        var strategy = parseResult.GetValue<string>("--strategy")
+            ?? parseResult.GetValue<string>("strategy")
+            ?? "greedy";
+        var url = parseResult.GetValue<string>("--url");
+        var verbose = parseResult.GetValue<bool>("--verbose");
 
-// Last-resort safety net: if a failure escapes the handler below (e.g. raised on a thread we do
-// not await), still exit cleanly with a message instead of a raw crash.
-AppDomain.CurrentDomain.UnhandledException += (_, e) =>
-{
-    Console.Error.WriteLine($"Fatal: {e.ExceptionObject}");
-    Environment.ExitCode = 1;
-};
+        Log.Logger = new LoggerConfiguration()
+            .WriteTo.Console(outputTemplate: "{Message:lj}{NewLine}")
+            .CreateLogger();
 
-TaskScheduler.UnobservedTaskException += (_, e) =>
-{
-    Console.Error.WriteLine($"Fatal (unobserved task): {e.Exception}");
-    e.SetObserved();
-    Environment.ExitCode = 1;
-};
+        IPackStrategy packStrategy;
+        try
+        {
+            packStrategy = PackStrategyFactory.Create(strategy);
+        }
+        catch (ArgumentException ex)
+        {
+            Console.Error.WriteLine(ex.Message);
+            return 1;
+        }
 
-try
-{
-    var orchestrator = host.Services.GetRequiredService<GrillOrchestrator>();
-    return await orchestrator.RunAsync();
-}
-catch (ApiErrorException ex)
-{
-    Console.Error.WriteLine($"API error with status code: {(int)ex.StatusCode} {ex.StatusCode}.");
-    return 1;
-}
-catch (MalformedApiResponseException)
-{
-    Console.Error.WriteLine("API error: the response was not valid JSON.");
-    return 1;
-}
-catch (GrillApiException ex)
-{
-    Console.Error.WriteLine($"API error: {ex.Message}");
-    return 1;
-}
-// Last resort: any other unexpected failure still gets a friendly message and a non-zero exit
-// code rather than a raw stack trace.
+        using var host = BuildHost(url, packStrategy, verbose);
+        InstallFatalHandlers();
+
+        try
+        {
+            var orchestrator = host.Services.GetRequiredService<GrillOrchestrator>();
+            return await orchestrator.RunAsync(cancellationToken);
+        }
+        catch (ApiErrorException ex)
+        {
+            Console.Error.WriteLine($"API error with status code: {(int)ex.StatusCode} {ex.StatusCode}.");
+            return 1;
+        }
+        catch (MalformedApiResponseException)
+        {
+            Console.Error.WriteLine("API error: the response was not valid JSON.");
+            return 1;
+        }
+        catch (GrillApiException ex)
+        {
+            Console.Error.WriteLine($"API error: {ex.Message}");
+            return 1;
+        }
 #pragma warning disable CA1031 // Do not catch general exception types
-catch (Exception ex)
-{
-    Console.Error.WriteLine($"Unexpected error: {ex.Message}");
-    return 1;
-}
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Unexpected error: {ex.Message}");
+            return 1;
+        }
 #pragma warning restore CA1031 // Do not catch general exception types
-
-static string RequireValue(string[] args, ref int i, string option)
-{
-    if (i + 1 >= args.Length)
-    {
-        Console.Error.WriteLine($"Option {option} requires a value.");
-        Environment.Exit(1);
     }
 
-    return args[++i];
-}
+    private static IHost BuildHost(string? url, IPackStrategy strategy, bool verbose)
+    {
+        var builder = Host.CreateApplicationBuilder();
+        builder.Logging.ClearProviders();
 
-static void PrintHelp()
-{
-    Console.WriteLine("""
-        Grill Master - minimise the number of grill rounds for each menu.
+        if (url is not null)
+        {
+            builder.Configuration["Grill:ApiBaseUrl"] = url;
+        }
 
-        Usage:
-          GrillMaster [strategy] [options]
+        var baseUrl = builder.Configuration["Grill:ApiBaseUrl"] ?? DefaultBaseUrl;
+        builder.Services.AddHttpClient<IGrillMenuClient, GrillMenuClient>(client =>
+        {
+            client.BaseAddress = new Uri(baseUrl);
+            client.Timeout = TimeSpan.FromSeconds(30);
+        });
+        builder.Services.AddSingleton(strategy);
+        builder.Services.AddSingleton(sp => new GrillOrchestrator(
+            sp.GetRequiredService<IGrillMenuClient>(),
+            strategy,
+            Log.Logger,
+            verbose));
 
-        Strategies:
-          greedy     Best-fit shelf heuristic (fast, near-optimal). Default.
-          exact      Branch-and-bound search (proves the optimum).
-          optimized  Greedy seed + local-search consolidation.
+        return builder.Build();
+    }
 
-        Options:
-          -s, --strategy <name>   Packing strategy (greedy | exact | optimized).
-          -u, --url <baseUrl>     API base URL (overrides appsettings.json).
-          -v, --verbose           Print the full per-round placement breakdown.
-          -h, --help              Show this help.
+    // Last-resort safety net: if a failure escapes the handler above (e.g. raised on a thread we do
+    // not await), still exit cleanly with a message instead of a raw crash.
+    private static void InstallFatalHandlers()
+    {
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+        {
+            Console.Error.WriteLine($"Fatal: {e.ExceptionObject}");
+            Environment.ExitCode = 1;
+        };
 
-        Example:
-          GrillMaster exact --verbose
-        """);
+        TaskScheduler.UnobservedTaskException += (_, e) =>
+        {
+            Console.Error.WriteLine($"Fatal (unobserved task): {e.Exception}");
+            e.SetObserved();
+            Environment.ExitCode = 1;
+        };
+    }
 }

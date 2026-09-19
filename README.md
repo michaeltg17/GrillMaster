@@ -62,19 +62,24 @@ dotnet run --project src -- greedy
 ### Command line
 
 ```
-GrillMaster [strategy] [options]
+Usage:
+  GrillMaster [<strategy>] [options]
 
-Strategies:
-  greedy     Best-fit shelf heuristic (fast, near-optimal). Default.
-  exact      Branch-and-bound search (proves the optimum).
-  optimized  Greedy seed + local-search consolidation.
+Arguments:
+  <strategy>  Packing strategy (greedy | exact | optimized).
 
 Options:
-  -s, --strategy <name>   Packing strategy (greedy | exact | optimized).
-  -u, --url <baseUrl>     API base URL (overrides appsettings.json).
-  -v, --verbose           Print the full per-round placement breakdown.
-  -h, --help              Show this help.
+  -s, --strategy <strategy>  Packing strategy (greedy | exact | optimized).
+  -u, --url <url>            API base URL (overrides appsettings.json).
+  -v, --verbose              Print the full per-round placement breakdown.
+  -h, --help                 Show help and usage information.
+  --version                  Show version information.
 ```
+
+The strategy can be given as a positional argument (`GrillMaster exact`) or with
+`--strategy`; when both are supplied, `--strategy` wins. Strategies:
+`greedy` (best-fit shelf heuristic, default), `exact` (branch-and-bound, proves the
+optimum), `optimized` (greedy seed + local-search consolidation).
 
 The API base URL is read from `src/appsettings.json` (`Grill:ApiBaseUrl`) and can be overridden
 with `--url` or the `GRILL__APIBASEURL` environment variable.
@@ -156,9 +161,8 @@ Coverage includes:
 
 ```
 src/
-  Program.cs                      CLI parsing + host/DI wiring
+  Program.cs                      CLI (System.CommandLine) + host/DI wiring
   appsettings.json                default API base URL, strategy, verbose flag
-  DependencyInjection.cs          AddGrillMaster(...)
   GrillOrchestrator.cs            fetch → pack each menu → print
   Domain/                         GrillSize, GrillPiece, GrillMenuItem, GrillMenu,
                                   Placement, Round, PackResult
