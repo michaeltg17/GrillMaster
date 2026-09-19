@@ -5,7 +5,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="FluentAssertions" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Serilog.Sinks.InMemory" />
+    <PackageReference Include="Serilog.Sinks.InMemory.Assertions" />
+    <PackageReference Include="Serilog.Sinks.XUnit.Injectable" />
     <PackageReference Include="WireMock.Net" />
     <PackageReference Include="xunit.runner.visualstudio">
       <PrivateAssets>all</PrivateAssets>

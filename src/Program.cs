@@ -1,10 +1,10 @@
 ﻿using GrillMaster;
 using GrillMaster.Api;
-using GrillMaster.Output;
 using GrillMaster.Packing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Serilog;
 
 // --- Command line parsing -------------------------------------------------
 var strategyName = "greedy";
@@ -40,6 +40,12 @@ for (var i = 0; i < args.Length; i++)
     }
 }
 
+// --- Logging ---------------------------------------------------------------
+// Plain message + newline: the report output stays exactly as before (no timestamp, no level).
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console(outputTemplate: "{Message:lj}{NewLine}")
+    .CreateLogger();
+
 // --- Host / dependency injection -----------------------------------------
 var builder = Host.CreateApplicationBuilder();
 builder.Logging.ClearProviders();
@@ -66,7 +72,7 @@ builder.Services.AddSingleton(strategy);
 builder.Services.AddSingleton(sp => new GrillOrchestrator(
     sp.GetRequiredService<IGrillMenuClient>(),
     strategy,
-    sp.GetRequiredService<ReportPrinter>(),
+    Log.Logger,
     verbose));
 
 using var host = builder.Build();

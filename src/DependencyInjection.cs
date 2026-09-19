@@ -1,5 +1,4 @@
 using GrillMaster.Api;
-using GrillMaster.Output;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -11,9 +10,9 @@ public static class ServiceCollectionExtensions
     private const string DefaultBaseUrl = "http://isol-grillassessment.azurewebsites.net";
 
     /// <summary>
-    /// Registers the grill master services: the menu HTTP client (base address from configuration)
-    /// and the report printer. The packing strategy is resolved by the caller so it can be chosen
-    /// from the command line.
+    /// Registers the grill master services: the menu HTTP client (base address from configuration).
+    /// The packing strategy and the <c>GrillOrchestrator</c> are resolved by the caller so the
+    /// strategy can be chosen from the command line.
     /// </summary>
     public static IServiceCollection AddGrillMaster(this IServiceCollection services, IConfiguration configuration)
     {
@@ -25,7 +24,6 @@ public static class ServiceCollectionExtensions
             client.Timeout = TimeSpan.FromSeconds(30);
         });
 
-        services.AddSingleton<ReportPrinter>();
         return services;
     }
 }
