@@ -1,6 +1,11 @@
+using Core.Testing.Serializers;
 using GrillMaster.Domain;
 using GrillMaster.Packing;
 using Xunit;
+using Xunit.Sdk;
+
+[assembly: RegisterXunitSerializer(typeof(TestCaseSerializer),
+    typeof(GreedyShelfStrategy), typeof(ExactBacktrackingStrategy), typeof(OptimizedHeuristicStrategy))]
 
 namespace GrillMaster.Tests;
 

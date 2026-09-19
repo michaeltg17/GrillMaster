@@ -37,7 +37,7 @@ public sealed class EndToEndTests : IDisposable
     public async Task Pipeline_PrintsPerMenuRoundsAndTotal(string strategyName)
     {
         _server.Given(Request.Create().UsingGet().WithPath("/api/GrillMenu"))
-            .RespondWith(Response.Create().WithBody(TestData.MenusJson).WithHeader("Content-Type", "application/json"));
+            .RespondWith(Response.Create().WithBody(TestData.GrillMenusJson).WithHeader("Content-Type", "application/json"));
 
         using var httpClient = new HttpClient { BaseAddress = new Uri(_server.Url!) };
         var client = new GrillMenuClient(httpClient);
@@ -70,7 +70,7 @@ public sealed class EndToEndTests : IDisposable
     public async Task Pipeline_VerboseIncludesRoundBreakdown()
     {
         _server.Given(Request.Create().UsingGet().WithPath("/api/GrillMenu"))
-            .RespondWith(Response.Create().WithBody(TestData.MenusJson).WithHeader("Content-Type", "application/json"));
+            .RespondWith(Response.Create().WithBody(TestData.GrillMenusJson).WithHeader("Content-Type", "application/json"));
 
         using var httpClient = new HttpClient { BaseAddress = new Uri(_server.Url!) };
         var client = new GrillMenuClient(httpClient);

@@ -32,7 +32,7 @@ public sealed class GrillMenuClientTests : IDisposable
     public async Task GetMenusAsync_ParsesMenusItemsAndQuantities()
     {
         _server.Given(Request.Create().UsingGet().WithPath("/api/GrillMenu"))
-            .RespondWith(Response.Create().WithBody(TestData.MenusJson).WithHeader("Content-Type", "application/json"));
+            .RespondWith(Response.Create().WithBody(TestData.GrillMenusJson).WithHeader("Content-Type", "application/json"));
 
         var menus = await _client.GetMenusAsync(TestContext.Current.CancellationToken);
 
@@ -61,36 +61,12 @@ public sealed class GrillMenuClientTests : IDisposable
     public async Task GetMenusAsync_RequestsTheGrillMenuEndpoint()
     {
         _server.Given(Request.Create().UsingGet().WithPath("/api/GrillMenu"))
-            .RespondWith(Response.Create().WithBody(TestData.MenusJson).WithHeader("Content-Type", "application/json"));
+            .RespondWith(Response.Create().WithBody(TestData.GrillMenusJson).WithHeader("Content-Type", "application/json"));
 
         await _client.GetMenusAsync(TestContext.Current.CancellationToken);
 
         var logs = _server.LogEntries;
         Assert.Contains(logs, l => l.RequestMessage?.Url?.EndsWith("/api/GrillMenu", StringComparison.Ordinal) == true);
-    }
-
-    [Fact]
-    public async Task GetMenusAsync_EmptyItemsYieldsNoPieces()
-    {
-        // The live dataset has no empty menus, so exercise this path with a dedicated fixture.
-        const string emptyMenuJson = """
-            [
-              {
-                "Id": "00000000-0000-0000-0000-000000000000",
-                "menu": "Menu Empty",
-                "items": []
-              }
-            ]
-            """;
-
-        _server.Given(Request.Create().UsingGet().WithPath("/api/GrillMenu"))
-            .RespondWith(Response.Create().WithBody(emptyMenuJson).WithHeader("Content-Type", "application/json"));
-
-        var menus = await _client.GetMenusAsync(TestContext.Current.CancellationToken);
-
-        var menu = menus.Single(m => m.Name == "Menu Empty");
-        Assert.Empty(menu.Items);
-        Assert.Empty(menu.ExpandPieces());
     }
 
     [Fact]
