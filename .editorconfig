@@ -1,0 +1,94 @@
+root = true
+
+[*]
+end_of_line = lf
+
+[*.cs]
+# Make all style analyzers errors
+dotnet_analyzer_diagnostic.category-Style.severity = warning
+
+# CA1515: Consider making public types internal
+dotnet_diagnostic.CA1515.severity = none
+
+# CA1707: Underscores in identifiers - xUnit convention uses underscores for test names
+dotnet_diagnostic.CA1707.severity = none
+
+# CA2007: Consider calling ConfigureAwait - not needed in ASP.NET Core (no SynchronizationContext)
+dotnet_diagnostic.CA2007.severity = none
+
+# CA1032: Standard exception constructors - unnecessary boilerplate for custom exceptions
+dotnet_diagnostic.CA1032.severity = none
+
+# IDE0160: Convert to block scoped namespace
+dotnet_diagnostic.IDE0160.severity = none
+
+# IDE0058: Expression value is never used
+dotnet_diagnostic.IDE0058.severity = none
+
+# IDE0008: Use explicit type
+dotnet_diagnostic.IDE0008.severity = none
+
+# IDE0040: Add accessibility modifiers
+dotnet_diagnostic.IDE0040.severity = none
+
+# IDE0011: Add braces
+dotnet_diagnostic.IDE0011.severity = none
+
+# IDE0022: Use block body for method
+dotnet_diagnostic.IDE0022.severity = none
+
+# IDE0036: Order modifiers
+dotnet_diagnostic.IDE0036.severity = none
+
+# CA1720: Identifier contains type name (e.g., Guid Guid, Type Type)
+dotnet_diagnostic.CA1720.severity = none
+
+# IDE0130: Namespace does not match folder structure - our layout uses
+# GrillMaster.* namespaces rooted at the project (src/), not the
+# solution-relative folder path the rule expects.
+dotnet_diagnostic.IDE0130.severity = none
+
+# CA1062: Validate externally visible method parameters - redundant with nullable
+# reference types, which already model and enforce non-nullability.
+dotnet_diagnostic.CA1062.severity = none
+
+# CA1814: Replace multidimensional arrays with jagged arrays - immaterial for the small fixed
+# 30x20 occupancy grids, and the multidimensional form reads more clearly as a 2D grid.
+dotnet_diagnostic.CA1814.severity = none
+
+# CA1859: Use concrete types where possible - a micro-optimisation that would force callers to
+# pass concrete List<T> instead of the more expressive IReadOnlyList<T>.
+dotnet_diagnostic.CA1859.severity = none
+
+# CA1002: Do not expose generic list types - inappropriate for System.Text.Json DTOs, where a
+# mutable List<T> is the natural deserialisation target.
+dotnet_diagnostic.CA1002.severity = none
+
+# CA2227: Property should not be settable - JSON DTOs require settable properties to deserialise.
+dotnet_diagnostic.CA2227.severity = none
+
+# CA1849: Synchronously blocking calls - synchronous Console/TextWriter output is idiomatic for a
+# command-line tool that prints a report and exits.
+dotnet_diagnostic.CA1849.severity = none
+
+# CA1310/CA1307/CA1305/CA1847: culture-aware string operations - explicit StringComparison /
+# IFormatProvider are already applied in the meaningful spots (parsing, assertions); the remaining
+# matches are case-insensitive display text where the locale-variant overload adds noise.
+dotnet_diagnostic.CA1310.severity = none
+dotnet_diagnostic.CA1307.severity = none
+dotnet_diagnostic.CA1305.severity = none
+dotnet_diagnostic.CA1847.severity = none
+
+# IDE0305/IDE0300: Prefer collection expressions over .ToList() / new[] - the existing .ToList()
+# and array initialisers are explicit and readable; collection expressions are not required here.
+dotnet_diagnostic.IDE0305.severity = none
+dotnet_diagnostic.IDE0300.severity = none
+
+# IDE0032: Use auto properties - the readonly backing fields are used directly throughout the class
+# (not just to back a property), so auto properties would not be clearer.
+dotnet_diagnostic.IDE0032.severity = none
+
+# IDE0005/IDE0090: unnecessary using / new-expression simplifications - cosmetic; kept as-is for
+# clarity and to match the surrounding style.
+dotnet_diagnostic.IDE0005.severity = none
+dotnet_diagnostic.IDE0090.severity = none

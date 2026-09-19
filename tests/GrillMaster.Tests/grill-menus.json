@@ -1,0 +1,564 @@
+[
+  {
+    "Id": "99a08d4b-8e20-4811-beee-1b56ac545f90",
+    "menu": "Menu 04",
+    "items": [
+      {
+        "Id": "90ed4d57-7921-4c66-b208-4e312a9852e6",
+        "Name": "Paprika Sausage",
+        "Length": 6,
+        "Width": 3,
+        "Duration": "00:08:00",
+        "Quantity": 40
+      },
+      {
+        "Id": "47614f4d-2621-40de-8be7-e35abed8ed44",
+        "Name": "Veal",
+        "Length": 8,
+        "Width": 4,
+        "Duration": "00:08:00",
+        "Quantity": 10
+      }
+    ]
+  },
+  {
+    "Id": "0b93c91f-7315-47dd-a1ad-1df4876752f7",
+    "menu": "Menu 11",
+    "items": [
+      {
+        "Id": "5e600aad-5bcf-4739-8272-0bf14f9cc8f1",
+        "Name": "Rumpsteak",
+        "Length": 15,
+        "Width": 7,
+        "Duration": "00:08:00",
+        "Quantity": 2
+      },
+      {
+        "Id": "90ed4d57-7921-4c66-b208-4e312a9852e6",
+        "Name": "Paprika Sausage",
+        "Length": 6,
+        "Width": 3,
+        "Duration": "00:08:00",
+        "Quantity": 5
+      },
+      {
+        "Id": "7573428d-7375-4801-bef3-fe4d0d6bc3b9",
+        "Name": "Chipolata Sausage",
+        "Length": 5,
+        "Width": 2,
+        "Duration": "00:08:00",
+        "Quantity": 4
+      },
+      {
+        "Id": "cb14206e-495f-4e41-b78e-d4c074b07f1e",
+        "Name": "Steak",
+        "Length": 10,
+        "Width": 5,
+        "Duration": "00:08:00",
+        "Quantity": 2
+      }
+    ]
+  },
+  {
+    "Id": "3fbc6694-3a5a-4e70-853e-3b7a67d0ab42",
+    "menu": "Menu 03",
+    "items": [
+      {
+        "Id": "7573428d-7375-4801-bef3-fe4d0d6bc3b9",
+        "Name": "Chipolata Sausage",
+        "Length": 5,
+        "Width": 2,
+        "Duration": "00:08:00",
+        "Quantity": 12
+      },
+      {
+        "Id": "90ed4d57-7921-4c66-b208-4e312a9852e6",
+        "Name": "Paprika Sausage",
+        "Length": 6,
+        "Width": 3,
+        "Duration": "00:08:00",
+        "Quantity": 12
+      },
+      {
+        "Id": "1f399e24-7c20-4f18-afb5-3a748cc79ce0",
+        "Name": "Chicken",
+        "Length": 12,
+        "Width": 5,
+        "Duration": "00:08:00",
+        "Quantity": 12
+      },
+      {
+        "Id": "cb14206e-495f-4e41-b78e-d4c074b07f1e",
+        "Name": "Steak",
+        "Length": 10,
+        "Width": 5,
+        "Duration": "00:08:00",
+        "Quantity": 12
+      }
+    ]
+  },
+  {
+    "Id": "3d88e518-0779-47b5-b395-492ce2a090ee",
+    "menu": "Menu 13",
+    "items": [
+      {
+        "Id": "2513c0e6-a8ec-412c-b8b7-b9b8695f3290",
+        "Name": "Shrimp",
+        "Length": 5,
+        "Width": 3,
+        "Duration": "00:08:00",
+        "Quantity": 20
+      },
+      {
+        "Id": "1f399e24-7c20-4f18-afb5-3a748cc79ce0",
+        "Name": "Chicken",
+        "Length": 12,
+        "Width": 5,
+        "Duration": "00:08:00",
+        "Quantity": 10
+      }
+    ]
+  },
+  {
+    "Id": "4ab5975d-725f-423f-8cae-56c0dfc24efd",
+    "menu": "Menu 06",
+    "items": [
+      {
+        "Id": "1f399e24-7c20-4f18-afb5-3a748cc79ce0",
+        "Name": "Chicken",
+        "Length": 12,
+        "Width": 5,
+        "Duration": "00:08:00",
+        "Quantity": 8
+      },
+      {
+        "Id": "90ab8ec4-edf0-427c-a372-43f29dba5684",
+        "Name": "Sausage",
+        "Length": 22,
+        "Width": 5,
+        "Duration": "00:08:00",
+        "Quantity": 3
+      },
+      {
+        "Id": "2513c0e6-a8ec-412c-b8b7-b9b8695f3290",
+        "Name": "Shrimp",
+        "Length": 5,
+        "Width": 3,
+        "Duration": "00:08:00",
+        "Quantity": 10
+      },
+      {
+        "Id": "90ed4d57-7921-4c66-b208-4e312a9852e6",
+        "Name": "Paprika Sausage",
+        "Length": 6,
+        "Width": 3,
+        "Duration": "00:08:00",
+        "Quantity": 4
+      },
+      {
+        "Id": "5e600aad-5bcf-4739-8272-0bf14f9cc8f1",
+        "Name": "Rumpsteak",
+        "Length": 15,
+        "Width": 7,
+        "Duration": "00:08:00",
+        "Quantity": 3
+      },
+      {
+        "Id": "cb14206e-495f-4e41-b78e-d4c074b07f1e",
+        "Name": "Steak",
+        "Length": 10,
+        "Width": 5,
+        "Duration": "00:08:00",
+        "Quantity": 5
+      }
+    ]
+  },
+  {
+    "Id": "e4628a73-7cbc-4a75-b3c7-7630e02980cb",
+    "menu": "Menu 10",
+    "items": [
+      {
+        "Id": "5e600aad-5bcf-4739-8272-0bf14f9cc8f1",
+        "Name": "Rumpsteak",
+        "Length": 15,
+        "Width": 7,
+        "Duration": "00:08:00",
+        "Quantity": 4
+      },
+      {
+        "Id": "1f399e24-7c20-4f18-afb5-3a748cc79ce0",
+        "Name": "Chicken",
+        "Length": 12,
+        "Width": 5,
+        "Duration": "00:08:00",
+        "Quantity": 3
+      },
+      {
+        "Id": "cb14206e-495f-4e41-b78e-d4c074b07f1e",
+        "Name": "Steak",
+        "Length": 10,
+        "Width": 5,
+        "Duration": "00:08:00",
+        "Quantity": 3
+      },
+      {
+        "Id": "90ab8ec4-edf0-427c-a372-43f29dba5684",
+        "Name": "Sausage",
+        "Length": 22,
+        "Width": 5,
+        "Duration": "00:08:00",
+        "Quantity": 2
+      },
+      {
+        "Id": "47614f4d-2621-40de-8be7-e35abed8ed44",
+        "Name": "Veal",
+        "Length": 8,
+        "Width": 4,
+        "Duration": "00:08:00",
+        "Quantity": 10
+      }
+    ]
+  },
+  {
+    "Id": "98c64685-c47a-4dd0-a978-78f3d90b1ce9",
+    "menu": "Menu 05",
+    "items": [
+      {
+        "Id": "7573428d-7375-4801-bef3-fe4d0d6bc3b9",
+        "Name": "Chipolata Sausage",
+        "Length": 5,
+        "Width": 2,
+        "Duration": "00:08:00",
+        "Quantity": 8
+      },
+      {
+        "Id": "47614f4d-2621-40de-8be7-e35abed8ed44",
+        "Name": "Veal",
+        "Length": 8,
+        "Width": 4,
+        "Duration": "00:08:00",
+        "Quantity": 5
+      },
+      {
+        "Id": "2513c0e6-a8ec-412c-b8b7-b9b8695f3290",
+        "Name": "Shrimp",
+        "Length": 5,
+        "Width": 3,
+        "Duration": "00:08:00",
+        "Quantity": 10
+      },
+      {
+        "Id": "cb14206e-495f-4e41-b78e-d4c074b07f1e",
+        "Name": "Steak",
+        "Length": 10,
+        "Width": 5,
+        "Duration": "00:08:00",
+        "Quantity": 20
+      }
+    ]
+  },
+  {
+    "Id": "ff692bb8-f124-4ea6-96ef-7dc0cd3445b3",
+    "menu": "Menu 07",
+    "items": [
+      {
+        "Id": "5e600aad-5bcf-4739-8272-0bf14f9cc8f1",
+        "Name": "Rumpsteak",
+        "Length": 15,
+        "Width": 7,
+        "Duration": "00:08:00",
+        "Quantity": 5
+      },
+      {
+        "Id": "1f399e24-7c20-4f18-afb5-3a748cc79ce0",
+        "Name": "Chicken",
+        "Length": 12,
+        "Width": 5,
+        "Duration": "00:08:00",
+        "Quantity": 3
+      },
+      {
+        "Id": "7573428d-7375-4801-bef3-fe4d0d6bc3b9",
+        "Name": "Chipolata Sausage",
+        "Length": 5,
+        "Width": 2,
+        "Duration": "00:08:00",
+        "Quantity": 4
+      },
+      {
+        "Id": "cb14206e-495f-4e41-b78e-d4c074b07f1e",
+        "Name": "Steak",
+        "Length": 10,
+        "Width": 5,
+        "Duration": "00:08:00",
+        "Quantity": 8
+      }
+    ]
+  },
+  {
+    "Id": "8557a3d6-2ce0-4116-b21b-a4c74dc02ecd",
+    "menu": "Menu 01",
+    "items": [
+      {
+        "Id": "5e600aad-5bcf-4739-8272-0bf14f9cc8f1",
+        "Name": "Rumpsteak",
+        "Length": 15,
+        "Width": 7,
+        "Duration": "00:08:00",
+        "Quantity": 1
+      },
+      {
+        "Id": "7573428d-7375-4801-bef3-fe4d0d6bc3b9",
+        "Name": "Chipolata Sausage",
+        "Length": 5,
+        "Width": 2,
+        "Duration": "00:08:00",
+        "Quantity": 10
+      },
+      {
+        "Id": "47614f4d-2621-40de-8be7-e35abed8ed44",
+        "Name": "Veal",
+        "Length": 8,
+        "Width": 4,
+        "Duration": "00:08:00",
+        "Quantity": 1
+      },
+      {
+        "Id": "1f399e24-7c20-4f18-afb5-3a748cc79ce0",
+        "Name": "Chicken",
+        "Length": 12,
+        "Width": 5,
+        "Duration": "00:08:00",
+        "Quantity": 2
+      },
+      {
+        "Id": "2513c0e6-a8ec-412c-b8b7-b9b8695f3290",
+        "Name": "Shrimp",
+        "Length": 5,
+        "Width": 3,
+        "Duration": "00:08:00",
+        "Quantity": 2
+      },
+      {
+        "Id": "90ab8ec4-edf0-427c-a372-43f29dba5684",
+        "Name": "Sausage",
+        "Length": 22,
+        "Width": 5,
+        "Duration": "00:08:00",
+        "Quantity": 10
+      },
+      {
+        "Id": "90ed4d57-7921-4c66-b208-4e312a9852e6",
+        "Name": "Paprika Sausage",
+        "Length": 6,
+        "Width": 3,
+        "Duration": "00:08:00",
+        "Quantity": 3
+      },
+      {
+        "Id": "cb14206e-495f-4e41-b78e-d4c074b07f1e",
+        "Name": "Steak",
+        "Length": 10,
+        "Width": 5,
+        "Duration": "00:08:00",
+        "Quantity": 5
+      }
+    ]
+  },
+  {
+    "Id": "ae7296dc-52d7-48e1-8644-bffc1ccb8fcb",
+    "menu": "Menu 14",
+    "items": [
+      {
+        "Id": "1f399e24-7c20-4f18-afb5-3a748cc79ce0",
+        "Name": "Chicken",
+        "Length": 12,
+        "Width": 5,
+        "Duration": "00:08:00",
+        "Quantity": 8
+      },
+      {
+        "Id": "90ab8ec4-edf0-427c-a372-43f29dba5684",
+        "Name": "Sausage",
+        "Length": 22,
+        "Width": 5,
+        "Duration": "00:08:00",
+        "Quantity": 3
+      },
+      {
+        "Id": "5e600aad-5bcf-4739-8272-0bf14f9cc8f1",
+        "Name": "Rumpsteak",
+        "Length": 15,
+        "Width": 7,
+        "Duration": "00:08:00",
+        "Quantity": 3
+      },
+      {
+        "Id": "7573428d-7375-4801-bef3-fe4d0d6bc3b9",
+        "Name": "Chipolata Sausage",
+        "Length": 5,
+        "Width": 2,
+        "Duration": "00:08:00",
+        "Quantity": 8
+      }
+    ]
+  },
+  {
+    "Id": "f098eb7a-cf76-4584-b791-c7e9d93386fd",
+    "menu": "Menu 02",
+    "items": [
+      {
+        "Id": "cb14206e-495f-4e41-b78e-d4c074b07f1e",
+        "Name": "Steak",
+        "Length": 10,
+        "Width": 5,
+        "Duration": "00:08:00",
+        "Quantity": 12
+      },
+      {
+        "Id": "7573428d-7375-4801-bef3-fe4d0d6bc3b9",
+        "Name": "Chipolata Sausage",
+        "Length": 5,
+        "Width": 2,
+        "Duration": "00:08:00",
+        "Quantity": 10
+      }
+    ]
+  },
+  {
+    "Id": "4d768529-e17d-4a78-9a1b-c82d6bb3f77f",
+    "menu": "Menu 15",
+    "items": [
+      {
+        "Id": "7573428d-7375-4801-bef3-fe4d0d6bc3b9",
+        "Name": "Chipolata Sausage",
+        "Length": 5,
+        "Width": 2,
+        "Duration": "00:08:00",
+        "Quantity": 8
+      },
+      {
+        "Id": "cb14206e-495f-4e41-b78e-d4c074b07f1e",
+        "Name": "Steak",
+        "Length": 10,
+        "Width": 5,
+        "Duration": "00:08:00",
+        "Quantity": 10
+      },
+      {
+        "Id": "47614f4d-2621-40de-8be7-e35abed8ed44",
+        "Name": "Veal",
+        "Length": 8,
+        "Width": 4,
+        "Duration": "00:08:00",
+        "Quantity": 8
+      },
+      {
+        "Id": "2513c0e6-a8ec-412c-b8b7-b9b8695f3290",
+        "Name": "Shrimp",
+        "Length": 5,
+        "Width": 3,
+        "Duration": "00:08:00",
+        "Quantity": 10
+      }
+    ]
+  },
+  {
+    "Id": "1eeab085-e89e-4029-bac3-e49e2e2dd5e9",
+    "menu": "Menu 09",
+    "items": [
+      {
+        "Id": "90ab8ec4-edf0-427c-a372-43f29dba5684",
+        "Name": "Sausage",
+        "Length": 22,
+        "Width": 5,
+        "Duration": "00:08:00",
+        "Quantity": 3
+      },
+      {
+        "Id": "5e600aad-5bcf-4739-8272-0bf14f9cc8f1",
+        "Name": "Rumpsteak",
+        "Length": 15,
+        "Width": 7,
+        "Duration": "00:08:00",
+        "Quantity": 5
+      },
+      {
+        "Id": "90ed4d57-7921-4c66-b208-4e312a9852e6",
+        "Name": "Paprika Sausage",
+        "Length": 6,
+        "Width": 3,
+        "Duration": "00:08:00",
+        "Quantity": 4
+      },
+      {
+        "Id": "1f399e24-7c20-4f18-afb5-3a748cc79ce0",
+        "Name": "Chicken",
+        "Length": 12,
+        "Width": 5,
+        "Duration": "00:08:00",
+        "Quantity": 7
+      }
+    ]
+  },
+  {
+    "Id": "fef10dc4-58d8-49c6-a326-eaed406a125f",
+    "menu": "Menu 12",
+    "items": [
+      {
+        "Id": "90ab8ec4-edf0-427c-a372-43f29dba5684",
+        "Name": "Sausage",
+        "Length": 22,
+        "Width": 5,
+        "Duration": "00:08:00",
+        "Quantity": 6
+      },
+      {
+        "Id": "1f399e24-7c20-4f18-afb5-3a748cc79ce0",
+        "Name": "Chicken",
+        "Length": 12,
+        "Width": 5,
+        "Duration": "00:08:00",
+        "Quantity": 2
+      },
+      {
+        "Id": "2513c0e6-a8ec-412c-b8b7-b9b8695f3290",
+        "Name": "Shrimp",
+        "Length": 5,
+        "Width": 3,
+        "Duration": "00:08:00",
+        "Quantity": 4
+      },
+      {
+        "Id": "90ed4d57-7921-4c66-b208-4e312a9852e6",
+        "Name": "Paprika Sausage",
+        "Length": 6,
+        "Width": 3,
+        "Duration": "00:08:00",
+        "Quantity": 10
+      }
+    ]
+  },
+  {
+    "Id": "30ef4eb2-bf5c-4679-b7fa-f90735ee97b0",
+    "menu": "Menu 08",
+    "items": [
+      {
+        "Id": "5e600aad-5bcf-4739-8272-0bf14f9cc8f1",
+        "Name": "Rumpsteak",
+        "Length": 15,
+        "Width": 7,
+        "Duration": "00:08:00",
+        "Quantity": 10
+      },
+      {
+        "Id": "cb14206e-495f-4e41-b78e-d4c074b07f1e",
+        "Name": "Steak",
+        "Length": 10,
+        "Width": 5,
+        "Duration": "00:08:00",
+        "Quantity": 8
+      }
+    ]
+  }
+]
