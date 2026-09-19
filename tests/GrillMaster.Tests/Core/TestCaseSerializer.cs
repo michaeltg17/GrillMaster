@@ -11,9 +11,9 @@ namespace Core.Testing.Serializers
     {
         static readonly ConcurrentDictionary<string, Type> TypeCache = new();
 
-        public bool IsSerializable(Type type, object? value, [NotNullWhen(false)] out string? reason)
+        public bool IsSerializable(Type type, object? value, [NotNullWhen(false)] out string? failureReason)
         {
-            reason = null;
+            failureReason = null;
             return true;
         }
 
@@ -39,27 +39,27 @@ namespace Core.Testing.Serializers
             return JsonSerializer.Serialize(entries);
         }
 
-        public object Deserialize(Type type, string data)
+        public object Deserialize(Type type, string serializedValue)
         {
             var fields = type.GetFields(BindingFlags.Public | BindingFlags.Instance)
                 .Where(f => !f.IsLiteral).ToArray();
             var properties = type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
                 .Where(p => p.CanWrite).ToArray();
-            var elements = JsonSerializer.Deserialize<JsonElement>(data).EnumerateArray().ToList();
+            var elements = JsonSerializer.Deserialize<JsonElement>(serializedValue).EnumerateArray().ToList();
             var instance = CreateInstance(type);
 
             int idx = 0;
             foreach (var field in fields)
             {
                 var entry = ToDictionary(elements[idx]);
-                field.SetValue(instance, FromJsonEntry(field.FieldType, entry));
+                field.SetValue(instance, FromJsonEntry(entry));
                 idx++;
             }
 
             foreach (var prop in properties)
             {
                 var entry = ToDictionary(elements[idx]);
-                prop.SetValue(instance, FromJsonEntry(prop.PropertyType, entry));
+                prop.SetValue(instance, FromJsonEntry(entry));
                 idx++;
             }
 
@@ -117,7 +117,7 @@ namespace Core.Testing.Serializers
             return dict;
         }
 
-        static object? FromJsonEntry(Type _target, Dictionary<string, string?> entry)
+        static object? FromJsonEntry(Dictionary<string, string?> entry)
         {
             var typeTag = entry["t"]!;
 

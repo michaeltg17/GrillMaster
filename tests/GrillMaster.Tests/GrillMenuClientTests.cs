@@ -1,38 +1,34 @@
 using System.Net;
 using GrillMaster.Api;
 using GrillMaster.Domain;
-using WireMock;
-using WireMock.RequestBuilders;
-using WireMock.ResponseBuilders;
-using WireMock.Server;
+using GrillMaster.Tests.Infra;
 using Xunit;
 
 namespace GrillMaster.Tests;
 
 public sealed class GrillMenuClientTests : IDisposable
 {
-    private readonly WireMockServer _server;
+    private readonly GrillMenuApiMock _api;
     private readonly HttpClient _http;
     private readonly GrillMenuClient _client;
 
     public GrillMenuClientTests()
     {
-        _server = WireMockServer.Start();
-        _http = new HttpClient { BaseAddress = new Uri(_server.Url!) };
+        _api = new GrillMenuApiMock();
+        _http = new HttpClient { BaseAddress = _api.Url };
         _client = new GrillMenuClient(_http);
     }
 
     public void Dispose()
     {
         _http.Dispose();
-        _server.Dispose();
+        _api.Dispose();
     }
 
     [Fact]
     public async Task GetMenusAsync_ParsesMenusItemsAndQuantities()
     {
-        _server.Given(Request.Create().UsingGet().WithPath("/api/GrillMenu"))
-            .RespondWith(Response.Create().WithBody(TestData.GrillMenusJson).WithHeader("Content-Type", "application/json"));
+        _api.RespondWithMenus();
 
         var menus = await _client.GetMenusAsync(TestContext.Current.CancellationToken);
 
@@ -60,20 +56,17 @@ public sealed class GrillMenuClientTests : IDisposable
     [Fact]
     public async Task GetMenusAsync_RequestsTheGrillMenuEndpoint()
     {
-        _server.Given(Request.Create().UsingGet().WithPath("/api/GrillMenu"))
-            .RespondWith(Response.Create().WithBody(TestData.GrillMenusJson).WithHeader("Content-Type", "application/json"));
+        _api.RespondWithMenus();
 
         await _client.GetMenusAsync(TestContext.Current.CancellationToken);
 
-        var logs = _server.LogEntries;
-        Assert.Contains(logs, l => l.RequestMessage?.Url?.EndsWith("/api/GrillMenu", StringComparison.Ordinal) == true);
+        _api.AssertGetRequestMade();
     }
 
     [Fact]
     public async Task GetMenusAsync_ThrowsApiErrorWhenStatusIsNot200()
     {
-        _server.Given(Request.Create().UsingGet().WithPath("/api/GrillMenu"))
-            .RespondWith(Response.Create().WithStatusCode(500).WithBody("boom"));
+        _api.RespondWithMenus(body: "boom", statusCode: 500);
 
         var ex = await Assert.ThrowsAsync<ApiErrorException>(
             () => _client.GetMenusAsync(TestContext.Current.CancellationToken));
@@ -83,8 +76,7 @@ public sealed class GrillMenuClientTests : IDisposable
     [Fact]
     public async Task GetMenusAsync_ThrowsMalformedWhenBodyIsNotJson()
     {
-        _server.Given(Request.Create().UsingGet().WithPath("/api/GrillMenu"))
-            .RespondWith(Response.Create().WithStatusCode(200).WithBody("this is not json").WithHeader("Content-Type", "application/json"));
+        _api.RespondWithMenus(body: "this is not json");
 
         await Assert.ThrowsAsync<MalformedApiResponseException>(
             () => _client.GetMenusAsync(TestContext.Current.CancellationToken));
@@ -93,8 +85,7 @@ public sealed class GrillMenuClientTests : IDisposable
     [Fact]
     public async Task GetMenusAsync_ReturnsEmptyListWhenArrayIsEmpty()
     {
-        _server.Given(Request.Create().UsingGet().WithPath("/api/GrillMenu"))
-            .RespondWith(Response.Create().WithStatusCode(200).WithBody("[]").WithHeader("Content-Type", "application/json"));
+        _api.RespondWithMenus(body: "[]");
 
         var menus = await _client.GetMenusAsync(TestContext.Current.CancellationToken);
 

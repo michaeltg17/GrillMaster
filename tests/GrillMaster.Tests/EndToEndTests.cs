@@ -3,10 +3,7 @@ using GrillMaster;
 using GrillMaster.Api;
 using GrillMaster.Output;
 using GrillMaster.Packing;
-using WireMock;
-using WireMock.RequestBuilders;
-using WireMock.ResponseBuilders;
-using WireMock.Server;
+using GrillMaster.Tests.Infra;
 using Xunit;
 
 namespace GrillMaster.Tests;
@@ -18,16 +15,16 @@ namespace GrillMaster.Tests;
 /// </summary>
 public sealed class EndToEndTests : IDisposable
 {
-    private readonly WireMockServer _server;
+    private readonly GrillMenuApiMock _api;
 
     public EndToEndTests()
     {
-        _server = WireMockServer.Start();
+        _api = new GrillMenuApiMock();
     }
 
     public void Dispose()
     {
-        _server.Dispose();
+        _api.Dispose();
     }
 
     [Theory]
@@ -36,10 +33,9 @@ public sealed class EndToEndTests : IDisposable
     [InlineData("optimized")]
     public async Task Pipeline_PrintsPerMenuRoundsAndTotal(string strategyName)
     {
-        _server.Given(Request.Create().UsingGet().WithPath("/api/GrillMenu"))
-            .RespondWith(Response.Create().WithBody(TestData.GrillMenusJson).WithHeader("Content-Type", "application/json"));
+        _api.RespondWithMenus();
 
-        using var httpClient = new HttpClient { BaseAddress = new Uri(_server.Url!) };
+        using var httpClient = new HttpClient { BaseAddress = _api.Url };
         var client = new GrillMenuClient(httpClient);
         var strategy = PackStrategyFactory.Create(strategyName);
         var writer = new StringWriter();
@@ -69,10 +65,9 @@ public sealed class EndToEndTests : IDisposable
     [Fact]
     public async Task Pipeline_VerboseIncludesRoundBreakdown()
     {
-        _server.Given(Request.Create().UsingGet().WithPath("/api/GrillMenu"))
-            .RespondWith(Response.Create().WithBody(TestData.GrillMenusJson).WithHeader("Content-Type", "application/json"));
+        _api.RespondWithMenus();
 
-        using var httpClient = new HttpClient { BaseAddress = new Uri(_server.Url!) };
+        using var httpClient = new HttpClient { BaseAddress = _api.Url };
         var client = new GrillMenuClient(httpClient);
         var writer = new StringWriter();
         var orchestrator = new GrillOrchestrator(client, new GreedyShelfStrategy(), new ReportPrinter(writer), verbose: true);
@@ -87,10 +82,9 @@ public sealed class EndToEndTests : IDisposable
     [Fact]
     public async Task Pipeline_PrintsNoMenusWhenApiReturnsEmpty()
     {
-        _server.Given(Request.Create().UsingGet().WithPath("/api/GrillMenu"))
-            .RespondWith(Response.Create().WithStatusCode(200).WithBody("[]").WithHeader("Content-Type", "application/json"));
+        _api.RespondWithMenus(body: "[]");
 
-        using var httpClient = new HttpClient { BaseAddress = new Uri(_server.Url!) };
+        using var httpClient = new HttpClient { BaseAddress = _api.Url };
         var client = new GrillMenuClient(httpClient);
         var writer = new StringWriter();
         var orchestrator = new GrillOrchestrator(client, new GreedyShelfStrategy(), new ReportPrinter(writer), verbose: false);
