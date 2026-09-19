@@ -44,7 +44,7 @@ dotnet_diagnostic.IDE0036.severity = none
 dotnet_diagnostic.CA1720.severity = none
 
 # IDE0130: Namespace does not match folder structure - our layout uses
-# GrillMaster.* namespaces rooted at the project (src/GrillMaster), not the
+# GrillMaster.* namespaces rooted at the project (src/), not the
 # solution-relative folder path the rule expects.
 dotnet_diagnostic.IDE0130.severity = none
 

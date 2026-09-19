@@ -36,13 +36,13 @@ GrillOrchestrator ──► IGrillMenuClient ──► REST API  (GET /api/Grill
    ReportPrinter ──► console (one "<menu>: N rounds" line + "Total: N rounds")
 ```
 
-- **Domain** (`src/GrillMaster/Domain`) — pure, dependency‑free models: `GrillSize`,
+- **Domain** (`src/Domain`) — pure, dependency‑free models: `GrillSize`,
   `GrillPiece`, `GrillMenuItem`, `GrillMenu`, `Placement`, `Round`, `PackResult`.
-- **Api** (`src/GrillMaster/Api`) — `IGrillMenuClient` / `GrillMenuClient` (an `HttpClient`
+- **Api** (`src/Api`) — `IGrillMenuClient` / `GrillMenuClient` (an `HttpClient`
   whose base address comes from configuration) plus wire DTOs.
-- **Packing** (`src/GrillMaster/Packing`) — `IPackStrategy` and the three strategies, sharing a
+- **Packing** (`src/Packing`) — `IPackStrategy` and the three strategies, sharing a
   `RoundOccupancy` grid and skyline position search.
-- **Output** (`src/GrillMaster/Output`) — `ReportPrinter` (writes to any `TextWriter`).
+- **Output** (`src/Output`) — `ReportPrinter` (writes to any `TextWriter`).
 
 Pieces may be **rotated 90°** (both `L×W` and `W×L` are tried). Placement is **axis‑aligned and
 non‑overlapping** (see [Known limitations](#known-limitations)).
@@ -56,7 +56,7 @@ Requires the **.NET 10 SDK**.
 dotnet build GrillMaster.slnx
 
 # run (default strategy: greedy)
-dotnet run --project src/GrillMaster -- greedy
+dotnet run --project src -- greedy
 ```
 
 ### Command line
@@ -155,7 +155,7 @@ Coverage includes:
 ## Project structure
 
 ```
-src/GrillMaster/
+src/
   Program.cs                      CLI parsing + host/DI wiring
   appsettings.json                default API base URL, strategy, verbose flag
   DependencyInjection.cs          AddGrillMaster(...)
@@ -171,8 +171,8 @@ tests/GrillMaster.Tests/
   GrillMenuClientTests.cs         WireMock-based client tests
   PackingInvariantsTests.cs       validity invariants for all strategies
   PackingOptimalityTests.cs       relative quality / known optima
-   EndToEndTests.cs                full pipeline via WireMock
-   grill-menus.json                fixture payload (the live API's 15-menu response)
+  EndToEndTests.cs                full pipeline via WireMock
+  grill-menus.json                fixture payload (the live API's 15-menu response)
 ```
 
 ## Known limitations
