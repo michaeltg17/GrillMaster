@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/Solution Items/">
+    <File Path=".gitattributes" />
+    <File Path=".gitignore" />
+    <File Path="opencode.json" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/GrillMaster.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/GrillMaster.Tests/GrillMaster.Tests.csproj" Id="0e70c7a8-e98b-4204-bbbf-c272b33158f4" />
+  </Folder>
+</Solution>
