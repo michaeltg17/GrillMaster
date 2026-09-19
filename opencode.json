@@ -2,9 +2,12 @@
   "$schema": "https://opencode.ai/config.json",
   "mcp": {
     "searxng": {
-     "enabled": true
+      "enabled": true
     },
     "github": {
+      "enabled": true
+    },
+    "citra": {
       "enabled": true
     }
   }
