@@ -1,5 +1,6 @@
 using GrillMaster.Application.Features.Menus;
 using GrillMaster.Application.Features.Plans;
+using GrillMaster.CrossCutting.Settings;
 using GrillMaster.Domain;
 using Serilog;
 
@@ -14,7 +15,7 @@ public sealed class GrillOrchestrator(
     GrillMenuService menuService,
     IGrillPlanner planner,
     ILogger logger,
-    bool verbose = false)
+    IGrillMasterSettings settings)
 {
     public async Task<int> RunAsync(CancellationToken cancellationToken = default)
     {
@@ -58,7 +59,7 @@ public sealed class GrillOrchestrator(
                 ["menuId"] = menu.Id,
             });
 
-        if (!verbose)
+        if (!settings.Verbose)
         {
             return;
         }

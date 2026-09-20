@@ -1,6 +1,6 @@
-using System.Net;
+using System.Net.Http;
+using System.Text.Json;
 using GrillMaster.Application.Features.Menus;
-using GrillMaster.Application.Features.Menus.Exceptions;
 using GrillMaster.Core.Testing.Infra;
 using Xunit;
 
@@ -64,22 +64,21 @@ public sealed class GrillMenuApiClientTests : IDisposable
     }
 
     [Fact]
-    public async Task GetMenusAsync_ThrowsApiErrorWhenStatusIsNot200()
+    public async Task GetMenusAsync_ThrowsHttpRequestExceptionWhenStatusIsNot200()
     {
         _api.RespondWithMenus(body: "boom", statusCode: 500);
 
-        var ex = await Assert.ThrowsAsync<ApiErrorException>(
-            () => _client.GetMenusAsync(TestContext.Current.CancellationToken));
-        Assert.Equal(HttpStatusCode.InternalServerError, ex.StatusCode);
+        await Assert.ThrowsAsync<HttpRequestException>(
+            async () => await _client.GetMenusAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]
-    public async Task GetMenusAsync_ThrowsMalformedWhenBodyIsNotJson()
+    public async Task GetMenusAsync_ThrowsJsonExceptionWhenBodyIsNotJson()
     {
         _api.RespondWithMenus(body: "this is not json");
 
-        await Assert.ThrowsAsync<MalformedApiResponseException>(
-            () => _client.GetMenusAsync(TestContext.Current.CancellationToken));
+        await Assert.ThrowsAsync<JsonException>(
+            async () => await _client.GetMenusAsync(TestContext.Current.CancellationToken));
     }
 
     [Fact]

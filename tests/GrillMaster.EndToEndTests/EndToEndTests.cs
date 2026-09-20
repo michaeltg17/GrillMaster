@@ -1,19 +1,18 @@
-using GrillMaster.Application;
-using GrillMaster.Application.Features.Menus;
-using GrillMaster.Application.Features.Plans;
-using GrillMaster.Application.Features.Plans.Planners;
+using GrillMaster;
 using GrillMaster.Core.Testing;
 using GrillMaster.Core.Testing.Infra;
+using GrillMaster.EndToEndTests.Fixtures;
+using Microsoft.Extensions.DependencyInjection;
 using Serilog.Events;
-using Serilog.Sinks.InMemory;
 using Serilog.Sinks.InMemory.Assertions;
 using Xunit;
 
 namespace GrillMaster.EndToEndTests;
 
 /// <summary>
-/// Runs the full pipeline (WireMock API -> client -> grilling -> logging) end to end and asserts on
-/// the logged events: one "{MenuName}: {RoundCount} rounds" event per menu (in name order) plus a
+/// Runs the full pipeline (WireMock API -> client -> grilling -> logging) end to end through a
+/// hosted application (the same host as <c>Program</c>) and asserts on the logged events: one
+/// "{MenuName}: {RoundCount} rounds" event per menu (in name order) plus a
 /// "Total: {TotalRounds} rounds" event equal to the sum of the per-menu rounds.
 /// </summary>
 public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
@@ -38,19 +37,14 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
     {
         _api.RespondWithMenus();
 
-        await using var scope = new LoggerScope(output);
-        using var httpClient = new HttpClient { BaseAddress = _api.Url };
-        var client = new GrillMenuApiClient(httpClient);
-        var service = new GrillMenuService(client);
-        var planner = GrillPlannerFactory.Create(plannerName);
-        var orchestrator = new GrillOrchestrator(service, planner, scope.Logger, verbose: false);
-
-        var exitCode = await orchestrator.RunAsync(TestContext.Current.CancellationToken);
+        using var app = GrillMasterFactory.Create(plannerName, _api.Url, verbose: false, output);
+        var exitCode = await app.Services.GetRequiredService<GrillCommandHandler>()
+            .RunAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(0, exitCode);
 
         // One menu message per menu (15 menus in the live dataset), all at Information level.
-        scope.InMemorySink
+        app.Sink
             .Should()
             .HaveMessage(MenuMessageTemplate)
             .Appearing()
@@ -64,7 +58,7 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
             .OrderBy(n => n, StringComparer.Ordinal)
             .ToList();
 
-        var loggedNames = scope.InMemorySink
+        var loggedNames = app.Sink
             .LogEvents
             .Where(e => e.MessageTemplate.Text == MenuMessageTemplate)
             .Select(e => GetScalar<string>(e, "MenuName"))
@@ -73,13 +67,13 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
         Assert.Equal(expectedNames, loggedNames);
 
         // The total is the sum of the per-menu round counts.
-        var perMenuRounds = scope.InMemorySink
+        var perMenuRounds = app.Sink
             .LogEvents
             .Where(e => e.MessageTemplate.Text == MenuMessageTemplate)
             .Select(e => GetScalar<int>(e, "RoundCount"))
             .ToList();
 
-        scope.InMemorySink
+        app.Sink
             .Should()
             .HaveMessage(TotalMessageTemplate)
             .Appearing()
@@ -94,21 +88,18 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
     {
         _api.RespondWithMenus();
 
-        await using var scope = new LoggerScope(output);
-        using var httpClient = new HttpClient { BaseAddress = _api.Url };
-        var client = new GrillMenuApiClient(httpClient);
-        var service = new GrillMenuService(client);
-        var orchestrator = new GrillOrchestrator(service, new GreedyShelfPlanner(), scope.Logger, verbose: true);
+        using var app = GrillMasterFactory.Create("greedy", _api.Url, verbose: true, output);
 
-        await orchestrator.RunAsync(TestContext.Current.CancellationToken);
+        await app.Services.GetRequiredService<GrillCommandHandler>()
+            .RunAsync(TestContext.Current.CancellationToken);
 
         // One round header per round across all menus.
-        var totalRounds = scope.InMemorySink
+        var totalRounds = app.Sink
             .LogEvents
             .Where(e => e.MessageTemplate.Text == MenuMessageTemplate)
             .Sum(e => GetScalar<int>(e, "RoundCount"));
 
-        scope.InMemorySink
+        app.Sink
             .Should()
             .HaveMessage(RoundHeaderTemplate)
             .Appearing()
@@ -121,7 +112,7 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
             .SelectMany(m => m.Items)
             .Sum(i => i.Quantity);
 
-        var pieceLines = scope.InMemorySink
+        var pieceLines = app.Sink
             .LogEvents
             .Where(e => e.MessageTemplate.Text == PieceLineTemplate)
             .ToList();
@@ -135,17 +126,13 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
     {
         _api.RespondWithMenus(body: "[]");
 
-        await using var scope = new LoggerScope(output);
-        using var httpClient = new HttpClient { BaseAddress = _api.Url };
-        var client = new GrillMenuApiClient(httpClient);
-        var service = new GrillMenuService(client);
-        var orchestrator = new GrillOrchestrator(service, new GreedyShelfPlanner(), scope.Logger, verbose: false);
-
-        var exitCode = await orchestrator.RunAsync(TestContext.Current.CancellationToken);
+        using var app = GrillMasterFactory.Create("greedy", _api.Url, verbose: false, output);
+        var exitCode = await app.Services.GetRequiredService<GrillCommandHandler>()
+            .RunAsync(TestContext.Current.CancellationToken);
 
         Assert.Equal(0, exitCode);
 
-        scope.InMemorySink
+        app.Sink
             .Should()
             .HaveMessage("The API returned no menus.")
             .Appearing()

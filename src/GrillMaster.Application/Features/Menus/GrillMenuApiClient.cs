@@ -19,6 +19,9 @@ public sealed class GrillMenuApiClient(HttpClient http)
         var response = await http.GetAsync(MenusEndpoint, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();
         var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        return JsonSerializer.DeserializeAsync<IReadOnlyList<GrillMenuResponse>>(stream, SerializerOptions, cancellationToken);
+        var menus = await JsonSerializer
+            .DeserializeAsync<IReadOnlyList<GrillMenuResponse>>(stream, SerializerOptions, cancellationToken)
+            .ConfigureAwait(false);
+        return menus ?? throw new JsonException("The response body was null; a JSON array of menus was expected.");
     }
 }

@@ -23,28 +23,36 @@ ships three planners with different speed/quality trade‑offs, all behind one i
 ## How it works
 
 ```
-Program.cs (CLI + DI)
+Program.cs (System.CommandLine)
         │
         ▼
-GrillOrchestrator ──► GrillMenuService ──► GrillMenuApiClient ──► REST API  (GET /api/GrillMenu)
+HostBuilder (composition root: configuration + DI)
+        │
+        ▼
+GrillCommandHandler ──► GrillOrchestrator ──► GrillMenuService ──► GrillMenuApiClient ──► REST API  (GET /api/GrillMenu)
         │
         │  for each menu: expand items × quantity into pieces
         ▼
     IGrillPlanner.Plan(pieces, grill)  ──►  GrillPlan (rounds of placements)
         │
         ▼
-   ReportPrinter ──► console (one "<menu>: N rounds" line + "Total: N rounds")
+    Serilog ──► console (one "<menu>: N rounds" line + "Total: N rounds")
 ```
 
+- **CrossCutting** (`src/CrossCutting`) — the `GrillMaster` configuration section bound to
+  `IGrillMasterSettings` (`GrillMenuApiUrl`, `Planner`, `Verbose`) with validation, registered
+  by `DependencyConfigurator.AddCrossCuttingDependencies()`.
 - **Domain** (`src/GrillMaster.Domain`) — pure, dependency‑free models: `GrillSize`,
   `GrillPiece`, `GrillMenuItem`, `GrillMenu`, `GrillPiecePlacement`, `GrillRound`, `GrillPlan`.
 - **Application** (`src/GrillMaster.Application`) — the application layer, organised by feature:
   `Features/Menus` (the grill‑menu `GrillMenuService` and `GrillMenuApiClient`, wire
-  responses, and typed API exceptions) and `Features/Plans` (`IGrillPlanner` and the three
-  planners, sharing a `RoundOccupancy` grid and skyline position search). `GrillOrchestrator`
-  ties the two features together.
-- **Console** (`src/GrillMaster.Console`) — the executable: `Program.cs` (CLI + DI/host wiring)
-  and `appsettings.json`. The API client's `HttpClient` base address comes from configuration.
+  responses) and `Features/Plans` (`IGrillPlanner` and the three planners, sharing a
+  `RoundOccupancy` grid and skyline position search). `GrillOrchestrator` ties the two features
+  together.
+- **Console** (`src/GrillMaster.Console`) — the executable: `Program.cs` (the CLI),
+  `HostBuilder.cs` (the composition root — CLI values are layered onto the configuration, then
+  the whole application graph is built in DI), `GrillCommandHandler.cs` and
+  `appsettings.json`. The API client's `HttpClient` base address comes from configuration.
 
 Pieces may be **rotated 90°** (both `L×W` and `W×L` are tried). Placement is **axis‑aligned and
 non‑overlapping** (see [Known limitations](#known-limitations)).
@@ -83,8 +91,9 @@ The planner can be given as a positional argument (`GrillMaster exact`) or with
 `greedy` (best-fit shelf heuristic, default), `exact` (branch-and-bound, proves the
 optimum), `optimized` (greedy seed + local-search consolidation).
 
-The API base URL is read from `src/appsettings.json` (`Grill:GrillMenuApiUrl`) and can be overridden
-with `--url` or the `GRILL__GRILLMENUAPIURL` environment variable.
+The API base URL (and the default planner / verbose flag) come from the `GrillMaster` section of
+`src/GrillMaster.Console/appsettings.json` and can be overridden from the command line
+(`--url`, `--planner`, `--verbose`) or environment variables (e.g. `GRILLMASTER__GRILLMENUAPIURL`).
 
 ## The three planners
 
@@ -136,8 +145,11 @@ Menu 04: 2 rounds
 
 Tests live in `tests/` and use **WireMock.Net** to stand up a local HTTP server that mimics the
 grill API — no real network calls and no in‑memory HTTP fakes. Shared test infrastructure
-(WireMock mocks, `LoggerScope`, `TestData`, the `grill-menus.json` fixture) lives in
-`tests/GrillMaster.Core.Testing`, a classlib referenced by every test project.
+(WireMock mocks, `TestData`, the `grill-menus.json` fixture) lives in
+`tests/GrillMaster.Core.Testing`, a classlib referenced by every test project. The end‑to‑end
+suite builds the real host (the same `HostBuilder` as the console app) via
+`GrillMasterFactory`, points the API at WireMock, and asserts on a per‑test in‑memory Serilog
+sink.
 
 The suite uses **xUnit v3**, which runs on the Microsoft Testing Platform (MTP) instead of VSTest.
 Each test project is run directly with `dotnet run`:
@@ -155,8 +167,9 @@ dotnet run --project tests/GrillMaster.PerformanceTests
 
 Coverage includes:
 
-- **API client** — parses menus/items/quantities, hits the right endpoint, handles empty menus and
-  error responses.
+- **API client** — parses menus/items/quantities, hits the right endpoint, handles empty menus,
+  and propagates transport errors / non‑2xx responses / malformed bodies as raw
+  `HttpRequestException` / `JsonException` (no try/catch in the request path).
 - **Grilling invariants** (all three planners) — every piece placed exactly once, all pieces
   within the grill, no overlaps, footprints match the piece (rotated or not).
 - **Optimality** — `exact` is never worse than the heuristics; heuristics never beat the area
@@ -168,24 +181,31 @@ Coverage includes:
 
 ```
 src/
+  CrossCutting/                   the GrillMaster configuration section (namespace
+                                   GrillMaster.CrossCutting)
+    DependencyConfigurator.cs     AddCrossCuttingDependencies(): options + validation
+    Settings/                     IGrillMasterSettings, GrillMasterSettings,
+                                   GrillMasterSettingsValidator
   GrillMaster.Domain/             pure models: GrillSize, GrillPiece, GrillMenuItem, GrillMenu,
-                                  GrillPiecePlacement, GrillRound, GrillPlan
+                                   GrillPiecePlacement, GrillRound, GrillPlan
   GrillMaster.Application/        the application layer (namespace GrillMaster.Application)
-    GrillOrchestrator.cs          fetch → plan each menu → print
+    GrillOrchestrator.cs          fetch → plan each menu → log the report
     Features/
       Menus/                      GrillMenuService, GrillMenuApiClient
         Models/                   GrillMenuResponse, GrillMenuItemResponse
-        Exceptions/               typed API exceptions
       Plans/                      IGrillPlanner, RoundOccupancy, GrillPlanHelpers,
-                                  GrillPlannerFactory
+                                   GrillPlannerFactory
         Planners/                 GreedyShelfPlanner, ExactBacktrackingPlanner,
-                                  OptimizedHeuristicPlanner
+                                   OptimizedHeuristicPlanner
   GrillMaster.Console/            the executable
-    Program.cs                    CLI (System.CommandLine) + host/DI wiring
+    Program.cs                    CLI (System.CommandLine)
+    HostBuilder.cs                composition root: configuration + DI
+    GrillCommandHandler.cs        runs the orchestrator
+    GrillCommandOptions.cs        raw CLI values
     appsettings.json              default API base URL, planner, verbose flag
 tests/
   GrillMaster.Core.Testing/       shared test classlib (no tests of its own)
-    Infra/                        WireMock mocks (ApiMock, GrillMenuApiMock) + LoggerScope
+    Infra/                        WireMock mocks (ApiMock, GrillMenuApiMock)
     Core/                         TestCaseSerializer
     TestData.cs                   loads the grill-menus.json fixture
     grill-menus.json              fixture payload (the live API's 15-menu response)
@@ -195,7 +215,8 @@ tests/
   GrillMaster.IntegrationTests/
     GrillMenuApiClientTests.cs    WireMock-based client tests
   GrillMaster.EndToEndTests/
-    EndToEndTests.cs              full pipeline via WireMock
+    Fixtures/GrillMasterFactory.cs  hosts the real app (same HostBuilder) against WireMock
+    EndToEndTests.cs              full pipeline via the hosted app
   GrillMaster.PerformanceTests/
     Performance/                  GrillingBenchmarkTests, PerfBaseline, baseline.json
 ```
