@@ -3,13 +3,8 @@ using GrillMaster.Domain;
 
 namespace GrillMaster.Application.Features.Menus;
 
-/// <summary>
-/// Retrieves grill menus from the <see cref="GrillMenuApiClient"/> and maps the wire-format
-/// responses onto the domain models.
-/// </summary>
 public sealed class GrillMenuService(GrillMenuApiClient client)
 {
-    /// <summary>Fetches all menus. Each item's <see cref="GrillMenuItem.Quantity"/> is preserved.</summary>
     public async Task<IReadOnlyList<GrillMenu>> GetMenusAsync(CancellationToken cancellationToken = default)
     {
         var responses = await client.GetMenusAsync(cancellationToken).ConfigureAwait(false);

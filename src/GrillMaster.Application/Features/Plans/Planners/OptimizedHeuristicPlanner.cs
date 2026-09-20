@@ -1,13 +1,13 @@
 using System.Diagnostics;
 using GrillMaster.Domain;
 
-namespace GrillMaster.Application.Features.Plans.Strategies;
+namespace GrillMaster.Application.Features.Plans.Planners;
 
 /// <summary>
 /// Greedy seed followed by a deterministic local search that consolidates pieces into fewer
 /// rounds.
 /// <para>
-/// It starts from the <see cref="GreedyShelfStrategy"/> result and repeatedly tries to empty the
+/// It starts from the <see cref="GreedyShelfPlanner"/> result and repeatedly tries to empty the
 /// last round by moving its pieces into earlier rounds. A direct move is tried first; when blocked,
 /// a bounded backtracking sub-search decides whether the last round's pieces can be absorbed by the
 /// earlier rounds (allowing the pieces already there to be rearranged). Several piece orderings are
@@ -15,7 +15,7 @@ namespace GrillMaster.Application.Features.Plans.Strategies;
 /// only keep or reduce the round count.
 /// </para>
 /// </summary>
-public sealed class OptimizedHeuristicStrategy : IGrillPlanner
+public sealed class OptimizedHeuristicPlanner : IGrillPlanner
 {
     private const int MaxIterations = 200;
     private const long SubSearchNodeBudget = 200_000;
@@ -57,7 +57,7 @@ public sealed class OptimizedHeuristicStrategy : IGrillPlanner
     // A few deterministic orderings to seed the greedy heuristic from.
     private static IEnumerable<IReadOnlyList<GrillRound>> BuildSeeds(IReadOnlyList<GrillPiece> pieces, GrillSize grill)
     {
-        var greeds = new GreedyShelfStrategy();
+        var greeds = new GreedyShelfPlanner();
 
         // Seed 1: canonical order (largest area first) - the default greedy.
         yield return greeds.Plan(pieces, grill).Rounds;

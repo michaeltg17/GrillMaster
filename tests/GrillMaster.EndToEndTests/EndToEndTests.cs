@@ -1,7 +1,7 @@
 using GrillMaster.Application;
 using GrillMaster.Application.Features.Menus;
 using GrillMaster.Application.Features.Plans;
-using GrillMaster.Application.Features.Plans.Strategies;
+using GrillMaster.Application.Features.Plans.Planners;
 using GrillMaster.Core.Testing;
 using GrillMaster.Core.Testing.Infra;
 using Serilog.Events;
@@ -34,7 +34,7 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
     [InlineData("greedy")]
     [InlineData("exact")]
     [InlineData("optimized")]
-    public async Task Pipeline_LogsPerMenuRoundsAndTotal(string strategyName)
+    public async Task Pipeline_LogsPerMenuRoundsAndTotal(string plannerName)
     {
         _api.RespondWithMenus();
 
@@ -42,8 +42,8 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
         using var httpClient = new HttpClient { BaseAddress = _api.Url };
         var client = new GrillMenuApiClient(httpClient);
         var service = new GrillMenuService(client);
-        var strategy = GrillPlanStrategyFactory.Create(strategyName);
-        var orchestrator = new GrillOrchestrator(service, strategy, scope.Logger, verbose: false);
+        var planner = GrillPlannerFactory.Create(plannerName);
+        var orchestrator = new GrillOrchestrator(service, planner, scope.Logger, verbose: false);
 
         var exitCode = await orchestrator.RunAsync(TestContext.Current.CancellationToken);
 
@@ -98,7 +98,7 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
         using var httpClient = new HttpClient { BaseAddress = _api.Url };
         var client = new GrillMenuApiClient(httpClient);
         var service = new GrillMenuService(client);
-        var orchestrator = new GrillOrchestrator(service, new GreedyShelfStrategy(), scope.Logger, verbose: true);
+        var orchestrator = new GrillOrchestrator(service, new GreedyShelfPlanner(), scope.Logger, verbose: true);
 
         await orchestrator.RunAsync(TestContext.Current.CancellationToken);
 
@@ -139,7 +139,7 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
         using var httpClient = new HttpClient { BaseAddress = _api.Url };
         var client = new GrillMenuApiClient(httpClient);
         var service = new GrillMenuService(client);
-        var orchestrator = new GrillOrchestrator(service, new GreedyShelfStrategy(), scope.Logger, verbose: false);
+        var orchestrator = new GrillOrchestrator(service, new GreedyShelfPlanner(), scope.Logger, verbose: false);
 
         var exitCode = await orchestrator.RunAsync(TestContext.Current.CancellationToken);
 

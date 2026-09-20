@@ -1,17 +1,17 @@
 using GrillMaster.Application.Features.Plans;
-using GrillMaster.Application.Features.Plans.Strategies;
+using GrillMaster.Application.Features.Plans.Planners;
 using GrillMaster.Core.Testing.Serializers;
 using GrillMaster.Domain;
 using Xunit;
 using Xunit.Sdk;
 
 [assembly: RegisterXunitSerializer(typeof(TestCaseSerializer),
-    typeof(GreedyShelfStrategy), typeof(ExactBacktrackingStrategy), typeof(OptimizedHeuristicStrategy))]
+    typeof(GreedyShelfPlanner), typeof(ExactBacktrackingPlanner), typeof(OptimizedHeuristicPlanner))]
 
 namespace GrillMaster.UnitTests;
 
 /// <summary>
-/// Verifies that every strategy produces a *valid* plan: each piece placed exactly once, all
+/// Verifies that every planner produces a *valid* plan: each piece placed exactly once, all
 /// pieces within the grill, no overlaps, and footprints matching the piece dimensions (with or
 /// without a 90° rotation).
 /// </summary>
@@ -19,52 +19,52 @@ public class GrillingInvariantsTests
 {
     private static readonly GrillSize Grill = GrillSize.Standard;
 
-    public static IEnumerable<TheoryDataRow<IGrillPlanner>> AllStrategies()
+    public static IEnumerable<TheoryDataRow<IGrillPlanner>> AllPlanners()
     {
-        yield return new TheoryDataRow<IGrillPlanner>(new GreedyShelfStrategy());
-        yield return new TheoryDataRow<IGrillPlanner>(new ExactBacktrackingStrategy());
-        yield return new TheoryDataRow<IGrillPlanner>(new OptimizedHeuristicStrategy());
+        yield return new TheoryDataRow<IGrillPlanner>(new GreedyShelfPlanner());
+        yield return new TheoryDataRow<IGrillPlanner>(new ExactBacktrackingPlanner());
+        yield return new TheoryDataRow<IGrillPlanner>(new OptimizedHeuristicPlanner());
     }
 
     [Theory]
-    [MemberData(nameof(AllStrategies))]
-    public void Strategies_ProduceValidPlan_ForFixture(IGrillPlanner strategy)
+    [MemberData(nameof(AllPlanners))]
+    public void Planners_ProduceValidPlan_ForFixture(IGrillPlanner planner)
     {
         var pieces = BuildFixturePieces();
-        var result = strategy.Plan(pieces, Grill);
+        var result = planner.Plan(pieces, Grill);
 
         Validate(pieces, result);
     }
 
     [Theory]
-    [MemberData(nameof(AllStrategies))]
-    public void Strategies_ProduceValidPlan_ForManyIdenticalPieces(IGrillPlanner strategy)
+    [MemberData(nameof(AllPlanners))]
+    public void Planners_ProduceValidPlan_ForManyIdenticalPieces(IGrillPlanner planner)
     {
         // 40 identical small pieces - stresses symmetry handling.
         var pieces = Enumerable.Repeat(new GrillPiece("Sausage", 6, 3), 40).ToList();
-        var result = strategy.Plan(pieces, Grill);
+        var result = planner.Plan(pieces, Grill);
 
         Validate(pieces, result);
     }
 
     [Fact]
-    public void Strategies_HandleEmptyInput()
+    public void Planners_HandleEmptyInput()
     {
-        foreach (var strategy in new IGrillPlanner[] { new GreedyShelfStrategy(), new ExactBacktrackingStrategy(), new OptimizedHeuristicStrategy() })
+        foreach (var planner in new IGrillPlanner[] { new GreedyShelfPlanner(), new ExactBacktrackingPlanner(), new OptimizedHeuristicPlanner() })
         {
-            var result = strategy.Plan([], Grill);
+            var result = planner.Plan([], Grill);
             Assert.Equal(0, result.TotalRounds);
             Assert.Empty(result.Rounds);
         }
     }
 
     [Fact]
-    public void Strategies_ThrowForOversizedPiece()
+    public void Planners_ThrowForOversizedPiece()
     {
         List<GrillPiece> oversized = [new GrillPiece("Huge", 40, 5)];
-        foreach (var strategy in new IGrillPlanner[] { new GreedyShelfStrategy(), new ExactBacktrackingStrategy(), new OptimizedHeuristicStrategy() })
+        foreach (var planner in new IGrillPlanner[] { new GreedyShelfPlanner(), new ExactBacktrackingPlanner(), new OptimizedHeuristicPlanner() })
         {
-            Assert.Throws<InvalidOperationException>(() => strategy.Plan(oversized, Grill));
+            Assert.Throws<InvalidOperationException>(() => planner.Plan(oversized, Grill));
         }
     }
 

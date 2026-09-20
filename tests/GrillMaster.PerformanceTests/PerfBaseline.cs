@@ -4,17 +4,17 @@ using System.Text.Json.Serialization;
 namespace GrillMaster.PerformanceTests;
 
 /// <summary>
-/// The measured performance of a single grilling strategy across the full 15-menu fixture.
+/// The measured performance of a single grilling planner across the full 15-menu fixture.
 /// <see cref="TotalRounds"/>, <see cref="LowerBound"/> and <see cref="SearchNodes"/> are deterministic
 /// quality/search figures; <see cref="MedianMs"/> is the median wall-clock time over repeated runs.
 /// </summary>
-/// <param name="Strategy">Stable strategy name (greedy / exact / optimized).</param>
+/// <param name="Planner">Stable planner name (greedy / exact / optimized).</param>
 /// <param name="TotalRounds">Sum of rounds over all menus (the quality figure the README tracks).</param>
 /// <param name="LowerBound">Sum of the per-menu area lower bounds (the provable optimum target).</param>
-/// <param name="SearchNodes">Total search nodes explored (non-zero only for search-based strategies).</param>
+/// <param name="SearchNodes">Total search nodes explored (non-zero only for search-based planners).</param>
 /// <param name="MedianMs">Median elapsed milliseconds over the benchmark runs.</param>
-public sealed record StrategyPerf(
-    string Strategy,
+public sealed record PlannerPerf(
+    string Planner,
     int TotalRounds,
     int LowerBound,
     long SearchNodes,
@@ -27,11 +27,11 @@ public sealed record StrategyPerf(
 /// </summary>
 /// <param name="GeneratedAt">UTC timestamp the baseline was captured.</param>
 /// <param name="GitCommit">Short git commit the baseline was captured at.</param>
-/// <param name="Strategies">Per-strategy measurements.</param>
+/// <param name="Planners">Per-planner measurements.</param>
 public sealed record PerfBaseline(
     string GeneratedAt,
     string GitCommit,
-    IReadOnlyList<StrategyPerf> Strategies);
+    IReadOnlyList<PlannerPerf> Planners);
 
 /// <summary>
 /// Loads and saves the git-committed performance baseline. The source file lives next to this code in

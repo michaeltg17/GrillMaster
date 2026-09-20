@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using GrillMaster.Domain;
 
-namespace GrillMaster.Application.Features.Plans.Strategies;
+namespace GrillMaster.Application.Features.Plans.Planners;
 
 /// <summary>
 /// Exact branch-and-bound search for the minimum number of rounds.
@@ -15,7 +15,7 @@ namespace GrillMaster.Application.Features.Plans.Strategies;
 /// the result is flagged as not proven optimal.
 /// </para>
 /// </summary>
-public sealed class ExactBacktrackingStrategy : IGrillPlanner
+public sealed class ExactBacktrackingPlanner : IGrillPlanner
 {
     public string Name { get; } = "exact";
 
@@ -58,7 +58,7 @@ public sealed class ExactBacktrackingStrategy : IGrillPlanner
         }
 
         // Upper bound from the greedy heuristic.
-        var greedy = new GreedyShelfStrategy().Plan(pieces, grill);
+        var greedy = new GreedyShelfPlanner().Plan(pieces, grill);
         _best = greedy.TotalRounds;
         _bestRounds = greedy.Rounds.Select(r => new GrillRound(r.Placements)).ToList();
 

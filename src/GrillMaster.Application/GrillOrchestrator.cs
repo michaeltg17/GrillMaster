@@ -6,13 +6,13 @@ using Serilog;
 namespace GrillMaster.Application;
 
 /// <summary>
-/// Coordinates the end-to-end flow: fetch menus, plan each one with the selected strategy, and
+/// Coordinates the end-to-end flow: fetch menus, plan each one with the selected planner, and
 /// log the report. Menus are processed in name order so the report is deterministic. Kept
 /// separate from <c>Program</c> so the whole pipeline is unit-testable.
 /// </summary>
 public sealed class GrillOrchestrator(
     GrillMenuService menuService,
-    IGrillPlanner strategy,
+    IGrillPlanner planner,
     ILogger logger,
     bool verbose = false)
 {
@@ -32,7 +32,7 @@ public sealed class GrillOrchestrator(
         foreach (var menu in menus.OrderBy(m => m.Name, StringComparer.Ordinal))
         {
             var pieces = menu.ExpandPieces();
-            var result = strategy.Plan(pieces, grillSize);
+            var result = planner.Plan(pieces, grillSize);
             results.Add((menu, result));
         }
 

@@ -3,7 +3,7 @@ using GrillMaster.Domain;
 namespace GrillMaster.Application.Features.Plans;
 
 /// <summary>
-/// Shared helpers used by every grilling strategy: canonical piece ordering and the
+/// Shared helpers used by every grilling planner: canonical piece ordering and the
 /// area-based lower bound on the number of rounds.
 /// </summary>
 public static class GrillPlanHelpers

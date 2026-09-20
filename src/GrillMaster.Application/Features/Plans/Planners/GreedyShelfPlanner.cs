@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using GrillMaster.Domain;
 
-namespace GrillMaster.Application.Features.Plans.Strategies;
+namespace GrillMaster.Application.Features.Plans.Planners;
 
 /// <summary>
 /// Greedy best-fit shelf placement.
@@ -12,7 +12,7 @@ namespace GrillMaster.Application.Features.Plans.Strategies;
 /// </para>
 /// Fast and readable; typically within one or two rounds of optimal.
 /// </summary>
-public sealed class GreedyShelfStrategy : IGrillPlanner
+public sealed class GreedyShelfPlanner : IGrillPlanner
 {
     public string Name { get; } = "greedy";
 

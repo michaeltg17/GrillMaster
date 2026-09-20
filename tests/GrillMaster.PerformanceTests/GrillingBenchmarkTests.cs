@@ -7,7 +7,7 @@ using Xunit;
 namespace GrillMaster.PerformanceTests;
 
 /// <summary>
-/// Benchmarks every grilling strategy over the full 15-menu fixture and compares the result against the
+/// Benchmarks every grilling planner over the full 15-menu fixture and compares the result against the
 /// git-committed baseline (<c>baseline.json</c>). Quality (total rounds) is a hard failure if
 /// it regresses; speed is a hard failure only on a significant relative regression (default +50%) so that
 /// machine-to-machine variance does not cause flaky failures. Regenerate the baseline with
@@ -26,16 +26,16 @@ public sealed class GrillingBenchmarkTests(ITestOutputHelper output)
             : DefaultSpeedThreshold;
 
     [Fact]
-    public void Strategies_MatchCommittedBaseline()
+    public void Planners_MatchCommittedBaseline()
     {
         var menus = LoadMenus();
-        var measured = new List<StrategyPerf>();
+        var measured = new List<PlannerPerf>();
 
-        foreach (var name in GrillPlanStrategyFactory.Available)
+        foreach (var name in GrillPlannerFactory.Available)
         {
-            var strategy = GrillPlanStrategyFactory.Create(name);
-            var (totalRounds, lowerBound, searchNodes, medianMs) = Benchmark(strategy, menus);
-            measured.Add(new StrategyPerf(name, totalRounds, lowerBound, searchNodes, medianMs));
+            var planner = GrillPlannerFactory.Create(name);
+            var (totalRounds, lowerBound, searchNodes, medianMs) = Benchmark(planner, menus);
+            measured.Add(new PlannerPerf(name, totalRounds, lowerBound, searchNodes, medianMs));
         }
 
         if (PerfBaselineStore.UpdateMode)
@@ -60,23 +60,23 @@ public sealed class GrillingBenchmarkTests(ITestOutputHelper output)
 
         foreach (var m in measured)
         {
-            var b = baseline.Strategies.FirstOrDefault(s => s.Strategy == m.Strategy)
+            var b = baseline.Planners.FirstOrDefault(s => s.Planner == m.Planner)
                 ?? throw new InvalidOperationException(
-                    $"Strategy '{m.Strategy}' is missing from the baseline. " +
+                    $"Planner '{m.Planner}' is missing from the baseline. " +
                     "Run with UPDATE_PERF_BASELINE=1 to add it.");
 
             report.Add(ReportLine(m, b));
 
             if (m.TotalRounds > b.TotalRounds)
             {
-                failures.Add($"{m.Strategy}: rounds regressed {b.TotalRounds} -> {m.TotalRounds}");
+                failures.Add($"{m.Planner}: rounds regressed {b.TotalRounds} -> {m.TotalRounds}");
             }
 
             var maxAllowedMs = b.MedianMs * (1 + threshold);
             if (m.MedianMs > maxAllowedMs)
             {
                 failures.Add(
-                    $"{m.Strategy}: slower than baseline {b.MedianMs:F1} ms " +
+                    $"{m.Planner}: slower than baseline {b.MedianMs:F1} ms " +
                     $"({((m.MedianMs / b.MedianMs) - 1) * 100:F1}% > +{threshold * 100:F0}%)");
             }
         }
@@ -91,11 +91,11 @@ public sealed class GrillingBenchmarkTests(ITestOutputHelper output)
     }
 
     /// <summary>
-    /// Runs the strategy over every menu <see cref="Runs"/> times and returns the deterministic totals
+    /// Runs the planner over every menu <see cref="Runs"/> times and returns the deterministic totals
     /// (rounds, lower bound, search nodes) plus the median elapsed milliseconds.
     /// </summary>
     private static (int TotalRounds, int LowerBound, long SearchNodes, double MedianMs)
-        Benchmark(IGrillPlanner strategy, IReadOnlyList<GrillMenu> menus)
+        Benchmark(IGrillPlanner planner, IReadOnlyList<GrillMenu> menus)
     {
         var elapsed = new List<double>(Runs);
         var totalRounds = 0;
@@ -106,7 +106,7 @@ public sealed class GrillingBenchmarkTests(ITestOutputHelper output)
         {
             foreach (var menu in menus)
             {
-                var result = strategy.Plan(menu.ExpandPieces(), Grill);
+                var result = planner.Plan(menu.ExpandPieces(), Grill);
                 totalRounds += result.TotalRounds;
                 lowerBound += result.LowerBound;
                 searchNodes += result.SearchNodes;
@@ -117,12 +117,12 @@ public sealed class GrillingBenchmarkTests(ITestOutputHelper output)
         return (totalRounds, lowerBound, searchNodes, Median(elapsed));
     }
 
-    private static string ReportLine(StrategyPerf m, StrategyPerf? baseline)
+    private static string ReportLine(PlannerPerf m, PlannerPerf? baseline)
     {
         var delta = baseline is { MedianMs: > 0 }
             ? $" (baseline {baseline.MedianMs:F1} ms, {((m.MedianMs / baseline.MedianMs) - 1) * 100:+0.0;-0.0}%)"
             : string.Empty;
-        return $"{m.Strategy}: {m.TotalRounds} rounds (lb {m.LowerBound}, nodes {m.SearchNodes}), {m.MedianMs:F1} ms{delta}";
+        return $"{m.Planner}: {m.TotalRounds} rounds (lb {m.LowerBound}, nodes {m.SearchNodes}), {m.MedianMs:F1} ms{delta}";
     }
 
     private static IReadOnlyList<GrillMenu> LoadMenus()

@@ -2,7 +2,7 @@
 
 ## Build & test
 - Build: `dotnet build GrillMaster.slnx`
-- Run (default strategy: greedy): `dotnet run --project src/GrillMaster.Console -- greedy`
+- Run (default planner: greedy): `dotnet run --project src/GrillMaster.Console -- greedy`
 - Tests: each test project is an MTP project — run it directly:
   - `dotnet run --project tests/GrillMaster.UnitTests`
   - `dotnet run --project tests/GrillMaster.IntegrationTests`
@@ -19,14 +19,14 @@
 ## Layout
 - `src/` — three projects.
   - `GrillMaster.Domain/` — pure, dependency-free models (`GrillSize`, `GrillPiece`, `GrillMenuItem`, `GrillMenu`, `GrillPiecePlacement`, `GrillRound`, `GrillPlan`); namespace `GrillMaster.Domain`.
-  - `GrillMaster.Application/` — the application layer; namespace `GrillMaster.Application`. `Features/Menus/` = grill menu API client + wire DTOs + typed API exceptions (namespaces `GrillMaster.Application.Features.Menus[.Models|.Exceptions]`); `Features/Plans/` = grilling strategies + engine (namespaces `GrillMaster.Application.Features.Plans[.Strategies]`); `GrillOrchestrator.cs` at the project root.
+  - `GrillMaster.Application/` — the application layer; namespace `GrillMaster.Application`. `Features/Menus/` = grill menu API client + wire DTOs + typed API exceptions (namespaces `GrillMaster.Application.Features.Menus[.Models|.Exceptions]`); `Features/Plans/` = grilling planners + engine (namespaces `GrillMaster.Application.Features.Plans[.Planners]`); `GrillOrchestrator.cs` at the project root.
   - `GrillMaster.Console/` — the executable: `Program.cs` (CLI + DI/host wiring) + `appsettings.json`; namespace `GrillMaster`.
 - Dependency chain: `Console` → `Application` → `Domain`.
 - Logging is Serilog: the console sink uses template `{Message:lj}{NewLine}` (no timestamp/level) with an all-white `SystemConsoleTheme` (every `ConsoleThemeStyle` → white foreground), so console output is plain white report lines. `GrillOrchestrator` logs one `{MenuName}: {RoundCount} rounds` event per menu (menus processed in name order) plus a `Total: {TotalRounds} rounds` event.
 - `tests/` — xunit v3 on MTP. `GrillMaster.Core.Testing/` is the shared classlib: `Infra/` holds WireMock mocks and `LoggerScope` (per-test Serilog scope: in-memory sink + xUnit test output; assert via `sink.Should().HaveMessage(...)` from `Serilog.Sinks.InMemory.Assertions`), `Core/` holds `TestCaseSerializer`, and `grill-menus.json` is the real 15-menu API fixture (exposed via `TestData.GrillMenusJson`). The four test projects (`UnitTests`, `IntegrationTests`, `EndToEndTests`, `PerformanceTests`) each reference it.
 
 ## Conventions
-- Grilling strategies implement `IGrillPlanStrategy` and are selected by name; the 30×20 cm grill is the fixed frame.
+- Grilling planners implement `IGrillPlanner` and are selected by name; the 30×20 cm grill is the fixed frame.
 - API failures surface as typed exceptions (`src/GrillMaster.Application/Features/Menus/Exceptions/`); the mock base is `GrillMaster.Core.Testing/Infra/ApiMock` (owns/disposes the `WireMockServer`, exposes `Url` as `Uri`).
 - Namespaces follow the project/folder layout (IDE0130 is suppressed, so they are not forced to match the solution-relative path).
 

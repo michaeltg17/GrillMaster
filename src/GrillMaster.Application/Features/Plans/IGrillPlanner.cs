@@ -3,13 +3,13 @@ using GrillMaster.Domain;
 namespace GrillMaster.Application.Features.Plans;
 
 /// <summary>
-/// A strategy that plans a set of grill pieces into the fewest rounds possible.
+/// A planner that plans a set of grill pieces into the fewest rounds possible.
 /// Implementations must place every piece exactly once, keep pieces non-overlapping and
 /// within the grill bounds, and may rotate pieces 90°.
 /// </summary>
 public interface IGrillPlanner
 {
-    /// <summary>Stable, human readable name of the strategy (used in output and tests).</summary>
+    /// <summary>Stable, human readable name of the planner (used in output and tests).</summary>
     string Name { get; }
 
     /// <summary>

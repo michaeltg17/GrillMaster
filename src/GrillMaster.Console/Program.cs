@@ -23,14 +23,14 @@ internal static class Program
 
     private static RootCommand BuildCommand()
     {
-        var strategyOption = new Option<string?>("--strategy", "-s")
+        var plannerOption = new Option<string?>("--planner", "-p")
         {
-            Description = "Grilling strategy (greedy | exact | optimized).",
+            Description = "Grilling planner (greedy | exact | optimized).",
         };
 
-        var strategyArgument = new Argument<string?>("strategy")
+        var plannerArgument = new Argument<string?>("planner")
         {
-            Description = "Grilling strategy (greedy | exact | optimized).",
+            Description = "Grilling planner (greedy | exact | optimized).",
             Arity = ArgumentArity.ZeroOrOne,
         };
 
@@ -47,8 +47,8 @@ internal static class Program
 
         var root = new RootCommand("Grill Master - minimise the number of grill rounds for each menu.")
         {
-            Options = { strategyOption, urlOption, verboseOption },
-            Arguments = { strategyArgument },
+            Options = { plannerOption, urlOption, verboseOption },
+            Arguments = { plannerArgument },
         };
 
         root.SetAction(Run);
@@ -57,8 +57,8 @@ internal static class Program
 
     private static async Task<int> Run(ParseResult parseResult, CancellationToken cancellationToken)
     {
-        var strategy = parseResult.GetValue<string>("--strategy")
-            ?? parseResult.GetValue<string>("strategy")
+        var plannerName = parseResult.GetValue<string>("--planner")
+            ?? parseResult.GetValue<string>("planner")
             ?? "greedy";
         var url = parseResult.GetValue<string>("--url");
         var verbose = parseResult.GetValue<bool>("--verbose");
@@ -71,10 +71,10 @@ internal static class Program
             .WriteTo.Console(theme: whiteTheme, outputTemplate: "{Message:lj}{NewLine}")
             .CreateLogger();
 
-        IGrillPlanner planStrategy;
+        IGrillPlanner planner;
         try
         {
-            planStrategy = GrillPlanStrategyFactory.Create(strategy);
+            planner = GrillPlannerFactory.Create(plannerName);
         }
         catch (ArgumentException ex)
         {
@@ -82,7 +82,7 @@ internal static class Program
             return 1;
         }
 
-        using var host = BuildHost(url, planStrategy, verbose);
+        using var host = BuildHost(url, planner, verbose);
         ConfigureFatalHandlers();
 
         try
@@ -104,7 +104,7 @@ internal static class Program
 #pragma warning restore CA1031 // Do not catch general exception types
     }
 
-    private static IHost BuildHost(string? url, IGrillPlanner strategy, bool verbose)
+    private static IHost BuildHost(string? url, IGrillPlanner planner, bool verbose)
     {
         var builder = Host.CreateApplicationBuilder();
         builder.Logging.ClearProviders();
@@ -122,18 +122,20 @@ internal static class Program
         });
         builder.Services.AddSingleton(sp => new GrillMenuService(
             sp.GetRequiredService<GrillMenuApiClient>()));
-        builder.Services.AddSingleton(strategy);
+        builder.Services.AddSingleton(planner);
         builder.Services.AddSingleton(sp => new GrillOrchestrator(
             sp.GetRequiredService<GrillMenuService>(),
-            strategy,
+            planner,
             Log.Logger,
             verbose));
 
         return builder.Build();
     }
 
-    // Last-resort safety net: the runtime silently swallows unobserved task exceptions (fire-and-forget
-    // tasks on threads we do not await), so surface them and fail the run instead of exiting 0.
+    /// <summary>
+    /// Last-resort safety net: the runtime silently swallows unobserved task exceptions (fire-and-forget
+    /// tasks on threads we do not await), so surface them and fail the run instead of exiting 0.
+    /// </summary>
     private static void ConfigureFatalHandlers()
     {
         TaskScheduler.UnobservedTaskException += (_, e) =>

@@ -119,7 +119,7 @@ public sealed class RoundOccupancy
 
     /// <summary>
     /// Returns the single lowest free position (first-fit scan) for a piece, or null. Used by the
-    /// exact strategy where a deterministic, complete enumeration of positions is preferred.
+    /// exact planner where a deterministic, complete enumeration of positions is preferred.
     /// </summary>
     public GrillPiecePlacement? FindFirstPosition(GrillPiece piece)
     {
