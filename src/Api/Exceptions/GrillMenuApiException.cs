@@ -7,5 +7,5 @@ namespace GrillMaster.Api;
 /// </summary>
 /// <param name="message">A human-readable description of the failure.</param>
 /// <param name="innerException">The underlying exception, when there is one.</param>
-public abstract class GrillApiException(string message, Exception? innerException = null)
+public abstract class GrillMenuApiException(string message, Exception? innerException = null)
     : Exception(message, innerException);

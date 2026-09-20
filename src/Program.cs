@@ -83,7 +83,7 @@ internal static class Program
             var orchestrator = host.Services.GetRequiredService<GrillOrchestrator>();
             return await orchestrator.RunAsync(cancellationToken);
         }
-        catch (GrillApiException ex)
+        catch (GrillMenuApiException ex)
         {
             Console.Error.WriteLine(ex.Message);
             return 1;
@@ -108,14 +108,14 @@ internal static class Program
         }
 
         var baseUrl = builder.Configuration["Grill:ApiBaseUrl"] ?? DefaultBaseUrl;
-        builder.Services.AddHttpClient<IGrillMenuClient, GrillMenuClient>(client =>
+        builder.Services.AddHttpClient<IGrillMenuApiClient, GrillMenuApiClient>(client =>
         {
             client.BaseAddress = new Uri(baseUrl);
             client.Timeout = TimeSpan.FromSeconds(30);
         });
         builder.Services.AddSingleton(strategy);
         builder.Services.AddSingleton(sp => new GrillOrchestrator(
-            sp.GetRequiredService<IGrillMenuClient>(),
+            sp.GetRequiredService<IGrillMenuApiClient>(),
             strategy,
             Log.Logger,
             verbose));

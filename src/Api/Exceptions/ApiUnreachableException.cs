@@ -5,4 +5,4 @@ namespace GrillMaster.Api;
 /// </summary>
 /// <param name="innerException">The underlying transport exception.</param>
 public sealed class ApiUnreachableException(Exception? innerException = null)
-    : GrillApiException("API error: could not reach the grill menu API.", innerException);
+    : GrillMenuApiException("API error: could not reach the grill menu API.", innerException);

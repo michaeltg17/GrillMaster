@@ -8,7 +8,7 @@ namespace GrillMaster.Api;
 /// </summary>
 /// <param name="statusCode">The HTTP status code the API returned.</param>
 public sealed class ApiErrorException(HttpStatusCode statusCode)
-    : GrillApiException($"API error with status code: {(int)statusCode} {statusCode}.")
+    : GrillMenuApiException($"API error with status code: {(int)statusCode} {statusCode}.")
 {
     /// <summary>The HTTP status code the API returned.</summary>
     public HttpStatusCode StatusCode { get; } = statusCode;

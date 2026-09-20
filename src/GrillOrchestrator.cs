@@ -11,7 +11,7 @@ namespace GrillMaster;
 /// separate from <c>Program</c> so the whole pipeline is unit-testable.
 /// </summary>
 public sealed class GrillOrchestrator(
-    IGrillMenuClient client,
+    IGrillMenuApiClient client,
     IPackStrategy strategy,
     ILogger logger,
     bool verbose = false)

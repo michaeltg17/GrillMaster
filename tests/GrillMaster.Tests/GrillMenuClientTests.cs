@@ -10,13 +10,13 @@ public sealed class GrillMenuClientTests : IDisposable
 {
     private readonly GrillMenuApiMock _api;
     private readonly HttpClient _http;
-    private readonly GrillMenuClient _client;
+    private readonly GrillMenuApiClient _client;
 
     public GrillMenuClientTests()
     {
         _api = new GrillMenuApiMock();
         _http = new HttpClient { BaseAddress = _api.Url };
-        _client = new GrillMenuClient(_http);
+        _client = new GrillMenuApiClient(_http);
     }
 
     public void Dispose()

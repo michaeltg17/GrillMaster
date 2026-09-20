@@ -9,7 +9,7 @@ namespace GrillMaster.Api;
 /// <see cref="HttpClient"/> (configured via dependency injection), so it is trivially overridable
 /// for tests and different environments.
 /// </summary>
-public sealed class GrillMenuClient(HttpClient http) : IGrillMenuClient
+public sealed class GrillMenuApiClient(HttpClient http) : IGrillMenuApiClient
 {
     private static readonly Uri MenusEndpoint = new("api/GrillMenu", UriKind.Relative);
 

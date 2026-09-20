@@ -5,4 +5,4 @@ namespace GrillMaster.Api;
 /// </summary>
 /// <param name="innerException">The underlying <see cref="System.Text.Json.JsonException"/>, when there is one.</param>
 public sealed class MalformedApiResponseException(Exception? innerException = null)
-    : GrillApiException("API error: the response was not valid JSON.", innerException);
+    : GrillMenuApiException("API error: the response was not valid JSON.", innerException);
