@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>GrillMaster.Core.Testing</RootNamespace>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Serilog" />
+    <PackageReference Include="Serilog.Sinks.InMemory" />
+    <PackageReference Include="Serilog.Sinks.InMemory.Assertions" />
+    <PackageReference Include="Serilog.Sinks.XUnit.Injectable" />
+    <PackageReference Include="WireMock.Net" />
+    <PackageReference Include="xunit.v3.assert" />
+    <PackageReference Include="xunit.v3.extensibility.core" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\GrillMaster.Application\GrillMaster.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="grill-menus.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

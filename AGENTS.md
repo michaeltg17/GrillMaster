@@ -2,22 +2,33 @@
 
 ## Build & test
 - Build: `dotnet build GrillMaster.slnx`
-- Tests: `dotnet run --project tests/GrillMaster.Tests`
+- Run (default strategy: greedy): `dotnet run --project src/GrillMaster.Console -- greedy`
+- Tests: each test project is an MTP project — run it directly:
+  - `dotnet run --project tests/GrillMaster.UnitTests`
+  - `dotnet run --project tests/GrillMaster.IntegrationTests`
+  - `dotnet run --project tests/GrillMaster.EndToEndTests`
+  - `dotnet run --project tests/GrillMaster.PerformanceTests`
+- `tests/GrillMaster.Core.Testing` is a shared classlib (WireMock mocks, `LoggerScope`, `TestData`, the `grill-menus.json` fixture) referenced by the test projects; it has no tests of its own.
 - Do NOT use `dotnet test` — its MTP mode is broken with xunit v3 on this SDK (exits non-zero, runs 0 tests).
 
 ## Analyzer rules
 - `Directory.Build.props` sets `AnalysisMode=AllEnabledByDefault` and `TreatWarningsAsErrors=true`.
 - Keep the build at **0 warnings**; any new warning fails the build.
-- Suppressions live in `.editorconfig` (IDE0130, CA1062, CA1814, CA1859, CA1002, CA2227, CA1849, CA13xx, IDE03xx, …). Add new ones there, not in code.
+- Suppressions live in `.editorconfig` (IDE0130, CA1724, CA1062, CA1814, CA1859, CA1002, CA2227, CA1849, CA13xx, IDE03xx, …). Add new ones there, not in code.
 
 ## Layout
-- `src/` — app. `Api/` (client + typed exceptions), `Domain/`, `Grilling/` (strategies + engine), `GrillOrchestrator.cs`, `Program.cs`.
+- `src/` — three projects.
+  - `GrillMaster.Domain/` — pure, dependency-free models (`GrillSize`, `GrillPiece`, `GrillMenuItem`, `GrillMenu`, `GrillPiecePlacement`, `GrillRound`, `GrillPlan`); namespace `GrillMaster.Domain`.
+  - `GrillMaster.Application/` — the application layer; namespace `GrillMaster.Application`. `Features/Menus/` = grill menu API client + wire DTOs + typed API exceptions (namespaces `GrillMaster.Application.Features.Menus[.Models|.Exceptions]`); `Features/Plans/` = grilling strategies + engine (namespaces `GrillMaster.Application.Features.Plans[.Strategies]`); `GrillOrchestrator.cs` at the project root.
+  - `GrillMaster.Console/` — the executable: `Program.cs` (CLI + DI/host wiring) + `appsettings.json`; namespace `GrillMaster`.
+- Dependency chain: `Console` → `Application` → `Domain`.
 - Logging is Serilog: the console sink uses template `{Message:lj}{NewLine}` (no timestamp/level), so console output is plain report lines. `GrillOrchestrator` logs one `{MenuName}: {RoundCount} rounds` event per menu (menus processed in name order) plus a `Total: {TotalRounds} rounds` event.
-- `tests/GrillMaster.Tests/` — xunit v3. `Infra/` holds WireMock mocks and `LoggerScope` (per-test Serilog scope: in-memory sink + xUnit test output; assert via `sink.Should().HaveMessage(...)` from `Serilog.Sinks.InMemory.Assertions`). `grill-menus.json` is the real 15-menu API fixture (exposed via `TestData.GrillMenusJson`).
+- `tests/` — xunit v3 on MTP. `GrillMaster.Core.Testing/` is the shared classlib: `Infra/` holds WireMock mocks and `LoggerScope` (per-test Serilog scope: in-memory sink + xUnit test output; assert via `sink.Should().HaveMessage(...)` from `Serilog.Sinks.InMemory.Assertions`), `Core/` holds `TestCaseSerializer`, and `grill-menus.json` is the real 15-menu API fixture (exposed via `TestData.GrillMenusJson`). The four test projects (`UnitTests`, `IntegrationTests`, `EndToEndTests`, `PerformanceTests`) each reference it.
 
 ## Conventions
 - Grilling strategies implement `IGrillPlanStrategy` and are selected by name; the 30×20 cm grill is the fixed frame.
-- API failures surface as typed exceptions (`src/Api/ApiExceptions.cs`); the mock base is `Infra/ApiMock` (owns/disposes the `WireMockServer`, exposes `Url` as `Uri`).
+- API failures surface as typed exceptions (`src/GrillMaster.Application/Features/Menus/Exceptions/`); the mock base is `GrillMaster.Core.Testing/Infra/ApiMock` (owns/disposes the `WireMockServer`, exposes `Url` as `Uri`).
+- Namespaces follow the project/folder layout (IDE0130 is suppressed, so they are not forced to match the solution-relative path).
 
 ## Branching & PR workflow (dev → main)
 

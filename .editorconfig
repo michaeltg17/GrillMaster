@@ -43,6 +43,11 @@ dotnet_diagnostic.IDE0036.severity = none
 # CA1720: Identifier contains type name (e.g., Guid Guid, Type Type)
 dotnet_diagnostic.CA1720.severity = none
 
+# CA1724: Type name conflicts with namespace - test classes are named after their
+# test project (e.g. EndToEndTests in the GrillMaster.EndToEndTests namespace), so the
+# last namespace segment intentionally matches the class name.
+dotnet_diagnostic.CA1724.severity = none
+
 # IDE0130: Namespace does not match folder structure - our layout uses
 # GrillMaster.* namespaces rooted at the project (src/), not the
 # solution-relative folder path the rule expects.
