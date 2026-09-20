@@ -1,6 +1,7 @@
 using GrillMaster;
 using GrillMaster.Api;
 using GrillMaster.Packing;
+using GrillMaster.Packing.Strategies;
 using GrillMaster.Tests.Infra;
 using Serilog.Events;
 using Serilog.Sinks.InMemory;

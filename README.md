@@ -81,8 +81,8 @@ The strategy can be given as a positional argument (`GrillMaster exact`) or with
 `greedy` (best-fit shelf heuristic, default), `exact` (branch-and-bound, proves the
 optimum), `optimized` (greedy seed + local-search consolidation).
 
-The API base URL is read from `src/appsettings.json` (`Grill:ApiBaseUrl`) and can be overridden
-with `--url` or the `GRILL__APIBASEURL` environment variable.
+The API base URL is read from `src/appsettings.json` (`Grill:GrillMenuApiUrl`) and can be overridden
+with `--url` or the `GRILL__GRILLMENUAPIURL` environment variable.
 
 ## The three strategies
 
@@ -166,13 +166,15 @@ src/
   GrillOrchestrator.cs            fetch → pack each menu → print
   Domain/                         GrillSize, GrillPiece, GrillMenuItem, GrillMenu,
                                   Placement, Round, PackResult
-  Api/                            IGrillMenuClient, GrillMenuClient, GrillMenuDtos
+  Api/                            IGrillMenuClient, GrillMenuClient
+    Models/                       GrillMenuDto, GrillMenuItemDto
   Packing/                        IPackStrategy, RoundOccupancy, PackingHelpers,
-                                  GreedyShelfStrategy, ExactBacktrackingStrategy,
-                                  OptimizedHeuristicStrategy, PackStrategyFactory
+                                  PackStrategyFactory
+    Strategies/                   GreedyShelfStrategy, ExactBacktrackingStrategy,
+                                  OptimizedHeuristicStrategy
   Output/                         ReportPrinter
 tests/GrillMaster.Tests/
-  GrillMenuClientTests.cs         WireMock-based client tests
+  GrillMenuApiClientTests.cs      WireMock-based client tests
   PackingInvariantsTests.cs       validity invariants for all strategies
   PackingOptimalityTests.cs       relative quality / known optima
   EndToEndTests.cs                full pipeline via WireMock

@@ -1,5 +1,6 @@
 using GrillMaster.Domain;
 using GrillMaster.Packing;
+using GrillMaster.Packing.Strategies;
 using Xunit;
 
 namespace GrillMaster.Tests;

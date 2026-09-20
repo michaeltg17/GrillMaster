@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using GrillMaster.Domain;
 
-namespace GrillMaster.Packing;
+namespace GrillMaster.Packing.Strategies;
 
 /// <summary>
 /// Greedy seed followed by a deterministic local search that consolidates pieces into fewer

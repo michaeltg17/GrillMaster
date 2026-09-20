@@ -104,10 +104,10 @@ internal static class Program
 
         if (url is not null)
         {
-            builder.Configuration["Grill:ApiBaseUrl"] = url;
+            builder.Configuration["Grill:GrillMenuApiUrl"] = url;
         }
 
-        var baseUrl = builder.Configuration["Grill:ApiBaseUrl"] ?? DefaultBaseUrl;
+        var baseUrl = builder.Configuration["Grill:GrillMenuApiUrl"] ?? DefaultBaseUrl;
         builder.Services.AddHttpClient<IGrillMenuApiClient, GrillMenuApiClient>(client =>
         {
             client.BaseAddress = new Uri(baseUrl);

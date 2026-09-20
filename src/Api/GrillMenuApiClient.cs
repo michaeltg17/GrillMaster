@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using GrillMaster.Api.Models;
 using GrillMaster.Domain;
 
 namespace GrillMaster.Api;

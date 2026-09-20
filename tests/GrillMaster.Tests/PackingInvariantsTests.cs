@@ -1,6 +1,7 @@
 using Core.Testing.Serializers;
 using GrillMaster.Domain;
 using GrillMaster.Packing;
+using GrillMaster.Packing.Strategies;
 using Xunit;
 using Xunit.Sdk;
 

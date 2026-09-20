@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using GrillMaster.Domain;
 
-namespace GrillMaster.Packing;
+namespace GrillMaster.Packing.Strategies;
 
 /// <summary>
 /// Exact branch-and-bound search for the minimum number of rounds.

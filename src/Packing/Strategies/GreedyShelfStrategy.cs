@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using GrillMaster.Domain;
 
-namespace GrillMaster.Packing;
+namespace GrillMaster.Packing.Strategies;
 
 /// <summary>
 /// Greedy best-fit shelf packing.

@@ -6,13 +6,13 @@ using Xunit;
 
 namespace GrillMaster.Tests;
 
-public sealed class GrillMenuClientTests : IDisposable
+public sealed class GrillMenuApiClientTests : IDisposable
 {
     private readonly GrillMenuApiMock _api;
     private readonly HttpClient _http;
     private readonly GrillMenuApiClient _client;
 
-    public GrillMenuClientTests()
+    public GrillMenuApiClientTests()
     {
         _api = new GrillMenuApiMock();
         _http = new HttpClient { BaseAddress = _api.Url };

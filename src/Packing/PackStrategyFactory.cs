@@ -1,3 +1,5 @@
+using GrillMaster.Packing.Strategies;
+
 namespace GrillMaster.Packing;
 
 /// <summary>Creates packing strategies by name.</summary>
