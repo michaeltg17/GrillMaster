@@ -1,7 +1,7 @@
 namespace GrillMaster.Domain;
 
 /// <summary>
-/// The outcome of packing a menu's pieces onto the grill.
+/// The outcome of planning a menu's pieces onto the grill.
 /// </summary>
 /// <param name="Rounds">The rounds produced, in cooking order.</param>
 /// <param name="Strategy">Name of the strategy that produced this result.</param>
@@ -9,8 +9,8 @@ namespace GrillMaster.Domain;
 /// <param name="IsProvenOptimal">True when the strategy can prove no solution with fewer rounds exists.</param>
 /// <param name="SearchNodes">Number of search nodes explored (meaningful for search-based strategies).</param>
 /// <param name="Elapsed">Wall-clock time the strategy took.</param>
-public sealed record PackResult(
-    IReadOnlyList<Round> Rounds,
+public sealed record GrillPlan(
+    IReadOnlyList<GrillRound> Rounds,
     string Strategy,
     int LowerBound,
     bool IsProvenOptimal,

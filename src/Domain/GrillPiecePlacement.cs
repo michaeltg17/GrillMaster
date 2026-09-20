@@ -11,7 +11,7 @@ namespace GrillMaster.Domain;
 /// <param name="X">Left coordinate in centimetres.</param>
 /// <param name="Y">Top coordinate in centimetres.</param>
 /// <param name="Rotated">Whether the piece is rotated 90° relative to its natural orientation.</param>
-public sealed record Placement(GrillPiece Piece, int X, int Y, bool Rotated)
+public sealed record GrillPiecePlacement(GrillPiece Piece, int X, int Y, bool Rotated)
 {
     /// <summary>Extent of the piece along the x-axis (grill width).</summary>
     public int FootprintWidth => Rotated ? Piece.Width : Piece.Length;

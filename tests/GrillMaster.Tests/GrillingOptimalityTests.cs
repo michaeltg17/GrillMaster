@@ -1,6 +1,6 @@
 using GrillMaster.Domain;
-using GrillMaster.Packing;
-using GrillMaster.Packing.Strategies;
+using GrillMaster.Grilling;
+using GrillMaster.Grilling.Strategies;
 using Xunit;
 
 namespace GrillMaster.Tests;
@@ -9,7 +9,7 @@ namespace GrillMaster.Tests;
 /// Checks the relative quality of the strategies: the exact search is never worse than the
 /// heuristics, and the heuristics never beat the area lower bound.
 /// </summary>
-public class PackingOptimalityTests
+public class GrillingOptimalityTests
 {
     private static readonly GrillSize Grill = GrillSize.Standard;
 
@@ -18,9 +18,9 @@ public class PackingOptimalityTests
     {
         var pieces = BuildMixedPieces();
 
-        var exact = new ExactBacktrackingStrategy().Pack(pieces, Grill);
-        var greedy = new GreedyShelfStrategy().Pack(pieces, Grill);
-        var optimized = new OptimizedHeuristicStrategy().Pack(pieces, Grill);
+        var exact = new ExactBacktrackingStrategy().Plan(pieces, Grill);
+        var greedy = new GreedyShelfStrategy().Plan(pieces, Grill);
+        var optimized = new OptimizedHeuristicStrategy().Plan(pieces, Grill);
 
         Assert.True(exact.TotalRounds <= greedy.TotalRounds, "exact should beat or tie greedy");
         Assert.True(exact.TotalRounds <= optimized.TotalRounds, "exact should beat or tie optimized");
@@ -38,7 +38,7 @@ public class PackingOptimalityTests
             new("Rumpsteak", 15, 7),
         };
 
-        var exact = new ExactBacktrackingStrategy().Pack(pieces, Grill);
+        var exact = new ExactBacktrackingStrategy().Plan(pieces, Grill);
 
         Assert.Equal(1, exact.TotalRounds);
         Assert.True(exact.IsProvenOptimal);
@@ -51,7 +51,7 @@ public class PackingOptimalityTests
         // Only two 15x15 squares fit in one 30x20 grill (side by side, 30x15), so four need 2 rounds.
         var pieces = Enumerable.Repeat(new GrillPiece("Square", 15, 15), 4).ToList();
 
-        var exact = new ExactBacktrackingStrategy().Pack(pieces, Grill);
+        var exact = new ExactBacktrackingStrategy().Plan(pieces, Grill);
 
         Assert.Equal(2, exact.TotalRounds);
         Assert.True(exact.IsProvenOptimal);
@@ -61,11 +61,11 @@ public class PackingOptimalityTests
     public void LowerBound_IsRespectedByAllStrategies()
     {
         var pieces = BuildMixedPieces();
-        var lowerBound = PackingHelpers.ComputeLowerBound(pieces, Grill);
+        var lowerBound = GrillPlanHelpers.ComputeLowerBound(pieces, Grill);
 
-        foreach (var strategy in new IPackStrategy[] { new GreedyShelfStrategy(), new ExactBacktrackingStrategy(), new OptimizedHeuristicStrategy() })
+        foreach (var strategy in new IGrillPlanStrategy[] { new GreedyShelfStrategy(), new ExactBacktrackingStrategy(), new OptimizedHeuristicStrategy() })
         {
-            var result = strategy.Pack(pieces, Grill);
+            var result = strategy.Plan(pieces, Grill);
             Assert.True(result.TotalRounds >= lowerBound, $"{strategy.Name} beat the lower bound");
         }
     }

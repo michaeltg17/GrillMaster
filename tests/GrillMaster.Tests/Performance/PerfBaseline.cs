@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 namespace GrillMaster.Tests.Performance;
 
 /// <summary>
-/// The measured performance of a single packing strategy across the full 15-menu fixture.
+/// The measured performance of a single grilling strategy across the full 15-menu fixture.
 /// <see cref="TotalRounds"/>, <see cref="LowerBound"/> and <see cref="SearchNodes"/> are deterministic
 /// quality/search figures; <see cref="MedianMs"/> is the median wall-clock time over repeated runs.
 /// </summary>

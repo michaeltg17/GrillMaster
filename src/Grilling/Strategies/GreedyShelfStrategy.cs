@@ -1,10 +1,10 @@
 using System.Diagnostics;
 using GrillMaster.Domain;
 
-namespace GrillMaster.Packing.Strategies;
+namespace GrillMaster.Grilling.Strategies;
 
 /// <summary>
-/// Greedy best-fit shelf packing.
+/// Greedy best-fit shelf placement.
 /// <para>
 /// Pieces are placed in canonical order (largest first). Each piece goes into the existing round
 /// that becomes the fullest after placement (best fit); if no existing round can take it, a new
@@ -12,17 +12,17 @@ namespace GrillMaster.Packing.Strategies;
 /// </para>
 /// Fast and readable; typically within one or two rounds of optimal.
 /// </summary>
-public sealed class GreedyShelfStrategy : IPackStrategy
+public sealed class GreedyShelfStrategy : IGrillPlanStrategy
 {
     public string Name { get; } = "greedy";
 
-    public PackResult Pack(IReadOnlyList<GrillPiece> pieces, GrillSize grill)
+    public GrillPlan Plan(IReadOnlyList<GrillPiece> pieces, GrillSize grill)
     {
         var stopwatch = Stopwatch.StartNew();
-        var lowerBound = PackingHelpers.ComputeLowerBound(pieces, grill);
-        var ordered = PackingHelpers.OrderPieces(pieces);
+        var lowerBound = GrillPlanHelpers.ComputeLowerBound(pieces, grill);
+        var ordered = GrillPlanHelpers.OrderPieces(pieces);
 
-        var rounds = new List<Round>();
+        var rounds = new List<GrillRound>();
         var occupancies = new List<RoundOccupancy>();
 
         foreach (var piece in ordered)
@@ -31,7 +31,7 @@ public sealed class GreedyShelfStrategy : IPackStrategy
 
             if (target < 0)
             {
-                var round = new Round();
+                var round = new GrillRound();
                 var occupancy = new RoundOccupancy(grill);
                 var placement = occupancy.FindBestPosition(piece)
                                 ?? throw new InvalidOperationException(
@@ -51,11 +51,11 @@ public sealed class GreedyShelfStrategy : IPackStrategy
         }
 
         stopwatch.Stop();
-        return new PackResult(rounds, Name, lowerBound, IsProvenOptimal: false, SearchNodes: 0, stopwatch.Elapsed);
+        return new GrillPlan(rounds, Name, lowerBound, IsProvenOptimal: false, SearchNodes: 0, stopwatch.Elapsed);
     }
 
     // Best fit: the existing round whose free space is smallest after the piece is added.
-    private static int FindBestRound(GrillPiece piece, GrillSize grill, IReadOnlyList<Round> rounds, IReadOnlyList<RoundOccupancy> occupancies)
+    private static int FindBestRound(GrillPiece piece, GrillSize grill, IReadOnlyList<GrillRound> rounds, IReadOnlyList<RoundOccupancy> occupancies)
     {
         var bestIndex = -1;
         var bestFreeAfter = int.MaxValue;

@@ -1,6 +1,6 @@
 ﻿using System.CommandLine;
 using GrillMaster.Api;
-using GrillMaster.Packing;
+using GrillMaster.Grilling;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -22,12 +22,12 @@ internal static class Program
     {
         var strategyOption = new Option<string?>("--strategy", "-s")
         {
-            Description = "Packing strategy (greedy | exact | optimized).",
+            Description = "Grilling strategy (greedy | exact | optimized).",
         };
 
         var strategyArgument = new Argument<string?>("strategy")
         {
-            Description = "Packing strategy (greedy | exact | optimized).",
+            Description = "Grilling strategy (greedy | exact | optimized).",
             Arity = ArgumentArity.ZeroOrOne,
         };
 
@@ -64,10 +64,10 @@ internal static class Program
             .WriteTo.Console(outputTemplate: "{Message:lj}{NewLine}")
             .CreateLogger();
 
-        IPackStrategy packStrategy;
+        IGrillPlanStrategy planStrategy;
         try
         {
-            packStrategy = PackStrategyFactory.Create(strategy);
+            planStrategy = GrillPlanStrategyFactory.Create(strategy);
         }
         catch (ArgumentException ex)
         {
@@ -75,7 +75,7 @@ internal static class Program
             return 1;
         }
 
-        using var host = BuildHost(url, packStrategy, verbose);
+        using var host = BuildHost(url, planStrategy, verbose);
         InstallFatalHandlers();
 
         try
@@ -97,7 +97,7 @@ internal static class Program
 #pragma warning restore CA1031 // Do not catch general exception types
     }
 
-    private static IHost BuildHost(string? url, IPackStrategy strategy, bool verbose)
+    private static IHost BuildHost(string? url, IGrillPlanStrategy strategy, bool verbose)
     {
         var builder = Host.CreateApplicationBuilder();
         builder.Logging.ClearProviders();

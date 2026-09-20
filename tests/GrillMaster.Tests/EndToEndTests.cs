@@ -1,7 +1,7 @@
 using GrillMaster;
 using GrillMaster.Api;
-using GrillMaster.Packing;
-using GrillMaster.Packing.Strategies;
+using GrillMaster.Grilling;
+using GrillMaster.Grilling.Strategies;
 using GrillMaster.Tests.Infra;
 using Serilog.Events;
 using Serilog.Sinks.InMemory;
@@ -11,7 +11,7 @@ using Xunit;
 namespace GrillMaster.Tests;
 
 /// <summary>
-/// Runs the full pipeline (WireMock API -> client -> packing -> logging) end to end and asserts on
+/// Runs the full pipeline (WireMock API -> client -> grilling -> logging) end to end and asserts on
 /// the logged events: one "{MenuName}: {RoundCount} rounds" event per menu (in name order) plus a
 /// "Total: {TotalRounds} rounds" event equal to the sum of the per-menu rounds.
 /// </summary>
@@ -40,7 +40,7 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
         await using var scope = new LoggerScope(output);
         using var httpClient = new HttpClient { BaseAddress = _api.Url };
         var client = new GrillMenuApiClient(httpClient);
-        var strategy = PackStrategyFactory.Create(strategyName);
+        var strategy = GrillPlanStrategyFactory.Create(strategyName);
         var orchestrator = new GrillOrchestrator(client, strategy, scope.Logger, verbose: false);
 
         var exitCode = await orchestrator.RunAsync(TestContext.Current.CancellationToken);

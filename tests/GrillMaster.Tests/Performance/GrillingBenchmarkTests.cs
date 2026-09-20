@@ -1,19 +1,19 @@
 using AwesomeAssertions;
 using GrillMaster.Api;
 using GrillMaster.Domain;
-using GrillMaster.Packing;
+using GrillMaster.Grilling;
 using Xunit;
 
 namespace GrillMaster.Tests.Performance;
 
 /// <summary>
-/// Benchmarks every packing strategy over the full 15-menu fixture and compares the result against the
+/// Benchmarks every grilling strategy over the full 15-menu fixture and compares the result against the
 /// git-committed baseline (<c>Performance/baseline.json</c>). Quality (total rounds) is a hard failure if
 /// it regresses; speed is a hard failure only on a significant relative regression (default +50%) so that
 /// machine-to-machine variance does not cause flaky failures. Regenerate the baseline with
 /// <c>UPDATE_PERF_BASELINE=1</c>.
 /// </summary>
-public sealed class PackingBenchmarkTests(ITestOutputHelper output)
+public sealed class GrillingBenchmarkTests(ITestOutputHelper output)
 {
     private const int Runs = 5;
     private const double DefaultSpeedThreshold = 0.5;
@@ -31,9 +31,9 @@ public sealed class PackingBenchmarkTests(ITestOutputHelper output)
         var menus = LoadMenus();
         var measured = new List<StrategyPerf>();
 
-        foreach (var name in PackStrategyFactory.Available)
+        foreach (var name in GrillPlanStrategyFactory.Available)
         {
-            var strategy = PackStrategyFactory.Create(name);
+            var strategy = GrillPlanStrategyFactory.Create(name);
             var (totalRounds, lowerBound, searchNodes, medianMs) = Benchmark(strategy, menus);
             measured.Add(new StrategyPerf(name, totalRounds, lowerBound, searchNodes, medianMs));
         }
@@ -95,7 +95,7 @@ public sealed class PackingBenchmarkTests(ITestOutputHelper output)
     /// (rounds, lower bound, search nodes) plus the median elapsed milliseconds.
     /// </summary>
     private static (int TotalRounds, int LowerBound, long SearchNodes, double MedianMs)
-        Benchmark(IPackStrategy strategy, IReadOnlyList<GrillMenu> menus)
+        Benchmark(IGrillPlanStrategy strategy, IReadOnlyList<GrillMenu> menus)
     {
         var elapsed = new List<double>(Runs);
         var totalRounds = 0;
@@ -106,7 +106,7 @@ public sealed class PackingBenchmarkTests(ITestOutputHelper output)
         {
             foreach (var menu in menus)
             {
-                var result = strategy.Pack(menu.ExpandPieces(), Grill);
+                var result = strategy.Plan(menu.ExpandPieces(), Grill);
                 totalRounds += result.TotalRounds;
                 lowerBound += result.LowerBound;
                 searchNodes += result.SearchNodes;
