@@ -1,8 +1,11 @@
-﻿using System.CommandLine;
+﻿using GrillMaster.Application;
 using GrillMaster.Application.Features.Planning;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using Serilog;
 using Serilog.Sinks.SystemConsole.Themes;
+using System.CommandLine;
 
 namespace GrillMaster;
 
@@ -10,52 +13,32 @@ internal static class Program
 {
     private static async Task<int> Main(string[] args)
     {
-        var rootCommand = BuildCommand();
-        rootCommand.SetAction(Run);
-        return await rootCommand.Parse(args).InvokeAsync();
+        var host = HostBuilder.Create(options, ConfigureConsoleLogging);
+        var logger = host.Services.GetRequiredService<ILogger>();
+        try
+        {
+            host.RunAsync(cancellationToken);
+        }
+        catch(GrillMasterException grillMasterException)
+        {
+            logger.Error(grillMasterException, grillMasterException.Message);
+            return grillMasterException.ExitCode;
+        }
     }
 
-    private static RootCommand BuildCommand()
+    public static async Task<int> Run(GenerateGrillPlanRequest? request = null)
     {
-        var plannerOption = new Option<string?>("--planner", "-p")
+        var host = HostBuilder.Create(request, ConfigureConsoleLogging);
+        var logger = host.Services.GetRequiredService<ILogger>();
+        try
         {
-            Description = "Grilling planner (greedy | exact | optimized).",
-        };
-
-        var plannerArgument = new Argument<string?>("planner")
+            host.RunAsync(cancellationToken);
+        }
+        catch (GrillMasterException grillMasterException)
         {
-            Description = "Grilling planner (greedy | exact | optimized).",
-            Arity = ArgumentArity.ZeroOrOne,
-        };
-
-        var urlOption = new Option<string?>("--url", "-u")
-        {
-            Description = "API base URL (overrides appsettings.json).",
-        };
-
-        var verboseOption = new Option<bool?>("--verbose", "-v")
-        {
-            Description = "Print the full per-round placement breakdown.",
-        };
-
-        return new RootCommand("Grill Master - minimise the number of grill rounds for each menu.")
-        {
-            Options = { plannerOption, urlOption, verboseOption },
-            Arguments = { plannerArgument },
-        };
-    }
-
-    private static async Task<int> Run(ParseResult parseResult, CancellationToken cancellationToken)
-    {
-        var options = new GrillCommandOptions(
-            Planner: parseResult.GetValue<string>("--planner") ?? parseResult.GetValue<string>("planner"),
-            Url: parseResult.GetValue<string>("--url"),
-            Verbose: parseResult.GetValue<bool?>("--verbose"));
-
-        using var host = HostBuilder.Create(options, ConfigureConsoleLogging);
-
-        var handler = host.Services.GetRequiredService<GrillCommandHandler>();
-        return await handler.RunAsync(cancellationToken);
+            logger.Error(grillMasterException, grillMasterException.Message);
+            return grillMasterException.ExitCode;
+        }
     }
 
     private static void ConfigureConsoleLogging(LoggerConfiguration configuration)

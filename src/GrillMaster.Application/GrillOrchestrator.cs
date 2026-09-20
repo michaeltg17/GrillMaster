@@ -14,8 +14,7 @@ namespace GrillMaster.Application;
 public sealed class GrillOrchestrator(
     GrillMenuService menuService,
     IGrillPlanner planner,
-    ILogger logger,
-    IGrillMasterSettings settings)
+    ILogger logger)
 {
     public async Task<int> RunAsync(CancellationToken cancellationToken = default)
     {
@@ -41,54 +40,10 @@ public sealed class GrillOrchestrator(
         foreach (var (menu, result) in results)
         {
             total += result.TotalRounds;
-            LogMenu(menu, result);
+            logger.Information("{MenuName}: {RoundCount} rounds", menu.Name, result.TotalRounds);
         }
 
         logger.Information("Total: {TotalRounds} rounds", total);
         return 0;
-    }
-
-    private void LogMenu(GrillMenu menu, GrillPlan result)
-    {
-        logger.Information(
-            "{MenuName}: {RoundCount} rounds",
-            menu.Name,
-            result.TotalRounds,
-            new Dictionary<string, object>
-            {
-                ["menuId"] = menu.Id,
-            });
-
-        if (!settings.Verbose)
-        {
-            return;
-        }
-
-        for (var i = 0; i < result.Rounds.Count; i++)
-        {
-            var round = result.Rounds[i];
-            logger.Information(
-                "  Round {RoundNumber} ({PieceCount} pieces, {UsedArea} cm^2):",
-                i + 1,
-                round.Count,
-                round.UsedArea);
-
-            foreach (var p in round.Placements)
-            {
-                var rotation = p.Rotated ? " [rotated]" : "";
-                logger.Information(
-                    "    - {PieceName} {Length}x{Width} at ({X},{Y}){Rotation}",
-                    p.Piece.Name,
-                    p.Piece.Length,
-                    p.Piece.Width,
-                    p.X,
-                    p.Y,
-                    rotation,
-                    new Dictionary<string, object>
-                    {
-                        ["menuId"] = menu.Id,
-                    });
-            }
-        }
     }
 }

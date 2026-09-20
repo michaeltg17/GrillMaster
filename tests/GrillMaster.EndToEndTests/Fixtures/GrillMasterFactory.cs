@@ -24,7 +24,7 @@ internal static class GrillMasterFactory
         testOutputSink.Inject(output);
 
         var host = HostBuilder.Create(
-            new GrillCommandOptions(Planner: planner, Url: apiUrl.ToString(), Verbose: verbose),
+            new GenerateGrillPlanRequest(Planner: planner, Url: apiUrl.ToString(), Verbose: verbose),
             configureLogging: configuration => configuration
                 .WriteTo.Sink(sink)
                 .WriteTo.InjectableTestOutput(testOutputSink),
