@@ -1,0 +1,40 @@
+using GrillMaster;
+using GrillMaster.CrossCutting.Settings;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Serilog.Sinks.InMemory;
+using Serilog.Sinks.XUnit.Injectable;
+using Serilog.Sinks.XUnit.Injectable.Extensions;
+using Xunit;
+
+namespace GrillMaster.EndToEndTests.Fixtures;
+
+/// <summary>
+/// Creates a <see cref="GrillMasterApp"/>: hosts the application exactly the way <c>Program</c>
+/// does (the same <c>Program.CreateHost</c>), with the API pointed at a mock, the planner and
+/// API base URL supplied as configuration, and logging routed to an in-memory sink plus the
+/// xUnit test output.
+/// </summary>
+internal static class GrillMasterFactory
+{
+    /// <summary>Creates an app hosting the application with the given planner and API base URL.</summary>
+    public static GrillMasterApp Create(string planner, Uri apiUrl, ITestOutputHelper output)
+    {
+        var sink = new InMemorySink();
+        var testOutputSink = new InjectableTestOutputSink(outputTemplate: "{Message:lj}{NewLine}");
+        testOutputSink.Inject(output);
+
+        var host = Program.CreateHost(
+            configureLogging: configuration => configuration
+                .WriteTo.Sink(sink)
+                .WriteTo.InjectableTestOutput(testOutputSink),
+            configureServices: services => services.AddSingleton(sink),
+            configureBuilder: builder => builder.Configuration.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                [$"{IGrillMasterSettings.Section}:Planner"] = planner,
+                [$"{IGrillMasterSettings.Section}:GrillMenuApiUrl"] = apiUrl.ToString(),
+            }));
+
+        return new GrillMasterApp(host, sink, testOutputSink);
+    }
+}

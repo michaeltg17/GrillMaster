@@ -2,22 +2,36 @@
 
 ## Build & test
 - Build: `dotnet build GrillMaster.slnx`
-- Tests: `dotnet run --project tests/GrillMaster.Tests`
+- Run (planner from `appsettings.json`): `dotnet run --project src/GrillMaster.Console`
+- Tests: each test project is an MTP project — run it directly:
+  - `dotnet run --project tests/GrillMaster.UnitTests`
+  - `dotnet run --project tests/GrillMaster.IntegrationTests`
+  - `dotnet run --project tests/GrillMaster.EndToEndTests`
+  - `dotnet run --project tests/GrillMaster.PerformanceTests`
+- `tests/GrillMaster.Core.Testing` is a shared classlib (WireMock mocks, `TestData`, the `grill-menus.json` fixture) referenced by the test projects; it has no tests of its own.
 - Do NOT use `dotnet test` — its MTP mode is broken with xunit v3 on this SDK (exits non-zero, runs 0 tests).
 
 ## Analyzer rules
 - `Directory.Build.props` sets `AnalysisMode=AllEnabledByDefault` and `TreatWarningsAsErrors=true`.
 - Keep the build at **0 warnings**; any new warning fails the build.
-- Suppressions live in `.editorconfig` (IDE0130, CA1062, CA1814, CA1859, CA1002, CA2227, CA1849, CA13xx, IDE03xx, …). Add new ones there, not in code.
+- Suppressions live in `.editorconfig` (IDE0130, CA1724, CA1062, CA1814, CA1859, CA1002, CA2227, CA1849, CA13xx, IDE03xx, …). Add new ones there, not in code.
 
 ## Layout
-- `src/` — app. `Api/` (client + typed exceptions), `Domain/`, `Grilling/` (strategies + engine), `GrillOrchestrator.cs`, `Program.cs`.
-- Logging is Serilog: the console sink uses template `{Message:lj}{NewLine}` (no timestamp/level), so console output is plain report lines. `GrillOrchestrator` logs one `{MenuName}: {RoundCount} rounds` event per menu (menus processed in name order) plus a `Total: {TotalRounds} rounds` event.
-- `tests/GrillMaster.Tests/` — xunit v3. `Infra/` holds WireMock mocks and `LoggerScope` (per-test Serilog scope: in-memory sink + xUnit test output; assert via `sink.Should().HaveMessage(...)` from `Serilog.Sinks.InMemory.Assertions`). `grill-menus.json` is the real 15-menu API fixture (exposed via `TestData.GrillMenusJson`).
+- `src/` — four projects.
+   - `GrillMaster.CrossCutting/` — crosscutting concerns shared by all hosts; namespace `GrillMaster.CrossCutting`. `Settings/` = `IGrillMasterSettings`/`GrillMasterSettings` (bound to the `GrillMaster` configuration section: `GrillMenuApiUrl`, `Planner`) + `IValidateOptions` validator; `DependencyConfigurator.AddCrossCuttingDependencies()` registers the options (validate-on-start) and exposes `IGrillMasterSettings` as a singleton.
+  - `GrillMaster.Domain/` — pure, dependency-free models (`GrillSize`, `GrillPiece`, `GrillMenuItem`, `GrillMenu`, `GrillPiecePlacement`, `GrillRound`, `GrillPlan`); namespace `GrillMaster.Domain`.
+  - `GrillMaster.Application/` — the application layer; namespace `GrillMaster.Application`. `Features/Menus/` = grill menu API client + wire DTOs (namespace `GrillMaster.Application.Features.Menus[.Models]`); `Features/Planning/` = grilling planners + engine (namespaces `GrillMaster.Application.Features.Planning[.Planners]`); `GrillOrchestrator.cs` at the project root.
+   - `GrillMaster.Console/` — the executable, namespace `GrillMaster`: `Program.cs` (`Run()` builds the host via `CreateHost` and runs it with `host.RunAsync()`; `CreateHost` is the composition root — builds the Generic Host, pins the content root to `AppContext.BaseDirectory` so `appsettings.json` loads from the app's own directory, then wires everything in DI; there is no CLI, all settings come from configuration), `GrillPipelineHostedService.cs` (runs the `GrillOrchestrator` when the host starts, then stops the application so `host.RunAsync()` returns), `appsettings.json`.
+- Dependency chain: `Console` → `Application` → `Domain`; `Application` → `GrillMaster.CrossCutting` (settings), `Console` → `GrillMaster.CrossCutting`.
+- The host is built in `Program.CreateHost` — no runtime objects are passed into DI registrations; the whole application graph (`GrillMenuService`, `IGrillPlanner`, `GrillOrchestrator`) is constructor-injected. The pipeline runs as the `GrillPipelineHostedService` hosted service, so `host.RunAsync()` drives the whole app. Misconfiguration (bad URL, unknown planner) fails fast when the host starts (options validation + planner resolution).
+- Logging is Serilog via `Serilog.Extensions.Hosting`: `CreateHost` builds a per-host logger from the `Serilog` configuration section (`ReadFrom.Configuration`) plus the `configureLogging` hook, and registers it with `builder.Services.AddSerilog(logger, dispose: false)` (the `Log.Logger` static is never touched; `dispose: false` keeps the host shutdown from disposing the logger and its sinks). Serilog backs `Microsoft.Extensions.Logging`, so app code injects `ILogger<T>` (category = the type's full name). `builder.Logging.ClearProviders()` keeps the default providers from double-writing. The console app configures a console sink with template `{Message:lj}{NewLine}` (no timestamp/level) and an all-white `SystemConsoleTheme` (every `ConsoleThemeStyle` → white foreground), so console output is plain white report lines; the `Microsoft`/`System` level overrides (framework noise off) live in the `Serilog` section of `appsettings.json`. `GrillOrchestrator` logs one `{MenuName}: {RoundCount} rounds` event per menu (menus processed in name order) plus a `Total: {TotalRounds} rounds` event.
+- `tests/` — xunit v3 on MTP. `GrillMaster.Core.Testing/` is the shared classlib: `Infra/` holds the WireMock mocks, `Core/` holds `TestCaseSerializer`, and `grill-menus.json` is the real 15-menu API fixture (exposed via `TestData.GrillMenusJson`). The four test projects (`UnitTests`, `IntegrationTests`, `EndToEndTests`, `PerformanceTests`) each reference it. `EndToEndTests` references the `Console` project and runs the real pipeline through `Fixtures/GrillMasterFactory`, which creates a `GrillMasterApp` (the hosted app: exposes the per-test in-memory `Sink` and `RunAsync`) — the same `Program.CreateHost` as `Program`, with the planner and API base URL supplied as in-memory configuration, the API pointed at WireMock and logging routed to the in-memory sink + the xUnit test output (assert via `app.Sink.Should().HaveMessage(...)` from `Serilog.Sinks.InMemory.Assertions`).
 
 ## Conventions
-- Grilling strategies implement `IGrillPlanStrategy` and are selected by name; the 30×20 cm grill is the fixed frame.
-- API failures surface as typed exceptions (`src/Api/ApiExceptions.cs`); the mock base is `Infra/ApiMock` (owns/disposes the `WireMockServer`, exposes `Url` as `Uri`).
+- Grilling planners implement `IGrillPlanner` and are selected by name; the 30×20 cm grill is the fixed frame.
+- No try/catch in the request path: API failures surface as the raw .NET exceptions (`HttpRequestException` for transport/non-2xx, `JsonException` for malformed bodies) and are let to reach the top (unhandled → non-zero exit). The mock base is `GrillMaster.Core.Testing/Infra/ApiMock` (owns/disposes the `WireMockServer`, exposes `Url` as `Uri`).
+- Assertions use AwesomeAssertions (`Should()`), never xunit's `Assert` — in every test project.
+- Namespaces follow the project/folder layout (IDE0130 is suppressed, so they are not forced to match the solution-relative path).
 
 ## Branching & PR workflow (dev → main)
 

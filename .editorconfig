@@ -40,8 +40,17 @@ dotnet_diagnostic.IDE0022.severity = none
 # IDE0036: Order modifiers
 dotnet_diagnostic.IDE0036.severity = none
 
+# IDE0210: Convert to top-level statements - the console entry point keeps a class-based Program
+# (Main + Run + CreateHost); top-level statements are not used in this repo.
+dotnet_diagnostic.IDE0210.severity = none
+
 # CA1720: Identifier contains type name (e.g., Guid Guid, Type Type)
 dotnet_diagnostic.CA1720.severity = none
+
+# CA1724: Type name conflicts with namespace - test classes are named after their
+# test project (e.g. EndToEndTests in the GrillMaster.EndToEndTests namespace), so the
+# last namespace segment intentionally matches the class name.
+dotnet_diagnostic.CA1724.severity = none
 
 # IDE0130: Namespace does not match folder structure - our layout uses
 # GrillMaster.* namespaces rooted at the project (src/), not the
@@ -71,6 +80,15 @@ dotnet_diagnostic.CA2227.severity = none
 # command-line tool that prints a report and exits.
 dotnet_diagnostic.CA1849.severity = none
 
+# CA1848: Use the LoggerMessage delegates - the delegates bypass the message template, which is
+# exactly what Serilog consumes (structured {Property} templates); not worth the boilerplate for a
+# handful of report lines.
+dotnet_diagnostic.CA1848.severity = none
+
+# CA1873: Guard against expensive argument evaluation when logging is disabled - the arguments are
+# cheap property reads on a handful of always-emitted report lines.
+dotnet_diagnostic.CA1873.severity = none
+
 # CA1310/CA1307/CA1305/CA1847: culture-aware string operations - explicit StringComparison /
 # IFormatProvider are already applied in the meaningful spots (parsing, assertions); the remaining
 # matches are case-insensitive display text where the locale-variant overload adds noise.
@@ -92,3 +110,8 @@ dotnet_diagnostic.IDE0032.severity = none
 # clarity and to match the surrounding style.
 dotnet_diagnostic.IDE0005.severity = none
 dotnet_diagnostic.IDE0090.severity = none
+
+[src/GrillMaster.CrossCutting/**.cs]
+# CA1812: internal types instantiated via DI registrations in other assemblies are invisible to
+# the intra-assembly analysis, so "never instantiated" is a false positive here.
+dotnet_diagnostic.CA1812.severity = none
