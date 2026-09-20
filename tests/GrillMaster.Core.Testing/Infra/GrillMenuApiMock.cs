@@ -4,20 +4,14 @@ using WireMock.ResponseBuilders;
 
 namespace GrillMaster.Core.Testing.Infra;
 
-/// <summary>
-/// WireMock-backed stand-in for the grill menu API. Centralises the single request path
-/// (<see cref="GrillMenuPath"/>) and the common response setups so individual tests don't repeat
-/// the endpoint or the request boilerplate.
-/// </summary>
 public sealed class GrillMenuApiMock : ApiMock
 {
     public const string GrillMenuPath = "/api/GrillMenu";
 
     /// <summary>
-    /// Configures GET <see cref="GrillMenuPath"/> to return <paramref name="body"/> (the standard
-    /// fixture by default) with <paramref name="statusCode"/> (200 by default).
+    /// Sets GET <see cref="GrillMenuPath"/> to return default grill menus as <paramref name="body"/>.
     /// </summary>
-    public void RespondWithMenus(string? body = null, int statusCode = 200)
+    public void SetGetMenus(string? body = null, int statusCode = 200)
     {
         Server.Given(Request.Create().UsingGet().WithPath(GrillMenuPath))
             .RespondWith(Response.Create()
@@ -26,11 +20,11 @@ public sealed class GrillMenuApiMock : ApiMock
                 .WithHeader("Content-Type", "application/json"));
     }
 
-    /// <summary>Asserts at least one GET request was received for the grill menu endpoint.</summary>
-    public void AssertGetRequestMade()
+    /// <summary>Asserts one GET request was received for the grill menu endpoint.</summary>
+    public void AssertGetMenusRequest()
     {
         var entries = Server.LogEntries
-            .Where(e => e.RequestMessage?.Url?.EndsWith(GrillMenuPath, StringComparison.Ordinal) == true);
-        entries.Should().NotBeEmpty();
+            .Single(e => e.RequestMessage?.Url?.EndsWith(GrillMenuPath, StringComparison.Ordinal) == true);
+        entries.Should().NotBeNull();
     }
 }

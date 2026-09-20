@@ -18,16 +18,16 @@ public class GrillingOptimalityTests
     [Fact]
     public void Exact_IsNeverWorseThanHeuristics()
     {
-        var pieces = BuildMixedPieces();
+        var menu = PlannerTestsBase.BuildMenu(BuildMixedPieces());
 
-        var exact = new ExactBacktrackingPlanner().Plan(pieces, Grill);
-        var greedy = new GreedyShelfPlanner().Plan(pieces, Grill);
-        var optimized = new OptimizedHeuristicPlanner().Plan(pieces, Grill);
+        var exact = new ExactBacktrackingPlanner().Plan(menu, Grill);
+        var greedy = new GreedyShelfPlanner().Plan(menu, Grill);
+        var optimized = new OptimizedHeuristicPlanner().Plan(menu, Grill);
 
-        exact.TotalRounds.Should().BeLessThanOrEqualTo(greedy.TotalRounds, "exact should beat or tie greedy");
-        exact.TotalRounds.Should().BeLessThanOrEqualTo(optimized.TotalRounds, "exact should beat or tie optimized");
-        greedy.TotalRounds.Should().BeGreaterThanOrEqualTo(exact.LowerBound, "greedy cannot beat the lower bound");
-        optimized.TotalRounds.Should().BeGreaterThanOrEqualTo(exact.LowerBound, "optimized cannot beat the lower bound");
+        exact.Rounds.Count.Should().BeLessThanOrEqualTo(greedy.Rounds.Count, "exact should beat or tie greedy");
+        exact.Rounds.Count.Should().BeLessThanOrEqualTo(optimized.Rounds.Count, "exact should beat or tie optimized");
+        greedy.Rounds.Count.Should().BeGreaterThanOrEqualTo(exact.LowerBound, "greedy cannot beat the lower bound");
+        optimized.Rounds.Count.Should().BeGreaterThanOrEqualTo(exact.LowerBound, "optimized cannot beat the lower bound");
     }
 
     private static List<GrillPiece> BuildMixedPieces()

@@ -16,8 +16,8 @@ public sealed class OptimizedHeuristicPlannerTests : PlannerTestsBase
     [Fact]
     public void ClaimsProvenOptimality_OnlyWhenAtLowerBound()
     {
-        var result = CreatePlanner().Plan(BuildFixturePieces(), Grill);
+        var result = CreatePlanner().Plan(BuildMenu(BuildFixturePieces()), Grill);
 
-        result.IsProvenOptimal.Should().Be(result.TotalRounds == result.LowerBound);
+        result.IsProvenOptimal.Should().Be(result.Rounds.Count == result.LowerBound);
     }
 }

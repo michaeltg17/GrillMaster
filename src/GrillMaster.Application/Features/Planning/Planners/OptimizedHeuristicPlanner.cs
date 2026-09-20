@@ -10,9 +10,8 @@ namespace GrillMaster.Application.Features.Planning.Planners;
 /// It starts from the <see cref="GreedyShelfPlanner"/> result and repeatedly tries to empty the
 /// last round by moving its pieces into earlier rounds. A direct move is tried first; when blocked,
 /// a bounded backtracking sub-search decides whether the last round's pieces can be absorbed by the
-/// earlier rounds (allowing the pieces already there to be rearranged). Several piece orderings are
-/// tried as seeds and the best result is kept. Every accepted move keeps the plan valid and can
-/// only keep or reduce the round count.
+/// earlier rounds (allowing the pieces already there to be rearranged). Every accepted move keeps
+/// the plan valid and can only keep or reduce the round count.
 /// </para>
 /// </summary>
 public sealed class OptimizedHeuristicPlanner : IGrillPlanner
@@ -22,55 +21,22 @@ public sealed class OptimizedHeuristicPlanner : IGrillPlanner
 
     public string Name { get; } = "optimized";
 
-    public GrillPlan Plan(IReadOnlyList<GrillPiece> pieces, GrillSize grill)
+    public GrillPlan Plan(GrillMenu menu, GrillSize grill)
     {
         var stopwatch = Stopwatch.StartNew();
+        var pieces = menu.ExpandPieces();
         var lowerBound = GrillPlanHelpers.ComputeLowerBound(pieces, grill);
 
         if (pieces.Count == 0)
         {
-            return new GrillPlan([], Name, lowerBound, IsProvenOptimal: false, SearchNodes: 0, stopwatch.Elapsed);
+            return new GrillPlan(menu, [], Name, lowerBound, IsProvenOptimal: false, SearchNodes: 0, stopwatch.Elapsed);
         }
 
-        var best = default(List<GrillRound>);
-        var bestCount = int.MaxValue;
-
-        foreach (var seed in BuildSeeds(pieces, grill))
-        {
-            var consolidated = Consolidate(seed, grill);
-            if (consolidated.Count < bestCount)
-            {
-                bestCount = consolidated.Count;
-                best = consolidated;
-
-                if (bestCount == lowerBound)
-                {
-                    break;
-                }
-            }
-        }
+        var seed = new GreedyShelfPlanner().Plan(menu, grill).Rounds;
+        var best = Consolidate(seed, grill);
 
         stopwatch.Stop();
-        return new GrillPlan(best!, Name, lowerBound, IsProvenOptimal: bestCount == lowerBound, SearchNodes: 0, stopwatch.Elapsed);
-    }
-
-    // A few deterministic orderings to seed the greedy heuristic from.
-    private static IEnumerable<IReadOnlyList<GrillRound>> BuildSeeds(IReadOnlyList<GrillPiece> pieces, GrillSize grill)
-    {
-        var greeds = new GreedyShelfPlanner();
-
-        // Seed 1: canonical order (largest area first) - the default greedy.
-        yield return greeds.Plan(pieces, grill).Rounds;
-
-        // Seed 2: longest side first.
-        yield return greeds.Plan(
-            pieces.OrderByDescending(p => p.LongSide).ThenByDescending(p => p.Area).ThenBy(p => p.Name, StringComparer.Ordinal).ToList(),
-            grill).Rounds;
-
-        // Seed 3: shortest side first (small pieces first can sometimes fit tighter).
-        yield return greeds.Plan(
-            pieces.OrderBy(p => p.ShortSide).ThenBy(p => p.Name, StringComparer.Ordinal).ToList(),
-            grill).Rounds;
+        return new GrillPlan(menu, best, Name, lowerBound, IsProvenOptimal: best.Count == lowerBound, SearchNodes: 0, stopwatch.Elapsed);
     }
 
     private static List<GrillRound> Consolidate(IReadOnlyList<GrillRound> seed, GrillSize grill)

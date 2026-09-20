@@ -106,8 +106,8 @@ public sealed class GrillingBenchmarkTests(ITestOutputHelper output)
         {
             foreach (var menu in menus)
             {
-                var result = planner.Plan(menu.ExpandPieces(), Grill);
-                totalRounds += result.TotalRounds;
+                var result = planner.Plan(menu, Grill);
+                totalRounds += result.Rounds.Count;
                 lowerBound += result.LowerBound;
                 searchNodes += result.SearchNodes;
                 elapsed.Add(result.Elapsed.TotalMilliseconds);

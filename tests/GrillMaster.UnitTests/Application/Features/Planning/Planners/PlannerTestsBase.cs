@@ -28,35 +28,33 @@ public abstract class PlannerTestsBase
     [Fact]
     public void ProducesValidPlan_ForFixture()
     {
-        var pieces = BuildFixturePieces();
-        var result = CreatePlanner().Plan(pieces, Grill);
+        var result = CreatePlanner().Plan(BuildMenu(BuildFixturePieces()), Grill);
 
-        Validate(pieces, result);
+        Validate(result);
     }
 
     [Fact]
     public void ProducesValidPlan_ForManyIdenticalPieces()
     {
         // 40 identical small pieces - stresses symmetry handling.
-        var pieces = BuildManyIdenticalPieces();
-        var result = CreatePlanner().Plan(pieces, Grill);
+        var result = CreatePlanner().Plan(BuildMenu(BuildManyIdenticalPieces()), Grill);
 
-        Validate(pieces, result);
+        Validate(result);
     }
 
     [Fact]
     public void HandlesEmptyInput()
     {
-        var result = CreatePlanner().Plan([], Grill);
+        var result = CreatePlanner().Plan(BuildMenu([]), Grill);
 
-        result.TotalRounds.Should().Be(0);
+        result.Rounds.Count.Should().Be(0);
         result.Rounds.Should().BeEmpty();
     }
 
     [Fact]
     public void ThrowsForOversizedPiece()
     {
-        List<GrillPiece> oversized = [new GrillPiece("Huge", 40, 5)];
+        var oversized = BuildMenu([new GrillPiece("Huge", 40, 5)]);
 
         var act = () => CreatePlanner().Plan(oversized, Grill);
 
@@ -66,18 +64,18 @@ public abstract class PlannerTestsBase
     [Fact]
     public void RespectsLowerBound()
     {
-        var pieces = BuildManyIdenticalPieces();
-        var lowerBound = GrillPlanHelpers.ComputeLowerBound(pieces, Grill);
-        var result = CreatePlanner().Plan(pieces, Grill);
+        var menu = BuildMenu(BuildManyIdenticalPieces());
+        var lowerBound = GrillPlanHelpers.ComputeLowerBound(menu.ExpandPieces(), Grill);
+        var result = CreatePlanner().Plan(menu, Grill);
 
-        result.TotalRounds.Should().BeGreaterThanOrEqualTo(lowerBound, $"{result.Planner} beat the lower bound");
+        result.Rounds.Count.Should().BeGreaterThanOrEqualTo(lowerBound, $"{result.Planner} beat the lower bound");
     }
 
     [Fact]
     public void Plan_ReportsPlannerName()
     {
         var planner = CreatePlanner();
-        var result = planner.Plan(BuildFixturePieces(), Grill);
+        var result = planner.Plan(BuildMenu(BuildFixturePieces()), Grill);
 
         result.Planner.Should().Be(planner.Name);
     }
@@ -95,8 +93,21 @@ public abstract class PlannerTestsBase
     protected static List<GrillPiece> BuildManyIdenticalPieces() =>
         Enumerable.Repeat(new GrillPiece("Sausage", 6, 3), 40).ToList();
 
-    protected static void Validate(IReadOnlyList<GrillPiece> input, GrillPlan result)
+    /// <summary>
+    /// Wraps pieces into a <see cref="GrillMenu"/>, grouping identical pieces into items with a
+    /// quantity so <c>menu.ExpandPieces()</c> reproduces the input multiset.
+    /// </summary>
+    public static GrillMenu BuildMenu(IReadOnlyList<GrillPiece> pieces) => new(
+        Guid.NewGuid(),
+        "Test menu",
+        pieces
+            .GroupBy(p => (p.Name, p.Length, p.Width))
+            .Select(g => new GrillMenuItem(Guid.NewGuid(), g.Key.Name, g.Key.Length, g.Key.Width, "10 min", g.Count()))
+            .ToList());
+
+    protected static void Validate(GrillPlan result)
     {
+        var input = result.Menu.ExpandPieces();
         var placed = result.Rounds.SelectMany(r => r.Placements.Select(p => p.Piece)).ToList();
 
         // 1) Same multiset of pieces as the input.

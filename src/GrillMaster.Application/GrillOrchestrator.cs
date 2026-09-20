@@ -16,34 +16,25 @@ public sealed class GrillOrchestrator(
     IGrillPlanner planner,
     ILogger logger)
 {
-    public async Task<int> RunAsync(CancellationToken cancellationToken = default)
+    public async Task RunAsync(CancellationToken cancellationToken = default)
     {
         var menus = await menuService.GetMenusAsync(cancellationToken).ConfigureAwait(false);
 
-        if (menus.Count == 0)
-        {
-            logger.Information("The API returned no menus.");
-            return 0;
-        }
-
         var grillSize = GrillSize.Standard;
 
-        var results = new List<(GrillMenu Menu, GrillPlan Result)>();
+        var results = new List<GrillPlan>();
         foreach (var menu in menus.OrderBy(m => m.Name, StringComparer.Ordinal))
         {
-            var pieces = menu.ExpandPieces();
-            var result = planner.Plan(pieces, grillSize);
-            results.Add((menu, result));
+            results.Add(planner.Plan(menu, grillSize));
         }
 
         var total = 0;
-        foreach (var (menu, result) in results)
+        foreach (var result in results)
         {
-            total += result.TotalRounds;
-            logger.Information("{MenuName}: {RoundCount} rounds", menu.Name, result.TotalRounds);
+            total += result.Rounds.Count;
+            logger.Information("{MenuName}: {RoundCount} rounds", result.Menu.Name, result.Rounds.Count);
         }
 
         logger.Information("Total: {TotalRounds} rounds", total);
-        return 0;
     }
 }

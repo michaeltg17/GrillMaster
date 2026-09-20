@@ -23,24 +23,24 @@ ships three planners with different speed/quality trade‑offs, all behind one i
 ## How it works
 
 ```
-Program.cs (System.CommandLine)
+Program.cs
         │
         ▼
-HostBuilder (composition root: configuration + DI)
+CreateHost (composition root: configuration + DI)
         │
         ▼
-GrillCommandHandler ──► GrillOrchestrator ──► GrillMenuService ──► GrillMenuApiClient ──► REST API  (GET /api/GrillMenu)
+host.RunAsync() ──► GrillPipelineHostedService ──► GrillOrchestrator ──► GrillMenuService ──► GrillMenuApiClient ──► REST API  (GET /api/GrillMenu)
         │
-        │  for each menu: expand items × quantity into pieces
+        │  for each menu: the planner expands its items × quantity into pieces
         ▼
-    IGrillPlanner.Plan(pieces, grill)  ──►  GrillPlan (rounds of placements)
+    IGrillPlanner.Plan(menu, grill)  ──►  GrillPlan (menu + rounds of placements)
         │
         ▼
     Serilog ──► console (one "<menu>: N rounds" line + "Total: N rounds")
 ```
 
 - **GrillMaster.CrossCutting** (`src/GrillMaster.CrossCutting`) — the `GrillMaster` configuration section bound to
-  `IGrillMasterSettings` (`GrillMenuApiUrl`, `Planner`, `Verbose`) with validation, registered
+  `IGrillMasterSettings` (`GrillMenuApiUrl`, `Planner`) with validation, registered
   by `DependencyConfigurator.AddCrossCuttingDependencies()`.
 - **Domain** (`src/GrillMaster.Domain`) — pure, dependency‑free models: `GrillSize`,
   `GrillPiece`, `GrillMenuItem`, `GrillMenu`, `GrillPiecePlacement`, `GrillRound`, `GrillPlan`.
@@ -49,10 +49,10 @@ GrillCommandHandler ──► GrillOrchestrator ──► GrillMenuService ─�
    responses) and `Features/Planning` (`IGrillPlanner` and the three planners, sharing a
   `RoundOccupancy` grid and skyline position search). `GrillOrchestrator` ties the two features
   together.
-- **Console** (`src/GrillMaster.Console`) — the executable: `Program.cs` (the CLI),
-  `HostBuilder.cs` (the composition root — CLI values are layered onto the configuration, then
-  the whole application graph is built in DI), `GrillCommandHandler.cs` and
-  `appsettings.json`. The API client's `HttpClient` base address comes from configuration.
+- **Console** (`src/GrillMaster.Console`) — the executable: `Program.cs` (builds the host in
+  `CreateHost` and runs it — the pipeline runs as the `GrillPipelineHostedService` hosted
+  service) and `appsettings.json`, the only configuration source (there is no CLI). The API
+  client's `HttpClient` base address comes from configuration.
 
 Pieces may be **rotated 90°** (both `L×W` and `W×L` are tried). Placement is **axis‑aligned and
 non‑overlapping** (see [Known limitations](#known-limitations)).
@@ -65,35 +65,27 @@ Requires the **.NET 10 SDK**.
 # restore + build everything
 dotnet build GrillMaster.slnx
 
-# run (default planner: greedy)
-dotnet run --project src/GrillMaster.Console -- greedy
+# run (planner from appsettings.json)
+dotnet run --project src/GrillMaster.Console
 ```
 
-### Command line
+### Configuration
 
-```
-Usage:
-  GrillMaster [<planner>] [options]
+There is no command line — everything comes from the `GrillMaster` section of
+`src/GrillMaster.Console/appsettings.json`:
 
-Arguments:
-   <planner>  Grilling planner (greedy | exact | optimized).
-
-Options:
-  -p, --planner <planner>  Grilling planner (greedy | exact | optimized).
-  -u, --url <url>            API base URL (overrides appsettings.json).
-  -v, --verbose              Print the full per-round placement breakdown.
-  -h, --help                 Show help and usage information.
-  --version                  Show version information.
+```json
+{
+  "GrillMaster": {
+    "GrillMenuApiUrl": "http://isol-grillassessment.azurewebsites.net",
+    "Planner": "greedy"
+  }
+}
 ```
 
-The planner can be given as a positional argument (`GrillMaster exact`) or with
-`--planner`; when both are supplied, `--planner` wins. Planners:
-`greedy` (best-fit shelf heuristic, default), `exact` (branch-and-bound, proves the
-optimum), `optimized` (greedy seed + local-search consolidation).
-
-The API base URL (and the default planner / verbose flag) come from the `GrillMaster` section of
-`src/GrillMaster.Console/appsettings.json` and can be overridden from the command line
-(`--url`, `--planner`, `--verbose`) or environment variables (e.g. `GRILLMASTER__GRILLMENUAPIURL`).
+Planners: `greedy` (best-fit shelf heuristic, default), `exact` (branch-and-bound, proves the
+optimum), `optimized` (greedy seed + local-search consolidation). Any setting can be overridden
+with an environment variable (e.g. `GRILLMASTER__GRILLMENUAPIURL`, `GRILLMASTER__PLANNER`).
 
 ## The three planners
 
@@ -120,7 +112,7 @@ use fewer rounds — `exact` proves it and `optimized` reaches it.
 
 ## Output
 
-Default (summary) output matches the format requested in the brief:
+The output matches the format requested in the brief:
 
 ```
 Menu 04: 2 rounds
@@ -130,27 +122,16 @@ Menu 03: 3 rounds
 Total: 37 rounds
 ```
 
-With `--verbose`, each round is expanded to show the exact placement of every piece:
-
-```
-Menu 04: 2 rounds
-  Round 1 (22 pieces, 536 cm^2):
-    - Veal 8x4 at (0,0)
-    - Veal 8x4 at (8,0)
-    - Paprika Sausage 6x3 at (24,0)
-    ...
-```
-
 ## Testing
 
 Tests live in `tests/` and use **WireMock.Net** to stand up a local HTTP server that mimics the
 grill API — no real network calls and no in‑memory HTTP fakes. Shared test infrastructure
 (WireMock mocks, `TestData`, the `grill-menus.json` fixture) lives in
 `tests/GrillMaster.Core.Testing`, a classlib referenced by every test project. The end‑to‑end
-suite builds the real host (the same `HostBuilder` as the console app) via
+suite builds the real host (the same `CreateHost` as the console app) via
 `GrillMasterFactory`, which creates a `GrillMasterApp` exposing the per‑test in‑memory Serilog
-sink (`Sink`) and `RunAsync`; the API is pointed at WireMock and tests assert on the logged
-events. All assertions use AwesomeAssertions (`Should()`), never xunit's `Assert`.
+sink (`Sink`) and `RunAsync`; the planner and API base URL are supplied as in‑memory
+configuration, the API is pointed at WireMock, and tests assert on the logged events. All assertions use AwesomeAssertions (`Should()`), never xunit's `Assert`.
 
 The suite uses **xUnit v3**, which runs on the Microsoft Testing Platform (MTP) instead of VSTest.
 Each test project is run directly with `dotnet run`:
@@ -199,11 +180,9 @@ src/
         Planners/                 GreedyShelfPlanner, ExactBacktrackingPlanner,
                                    OptimizedHeuristicPlanner
   GrillMaster.Console/            the executable
-    Program.cs                    CLI (System.CommandLine)
-    HostBuilder.cs                composition root: configuration + DI
-    GrillCommandHandler.cs        runs the orchestrator
-    GrillCommandOptions.cs        raw CLI values
-    appsettings.json              default API base URL, planner, verbose flag
+    Program.cs                    entry point + CreateHost composition root
+    GrillPipelineHostedService.cs runs the orchestrator on host start, then stops the app
+    appsettings.json              API base URL + planner (the only configuration source)
 tests/
   GrillMaster.Core.Testing/       shared test classlib (no tests of its own)
     Infra/                        WireMock mocks (ApiMock, GrillMenuApiMock)
@@ -220,7 +199,7 @@ tests/
   GrillMaster.IntegrationTests/
     GrillMenuApiClientTests.cs    WireMock-based client tests
   GrillMaster.EndToEndTests/
-    Fixtures/GrillMasterFactory.cs  creates the hosted app (same HostBuilder) against WireMock
+    Fixtures/GrillMasterFactory.cs  creates the hosted app (same CreateHost as Program) against WireMock
     Fixtures/GrillMasterApp.cs      the hosted app: in-memory sink + RunAsync for the tests
     EndToEndTests.cs                full pipeline via the hosted app
   GrillMaster.PerformanceTests/

@@ -6,10 +6,8 @@ using GrillMaster.CrossCutting.Settings;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Serilog;
 using Serilog.Sinks.SystemConsole.Themes;
-using System.CommandLine;
 using ILogger = Serilog.ILogger;
 
 namespace GrillMaster;
@@ -23,7 +21,7 @@ internal static class Program
 
     public static async Task<int> Run()
     {
-        var host = CreateHost(ConfigureConsoleLogging);
+        using var host = CreateHost(ConfigureConsoleLogging);
         var logger = host.Services.GetRequiredService<ILogger>();
         try
         {
@@ -38,11 +36,14 @@ internal static class Program
     }
 
     public static IHost CreateHost(
-    Action<LoggerConfiguration> configureLogging,
-    Action<IServiceCollection>? configureServices = null)
+        Action<LoggerConfiguration> configureLogging,
+        Action<IServiceCollection>? configureServices = null,
+        Action<HostApplicationBuilder>? configureBuilder = null)
     {
-        var builder = Host.CreateApplicationBuilder();
+        var builder = Host.CreateApplicationBuilder(
+            new HostApplicationBuilderSettings { ContentRootPath = AppContext.BaseDirectory });
         builder.Logging.ClearProviders();
+        configureBuilder?.Invoke(builder);
 
         var loggerConfiguration = new LoggerConfiguration();
         configureLogging(loggerConfiguration);
@@ -59,6 +60,7 @@ internal static class Program
         builder.Services.AddSingleton(sp =>
             GrillPlannerFactory.Create(sp.GetRequiredService<IGrillMasterSettings>().Planner));
         builder.Services.AddSingleton<GrillOrchestrator>();
+        builder.Services.AddHostedService<GrillPipelineHostedService>();
         configureServices?.Invoke(builder.Services);
 
         var host = builder.Build();

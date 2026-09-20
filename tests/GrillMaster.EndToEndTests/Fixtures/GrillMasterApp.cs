@@ -1,5 +1,3 @@
-using GrillMaster;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Serilog.Sinks.InMemory;
 using Serilog.Sinks.XUnit.Injectable;
@@ -8,7 +6,7 @@ namespace GrillMaster.EndToEndTests.Fixtures;
 
 /// <summary>
 /// The application under test: hosted exactly the way <c>Program</c> does (the same
-/// <see cref="HostBuilder"/>), with the API pointed at a mock and logging routed to an
+/// <c>Program.CreateHost</c>), with the API pointed at a mock and logging routed to an
 /// in-memory sink plus the xUnit test output. Tests run the pipeline via
 /// <see cref="RunAsync"/> and assert on the events captured in <see cref="Sink"/>.
 /// </summary>
@@ -28,9 +26,15 @@ internal sealed class GrillMasterApp : IDisposable
     /// <summary>The in-memory sink capturing every event emitted through the hosted logger.</summary>
     public InMemorySink Sink => _sink;
 
-    /// <summary>Runs the grill command (the same handler the CLI invokes) and returns its exit code.</summary>
-    public Task<int> RunAsync(CancellationToken cancellationToken = default)
-        => _host.Services.GetRequiredService<GrillCommandHandler>().RunAsync(cancellationToken);
+    /// <summary>
+    /// Runs the host — the pipeline runs as a hosted service, exactly the way
+    /// <c>Program.Run</c> runs it — and returns the exit code.
+    /// </summary>
+    public async Task<int> RunAsync(CancellationToken cancellationToken = default)
+    {
+        await _host.RunAsync(cancellationToken);
+        return 0;
+    }
 
     public void Dispose()
     {

@@ -16,7 +16,7 @@ public sealed class GreedyShelfPlannerTests : PlannerTestsBase
     [Fact]
     public void DoesNotClaimProvenOptimality()
     {
-        var result = CreatePlanner().Plan(BuildFixturePieces(), Grill);
+        var result = CreatePlanner().Plan(BuildMenu(BuildFixturePieces()), Grill);
 
         result.IsProvenOptimal.Should().BeFalse();
     }

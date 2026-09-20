@@ -16,9 +16,10 @@ public sealed class GreedyShelfPlanner : IGrillPlanner
 {
     public string Name { get; } = "greedy";
 
-    public GrillPlan Plan(IReadOnlyList<GrillPiece> pieces, GrillSize grill)
+    public GrillPlan Plan(GrillMenu menu, GrillSize grill)
     {
         var stopwatch = Stopwatch.StartNew();
+        var pieces = menu.ExpandPieces();
         var lowerBound = GrillPlanHelpers.ComputeLowerBound(pieces, grill);
         var ordered = GrillPlanHelpers.OrderPieces(pieces);
 
@@ -51,7 +52,7 @@ public sealed class GreedyShelfPlanner : IGrillPlanner
         }
 
         stopwatch.Stop();
-        return new GrillPlan(rounds, Name, lowerBound, IsProvenOptimal: false, SearchNodes: 0, stopwatch.Elapsed);
+        return new GrillPlan(menu, rounds, Name, lowerBound, IsProvenOptimal: false, SearchNodes: 0, stopwatch.Elapsed);
     }
 
     // Best fit: the existing round whose free space is smallest after the piece is added.

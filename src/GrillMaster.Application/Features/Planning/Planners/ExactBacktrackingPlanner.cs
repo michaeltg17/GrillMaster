@@ -36,16 +36,17 @@ public sealed class ExactBacktrackingPlanner : IGrillPlanner
     private long _nodes;
     private bool _budgetExceeded;
 
-    public GrillPlan Plan(IReadOnlyList<GrillPiece> pieces, GrillSize grill)
+    public GrillPlan Plan(GrillMenu menu, GrillSize grill)
     {
         var stopwatch = Stopwatch.StartNew();
+        var pieces = menu.ExpandPieces();
         var lowerBound = GrillPlanHelpers.ComputeLowerBound(pieces, grill);
         var ordered = GrillPlanHelpers.OrderPieces(pieces);
         var n = ordered.Count;
 
         if (n == 0)
         {
-            return new GrillPlan([], Name, lowerBound, IsProvenOptimal: true, SearchNodes: 0, stopwatch.Elapsed);
+            return new GrillPlan(menu, [], Name, lowerBound, IsProvenOptimal: true, SearchNodes: 0, stopwatch.Elapsed);
         }
 
         foreach (var p in ordered)
@@ -58,8 +59,8 @@ public sealed class ExactBacktrackingPlanner : IGrillPlanner
         }
 
         // Upper bound from the greedy heuristic.
-        var greedy = new GreedyShelfPlanner().Plan(pieces, grill);
-        _best = greedy.TotalRounds;
+        var greedy = new GreedyShelfPlanner().Plan(menu, grill);
+        _best = greedy.Rounds.Count;
         _bestRounds = greedy.Rounds.Select(r => new GrillRound(r.Placements)).ToList();
 
         _grill = grill;
@@ -88,7 +89,7 @@ public sealed class ExactBacktrackingPlanner : IGrillPlanner
 
         stopwatch.Stop();
         var proven = _best == lowerBound && !_budgetExceeded;
-        return new GrillPlan(_bestRounds!, Name, lowerBound, proven, SearchNodes: _nodes, stopwatch.Elapsed);
+        return new GrillPlan(menu, _bestRounds!, Name, lowerBound, proven, SearchNodes: _nodes, stopwatch.Elapsed);
     }
 
     private void Search(int index)
