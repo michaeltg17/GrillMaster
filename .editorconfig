@@ -80,6 +80,15 @@ dotnet_diagnostic.CA2227.severity = none
 # command-line tool that prints a report and exits.
 dotnet_diagnostic.CA1849.severity = none
 
+# CA1848: Use the LoggerMessage delegates - the delegates bypass the message template, which is
+# exactly what Serilog consumes (structured {Property} templates); not worth the boilerplate for a
+# handful of report lines.
+dotnet_diagnostic.CA1848.severity = none
+
+# CA1873: Guard against expensive argument evaluation when logging is disabled - the arguments are
+# cheap property reads on a handful of always-emitted report lines.
+dotnet_diagnostic.CA1873.severity = none
+
 # CA1310/CA1307/CA1305/CA1847: culture-aware string operations - explicit StringComparison /
 # IFormatProvider are already applied in the meaningful spots (parsing, assertions); the remaining
 # matches are case-insensitive display text where the locale-variant overload adds noise.

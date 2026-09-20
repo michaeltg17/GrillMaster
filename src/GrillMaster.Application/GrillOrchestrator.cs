@@ -2,7 +2,7 @@ using GrillMaster.Application.Features.Menus;
 using GrillMaster.Application.Features.Planning;
 using GrillMaster.CrossCutting.Settings;
 using GrillMaster.Domain;
-using Serilog;
+using Microsoft.Extensions.Logging;
 
 namespace GrillMaster.Application;
 
@@ -14,7 +14,7 @@ namespace GrillMaster.Application;
 public sealed class GrillOrchestrator(
     GrillMenuService menuService,
     IGrillPlanner planner,
-    ILogger logger)
+    ILogger<GrillOrchestrator> logger)
 {
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
@@ -32,9 +32,9 @@ public sealed class GrillOrchestrator(
         foreach (var result in results)
         {
             total += result.Rounds.Count;
-            logger.Information("{MenuName}: {RoundCount} rounds", result.Menu.Name, result.Rounds.Count);
+            logger.LogInformation("{MenuName}: {RoundCount} rounds", result.Menu.Name, result.Rounds.Count);
         }
 
-        logger.Information("Total: {TotalRounds} rounds", total);
+        logger.LogInformation("Total: {TotalRounds} rounds", total);
     }
 }

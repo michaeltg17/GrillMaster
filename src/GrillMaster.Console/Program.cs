@@ -8,7 +8,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Sinks.SystemConsole.Themes;
-using ILogger = Serilog.ILogger;
 
 namespace GrillMaster;
 
@@ -22,7 +21,7 @@ internal static class Program
     public static async Task<int> Run()
     {
         using var host = CreateHost(ConfigureConsoleLogging);
-        var logger = host.Services.GetRequiredService<ILogger>();
+        var logger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("GrillMaster");
         try
         {
             await host.RunAsync();
@@ -30,7 +29,7 @@ internal static class Program
         }
         catch (GrillMasterException grillMasterException)
         {
-            logger.Error(grillMasterException, grillMasterException.Message);
+            logger.LogError(grillMasterException, "{Message}", grillMasterException.Message);
             return 1;
         }
     }
@@ -42,15 +41,17 @@ internal static class Program
     {
         var builder = Host.CreateApplicationBuilder(
             new HostApplicationBuilderSettings { ContentRootPath = AppContext.BaseDirectory });
-        builder.Logging.ClearProviders();
         configureBuilder?.Invoke(builder);
 
         var loggerConfiguration = new LoggerConfiguration();
+        loggerConfiguration.ReadFrom.Configuration(builder.Configuration);
         configureLogging(loggerConfiguration);
         var logger = loggerConfiguration.CreateLogger();
 
+        builder.Logging.ClearProviders();
+        builder.Services.AddSerilog(logger, dispose: false);
+
         builder.Services.AddCrossCuttingDependencies();
-        builder.Services.AddSingleton<ILogger>(logger);
         builder.Services.AddHttpClient<GrillMenuApiClient>((sp, client) =>
         {
             client.BaseAddress = sp.GetRequiredService<IGrillMasterSettings>().GrillMenuApiUrl;
