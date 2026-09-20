@@ -26,13 +26,13 @@ public sealed class GrillOrchestrator(
             return 0;
         }
 
-        var grill = GrillSize.Standard;
+        var grillSize = GrillSize.Standard;
 
         var results = new List<(GrillMenu Menu, GrillPlan Result)>();
         foreach (var menu in menus.OrderBy(m => m.Name, StringComparer.Ordinal))
         {
             var pieces = menu.ExpandPieces();
-            var result = strategy.Plan(pieces, grill);
+            var result = strategy.Plan(pieces, grillSize);
             results.Add((menu, result));
         }
 
