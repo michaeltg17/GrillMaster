@@ -6,7 +6,10 @@
     <File Path="AGENTS.md" />
     <File Path="Directory.Build.props" />
     <File Path="Directory.Packages.props" />
+    <File Path="global.json" />
     <File Path="opencode.json" />
+    <File Path="README.md" />
+    <File Path="specs.pdf" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/GrillMaster.csproj" />
