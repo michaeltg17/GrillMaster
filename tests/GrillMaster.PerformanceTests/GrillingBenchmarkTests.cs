@@ -8,7 +8,7 @@ namespace GrillMaster.PerformanceTests;
 
 /// <summary>
 /// Benchmarks every grilling strategy over the full 15-menu fixture and compares the result against the
-/// git-committed baseline (<c>Performance/baseline.json</c>). Quality (total rounds) is a hard failure if
+/// git-committed baseline (<c>baseline.json</c>). Quality (total rounds) is a hard failure if
 /// it regresses; speed is a hard failure only on a significant relative regression (default +50%) so that
 /// machine-to-machine variance does not cause flaky failures. Regenerate the baseline with
 /// <c>UPDATE_PERF_BASELINE=1</c>.

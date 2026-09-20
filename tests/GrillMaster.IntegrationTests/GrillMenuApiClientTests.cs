@@ -2,7 +2,6 @@ using System.Net;
 using GrillMaster.Application.Features.Menus;
 using GrillMaster.Application.Features.Menus.Exceptions;
 using GrillMaster.Core.Testing.Infra;
-using GrillMaster.Domain;
 using Xunit;
 
 namespace GrillMaster.IntegrationTests;
@@ -37,7 +36,7 @@ public sealed class GrillMenuApiClientTests : IDisposable
         Assert.Equal(15, menus.Count);
 
         // Menu 04 (first in the API's response order) has two items.
-        var menu04 = menus.Single(m => m.Name == "Menu 04");
+        var menu04 = menus.Single(m => m.Menu == "Menu 04");
         Assert.Equal(2, menu04.Items.Count);
 
         var paprika = menu04.Items.Single(i => i.Name == "Paprika Sausage");
@@ -51,7 +50,7 @@ public sealed class GrillMenuApiClientTests : IDisposable
         Assert.Equal(10, veal.Quantity);
 
         // Quantities expand into the right number of physical pieces.
-        Assert.Equal(50, menu04.ExpandPieces().Count); // 40 paprika + 10 veal
+        Assert.Equal(50, menu04.Items.Sum(i => i.Quantity)); // 40 paprika + 10 veal
     }
 
     [Fact]

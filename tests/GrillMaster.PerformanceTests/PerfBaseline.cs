@@ -22,7 +22,7 @@ public sealed record StrategyPerf(
 
 /// <summary>
 /// The committed performance baseline. Stored in git at
-/// <c>tests/GrillMaster.Tests/Performance/baseline.json</c> and compared against on every run so that
+/// <c>tests/GrillMaster.PerformanceTests/baseline.json</c> and compared against on every run so that
 /// quality (rounds) regressions and significant speed regressions are caught.
 /// </summary>
 /// <param name="GeneratedAt">UTC timestamp the baseline was captured.</param>
@@ -48,7 +48,7 @@ public static class PerfBaselineStore
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
-    private const string BaselineRelativePath = "Performance/baseline.json";
+    private const string BaselineRelativePath = "baseline.json";
 
     /// <summary>
     /// True when the run should (re)write the baseline file instead of asserting against it. Enabled by

@@ -1,9 +1,9 @@
 namespace GrillMaster.Application.Features.Menus.Models;
 
 /// <summary>
-/// Wire-format DTO for a single grill menu item, matching the REST API's JSON.
+/// Wire-format response for a single grill menu item, matching the REST API's JSON.
 /// </summary>
-public sealed class GrillMenuItemDto
+public sealed class GrillMenuItemResponse
 {
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;

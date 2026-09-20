@@ -26,7 +26,7 @@ ships three strategies with different speed/quality trade‑offs, all behind one
 Program.cs (CLI + DI)
         │
         ▼
-GrillOrchestrator ──► IGrillMenuClient ──► REST API  (GET /api/GrillMenu)
+GrillOrchestrator ──► GrillMenuService ──► GrillMenuApiClient ──► REST API  (GET /api/GrillMenu)
         │
         │  for each menu: expand items × quantity into pieces
         ▼
@@ -39,8 +39,8 @@ GrillOrchestrator ──► IGrillMenuClient ──► REST API  (GET /api/Grill
 - **Domain** (`src/GrillMaster.Domain`) — pure, dependency‑free models: `GrillSize`,
   `GrillPiece`, `GrillMenuItem`, `GrillMenu`, `GrillPiecePlacement`, `GrillRound`, `GrillPlan`.
 - **Application** (`src/GrillMaster.Application`) — the application layer, organised by feature:
-  `Features/Menus` (the grill‑menu API client `IGrillMenuApiClient` / `GrillMenuApiClient`, wire
-  DTOs, and typed API exceptions) and `Features/Plans` (`IGrillPlanStrategy` and the three
+  `Features/Menus` (the grill‑menu `GrillMenuService` and `GrillMenuApiClient`, wire
+  responses, and typed API exceptions) and `Features/Plans` (`IGrillPlanStrategy` and the three
   strategies, sharing a `RoundOccupancy` grid and skyline position search). `GrillOrchestrator`
   ties the two features together.
 - **Console** (`src/GrillMaster.Console`) — the executable: `Program.cs` (CLI + DI/host wiring)
@@ -173,8 +173,8 @@ src/
   GrillMaster.Application/        the application layer (namespace GrillMaster.Application)
     GrillOrchestrator.cs          fetch → plan each menu → print
     Features/
-      Menus/                      IGrillMenuApiClient, GrillMenuApiClient
-        Models/                   GrillMenuDto, GrillMenuItemDto
+      Menus/                      GrillMenuService, GrillMenuApiClient
+        Models/                   GrillMenuResponse, GrillMenuItemResponse
         Exceptions/               typed API exceptions
       Plans/                      IGrillPlanStrategy, RoundOccupancy, GrillPlanHelpers,
                                   GrillPlanStrategyFactory

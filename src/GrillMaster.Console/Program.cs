@@ -110,14 +110,16 @@ internal static class Program
         }
 
         var baseUrl = builder.Configuration["Grill:GrillMenuApiUrl"] ?? DefaultBaseUrl;
-        builder.Services.AddHttpClient<IGrillMenuApiClient, GrillMenuApiClient>(client =>
+        builder.Services.AddHttpClient<GrillMenuApiClient>(client =>
         {
             client.BaseAddress = new Uri(baseUrl);
             client.Timeout = TimeSpan.FromSeconds(30);
         });
+        builder.Services.AddSingleton(sp => new GrillMenuService(
+            sp.GetRequiredService<GrillMenuApiClient>()));
         builder.Services.AddSingleton(strategy);
         builder.Services.AddSingleton(sp => new GrillOrchestrator(
-            sp.GetRequiredService<IGrillMenuApiClient>(),
+            sp.GetRequiredService<GrillMenuService>(),
             strategy,
             Log.Logger,
             verbose));

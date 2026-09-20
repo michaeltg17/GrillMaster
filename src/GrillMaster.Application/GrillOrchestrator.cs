@@ -11,14 +11,14 @@ namespace GrillMaster.Application;
 /// separate from <c>Program</c> so the whole pipeline is unit-testable.
 /// </summary>
 public sealed class GrillOrchestrator(
-    IGrillMenuApiClient client,
+    GrillMenuService menuService,
     IGrillPlanStrategy strategy,
     ILogger logger,
     bool verbose = false)
 {
     public async Task<int> RunAsync(CancellationToken cancellationToken = default)
     {
-        var menus = await client.GetMenusAsync(cancellationToken).ConfigureAwait(false);
+        var menus = await menuService.GetMenusAsync(cancellationToken).ConfigureAwait(false);
 
         if (menus.Count == 0)
         {

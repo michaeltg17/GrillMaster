@@ -41,8 +41,9 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
         await using var scope = new LoggerScope(output);
         using var httpClient = new HttpClient { BaseAddress = _api.Url };
         var client = new GrillMenuApiClient(httpClient);
+        var service = new GrillMenuService(client);
         var strategy = GrillPlanStrategyFactory.Create(strategyName);
-        var orchestrator = new GrillOrchestrator(client, strategy, scope.Logger, verbose: false);
+        var orchestrator = new GrillOrchestrator(service, strategy, scope.Logger, verbose: false);
 
         var exitCode = await orchestrator.RunAsync(TestContext.Current.CancellationToken);
 
@@ -96,7 +97,8 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
         await using var scope = new LoggerScope(output);
         using var httpClient = new HttpClient { BaseAddress = _api.Url };
         var client = new GrillMenuApiClient(httpClient);
-        var orchestrator = new GrillOrchestrator(client, new GreedyShelfStrategy(), scope.Logger, verbose: true);
+        var service = new GrillMenuService(client);
+        var orchestrator = new GrillOrchestrator(service, new GreedyShelfStrategy(), scope.Logger, verbose: true);
 
         await orchestrator.RunAsync(TestContext.Current.CancellationToken);
 
@@ -136,7 +138,8 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
         await using var scope = new LoggerScope(output);
         using var httpClient = new HttpClient { BaseAddress = _api.Url };
         var client = new GrillMenuApiClient(httpClient);
-        var orchestrator = new GrillOrchestrator(client, new GreedyShelfStrategy(), scope.Logger, verbose: false);
+        var service = new GrillMenuService(client);
+        var orchestrator = new GrillOrchestrator(service, new GreedyShelfStrategy(), scope.Logger, verbose: false);
 
         var exitCode = await orchestrator.RunAsync(TestContext.Current.CancellationToken);
 

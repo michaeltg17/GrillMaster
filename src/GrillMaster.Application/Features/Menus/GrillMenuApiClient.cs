@@ -2,7 +2,6 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using GrillMaster.Application.Features.Menus.Exceptions;
 using GrillMaster.Application.Features.Menus.Models;
-using GrillMaster.Domain;
 
 namespace GrillMaster.Application.Features.Menus;
 
@@ -11,7 +10,7 @@ namespace GrillMaster.Application.Features.Menus;
 /// <see cref="HttpClient"/> (configured via dependency injection), so it is trivially overridable
 /// for tests and different environments.
 /// </summary>
-public sealed class GrillMenuApiClient(HttpClient http) : IGrillMenuApiClient
+public sealed class GrillMenuApiClient(HttpClient http)
 {
     private static readonly Uri MenusEndpoint = new("api/GrillMenu", UriKind.Relative);
 
@@ -21,7 +20,8 @@ public sealed class GrillMenuApiClient(HttpClient http) : IGrillMenuApiClient
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
-    public async Task<IReadOnlyList<GrillMenu>> GetMenusAsync(CancellationToken cancellationToken = default)
+    /// <summary>Fetches all menus as wire-format responses, without mapping onto the domain.</summary>
+    public async Task<IReadOnlyList<GrillMenuResponse>> GetMenusAsync(CancellationToken cancellationToken = default)
     {
         HttpResponseMessage response;
         try
@@ -42,10 +42,10 @@ public sealed class GrillMenuApiClient(HttpClient http) : IGrillMenuApiClient
             throw new ApiErrorException(response.StatusCode);
         }
 
-        List<GrillMenuDto> dtos;
+        List<GrillMenuResponse> menus;
         try
         {
-            dtos = JsonSerializer.Deserialize<List<GrillMenuDto>>(body, SerializerOptions)
+            menus = JsonSerializer.Deserialize<List<GrillMenuResponse>>(body, SerializerOptions)
                 ?? throw new MalformedApiResponseException();
         }
         catch (JsonException ex)
@@ -53,15 +53,6 @@ public sealed class GrillMenuApiClient(HttpClient http) : IGrillMenuApiClient
             throw new MalformedApiResponseException(ex);
         }
 
-        return dtos.Select(ToDomain).ToList();
-    }
-
-    private static GrillMenu ToDomain(GrillMenuDto dto)
-    {
-        var items = dto.Items
-            .Select(i => new GrillMenuItem(i.Id, i.Name, i.Length, i.Width, i.Duration, i.Quantity))
-            .ToList();
-
-        return new GrillMenu(dto.Id, dto.Menu, items);
+        return menus;
     }
 }
