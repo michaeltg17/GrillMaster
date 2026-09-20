@@ -8,13 +8,12 @@ namespace GrillMaster.Application;
 
 /// <summary>
 /// Coordinates the end-to-end flow: fetch menus, plan each one with the selected planner, and
-/// log the report. Menus are processed in name order so the report is deterministic. Kept
-/// separate from <c>Program</c> so the whole pipeline is unit-testable.
+/// log the report. Menus are processed in name order so the report is deterministic.
 /// </summary>
-public sealed partial class GrillOrchestrator(
+public sealed partial class GrillMasterApp(
     GrillMenuService menuService,
     IGrillPlanner planner,
-    ILogger<GrillOrchestrator> logger)
+    ILogger<GrillMasterApp> logger)
 {
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
@@ -39,8 +38,8 @@ public sealed partial class GrillOrchestrator(
     }
 
     [LoggerMessage(Level = LogLevel.Information, Message = "{MenuName}: {RoundCount} rounds")]
-    private static partial void LogMenuRounds(ILogger<GrillOrchestrator> logger, string menuName, int roundCount);
+    private static partial void LogMenuRounds(ILogger<GrillMasterApp> logger, string menuName, int roundCount);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Total: {TotalRounds} rounds")]
-    private static partial void LogTotalRounds(ILogger<GrillOrchestrator> logger, int totalRounds);
+    private static partial void LogTotalRounds(ILogger<GrillMasterApp> logger, int totalRounds);
 }

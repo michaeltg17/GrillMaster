@@ -60,8 +60,8 @@ internal static partial class Program
         builder.Services.AddSingleton<GrillMenuService>();
         builder.Services.AddSingleton(sp =>
             GrillPlannerFactory.Create(sp.GetRequiredService<IGrillMasterSettings>().Planner));
-        builder.Services.AddSingleton<GrillOrchestrator>();
-        builder.Services.AddHostedService<GrillPipelineHostedService>();
+        builder.Services.AddSingleton<GrillMasterApp>();
+        builder.Services.AddHostedService<GrillMasterAppHostedService>();
         configureServices?.Invoke(builder.Services);
 
         var host = builder.Build();
