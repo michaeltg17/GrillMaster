@@ -28,11 +28,12 @@ internal static class Program
         try
         {
             await host.RunAsync();
+            return 0;
         }
         catch (GrillMasterException grillMasterException)
         {
             logger.Error(grillMasterException, grillMasterException.Message);
-            return grillMasterException.ExitCode;
+            return 1;
         }
     }
 

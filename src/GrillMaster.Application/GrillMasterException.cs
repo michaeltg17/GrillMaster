@@ -4,7 +4,7 @@ using System.Text;
 
 namespace GrillMaster.Application
 {
-    public class GrillMasterException : Exception
+    public class GrillMasterException(string message) : Exception(message)
     {
     }
 }
