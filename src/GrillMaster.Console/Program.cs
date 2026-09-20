@@ -11,7 +11,7 @@ using Serilog.Sinks.SystemConsole.Themes;
 
 namespace GrillMaster;
 
-internal static class Program
+internal static partial class Program
 {
     private static async Task<int> Main()
     {
@@ -29,7 +29,7 @@ internal static class Program
         }
         catch (GrillMasterException grillMasterException)
         {
-            logger.LogError(grillMasterException, "{Message}", grillMasterException.Message);
+            LogGrillMasterError(logger, grillMasterException.Message, grillMasterException);
             return 1;
         }
     }
@@ -68,6 +68,9 @@ internal static class Program
 
         return host;
     }
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "{Message}")]
+    private static partial void LogGrillMasterError(Microsoft.Extensions.Logging.ILogger logger, string message, Exception exception);
 
     private static void ConfigureConsoleLogging(LoggerConfiguration configuration)
     {

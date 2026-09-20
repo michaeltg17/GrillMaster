@@ -11,7 +11,7 @@ namespace GrillMaster.Application;
 /// log the report. Menus are processed in name order so the report is deterministic. Kept
 /// separate from <c>Program</c> so the whole pipeline is unit-testable.
 /// </summary>
-public sealed class GrillOrchestrator(
+public sealed partial class GrillOrchestrator(
     GrillMenuService menuService,
     IGrillPlanner planner,
     ILogger<GrillOrchestrator> logger)
@@ -32,9 +32,15 @@ public sealed class GrillOrchestrator(
         foreach (var result in results)
         {
             total += result.Rounds.Count;
-            logger.LogInformation("{MenuName}: {RoundCount} rounds", result.Menu.Name, result.Rounds.Count);
+            LogMenuRounds(logger, result.Menu.Name, result.Rounds.Count);
         }
 
-        logger.LogInformation("Total: {TotalRounds} rounds", total);
+        LogTotalRounds(logger, total);
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "{MenuName}: {RoundCount} rounds")]
+    private static partial void LogMenuRounds(ILogger<GrillOrchestrator> logger, string menuName, int roundCount);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Total: {TotalRounds} rounds")]
+    private static partial void LogTotalRounds(ILogger<GrillOrchestrator> logger, int totalRounds);
 }

@@ -32,6 +32,7 @@
 - No try/catch in the request path: API failures surface as the raw .NET exceptions (`HttpRequestException` for transport/non-2xx, `JsonException` for malformed bodies) and are let to reach the top (unhandled → non-zero exit). The mock base is `GrillMaster.Core.Testing/Infra/ApiMock` (owns/disposes the `WireMockServer`, exposes `Url` as `Uri`).
 - Assertions use AwesomeAssertions (`Should()`), never xunit's `Assert` — in every test project.
 - Namespaces follow the project/folder layout (IDE0130 is suppressed, so they are not forced to match the solution-relative path).
+- Logging goes through `[LoggerMessage]` partial methods (e.g. `private static partial void LogX(ILogger<T> logger, ...)` with the message template in the attribute), not inline `logger.LogXxx(...)` calls.
 
 ## Branching & PR workflow (dev → main)
 
