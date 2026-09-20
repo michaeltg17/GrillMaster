@@ -13,8 +13,6 @@ namespace GrillMaster;
 
 internal static class Program
 {
-    private const string DefaultBaseUrl = "http://isol-grillassessment.azurewebsites.net";
-
     private static async Task<int> Main(string[] args)
     {
         var parseResult = BuildCommand().Parse(args);
@@ -114,7 +112,7 @@ internal static class Program
             builder.Configuration["Grill:GrillMenuApiUrl"] = url;
         }
 
-        var baseUrl = builder.Configuration["Grill:GrillMenuApiUrl"] ?? DefaultBaseUrl;
+        var baseUrl = builder.Configuration["Grill:GrillMenuApiUrl"]!;
         builder.Services.AddHttpClient<GrillMenuApiClient>(client =>
         {
             client.BaseAddress = new Uri(baseUrl);
