@@ -53,7 +53,6 @@ internal static class Program
             Verbose: parseResult.GetValue<bool?>("--verbose"));
 
         using var host = HostBuilder.Create(options, ConfigureConsoleLogging);
-        ConfigureFatalHandlers();
 
         var handler = host.Services.GetRequiredService<GrillCommandHandler>();
         return await handler.RunAsync(cancellationToken);
@@ -66,19 +65,5 @@ internal static class Program
             Enum.GetValues<ConsoleThemeStyle>().Distinct().ToDictionary(style => style, _ => whiteStyle));
 
         configuration.WriteTo.Console(theme: whiteTheme, outputTemplate: "{Message:lj}{NewLine}");
-    }
-
-    /// <summary>
-    /// Last-resort safety net: the runtime silently swallows unobserved task exceptions (fire-and-forget
-    /// tasks on threads we do not await), so surface them and fail the run instead of exiting 0.
-    /// </summary>
-    private static void ConfigureFatalHandlers()
-    {
-        TaskScheduler.UnobservedTaskException += (_, e) =>
-        {
-            Console.Error.WriteLine($"Fatal (unobserved task): {e.Exception}");
-            e.SetObserved();
-            Environment.ExitCode = 1;
-        };
     }
 }

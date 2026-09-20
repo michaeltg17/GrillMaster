@@ -210,8 +210,12 @@ tests/
     TestData.cs                   loads the grill-menus.json fixture
     grill-menus.json              fixture payload (the live API's 15-menu response)
   GrillMaster.UnitTests/
-    GrillingInvariantsTests.cs    validity invariants for all planners
-    GrillingOptimalityTests.cs    relative quality / known optima
+    GrillingOptimalityTests.cs    cross-planner quality checks
+    Planners/
+      PlannerTestsBase.cs         common planner contract, inherited per planner
+      GreedyShelfPlannerTests.cs  greedy-specific tests
+      ExactBacktrackingPlannerTests.cs  exact-specific tests (known optima)
+      OptimizedHeuristicPlannerTests.cs optimized-specific tests
   GrillMaster.IntegrationTests/
     GrillMenuApiClientTests.cs    WireMock-based client tests
   GrillMaster.EndToEndTests/

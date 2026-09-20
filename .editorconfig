@@ -40,6 +40,10 @@ dotnet_diagnostic.IDE0022.severity = none
 # IDE0036: Order modifiers
 dotnet_diagnostic.IDE0036.severity = none
 
+# IDE0210: Convert to top-level statements - the console entry point keeps a class-based Program
+# (Main + System.CommandLine wiring); top-level statements are not used in this repo.
+dotnet_diagnostic.IDE0210.severity = none
+
 # CA1720: Identifier contains type name (e.g., Guid Guid, Type Type)
 dotnet_diagnostic.CA1720.severity = none
 

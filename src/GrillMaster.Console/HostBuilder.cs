@@ -58,7 +58,7 @@ internal static class HostBuilder
             client.Timeout = TimeSpan.FromSeconds(30);
         });
         builder.Services.AddSingleton<GrillMenuService>();
-        builder.Services.AddSingleton<IGrillPlanner>(sp =>
+        builder.Services.AddSingleton(sp =>
             GrillPlannerFactory.Create(sp.GetRequiredService<IGrillMasterSettings>().Planner));
         builder.Services.AddSingleton<GrillOrchestrator>();
         builder.Services.AddSingleton<GrillCommandHandler>();

@@ -8,67 +8,78 @@ using Xunit.Sdk;
 [assembly: RegisterXunitSerializer(typeof(TestCaseSerializer),
     typeof(GreedyShelfPlanner), typeof(ExactBacktrackingPlanner), typeof(OptimizedHeuristicPlanner))]
 
-namespace GrillMaster.UnitTests;
+namespace GrillMaster.UnitTests.Application.Features.Planning.Planners;
 
 /// <summary>
-/// Verifies that every planner produces a *valid* plan: each piece placed exactly once, all
-/// pieces within the grill, no overlaps, and footprints matching the piece dimensions (with or
-/// without a 90° rotation).
+/// The common contract every grilling planner must satisfy, run once per concrete planner test
+/// class: each piece placed exactly once, all pieces within the grill, no overlaps, footprints
+/// matching the piece dimensions (with or without a 90° rotation), the area lower bound never
+/// beaten, and the plan reporting the planner's own name.
+/// Derived classes supply the planner under test via <see cref="CreatePlanner"/> and add
+/// planner-specific tests.
 /// </summary>
-public class GrillingInvariantsTests
+public abstract class PlannerTestsBase
 {
-    private static readonly GrillSize Grill = GrillSize.Standard;
+    protected static readonly GrillSize Grill = GrillSize.Standard;
 
-    public static IEnumerable<TheoryDataRow<IGrillPlanner>> AllPlanners()
-    {
-        yield return new TheoryDataRow<IGrillPlanner>(new GreedyShelfPlanner());
-        yield return new TheoryDataRow<IGrillPlanner>(new ExactBacktrackingPlanner());
-        yield return new TheoryDataRow<IGrillPlanner>(new OptimizedHeuristicPlanner());
-    }
+    protected abstract IGrillPlanner CreatePlanner();
 
-    [Theory]
-    [MemberData(nameof(AllPlanners))]
-    public void Planners_ProduceValidPlan_ForFixture(IGrillPlanner planner)
+    [Fact]
+    public void ProducesValidPlan_ForFixture()
     {
         var pieces = BuildFixturePieces();
-        var result = planner.Plan(pieces, Grill);
+        var result = CreatePlanner().Plan(pieces, Grill);
 
         Validate(pieces, result);
     }
 
-    [Theory]
-    [MemberData(nameof(AllPlanners))]
-    public void Planners_ProduceValidPlan_ForManyIdenticalPieces(IGrillPlanner planner)
+    [Fact]
+    public void ProducesValidPlan_ForManyIdenticalPieces()
     {
         // 40 identical small pieces - stresses symmetry handling.
-        var pieces = Enumerable.Repeat(new GrillPiece("Sausage", 6, 3), 40).ToList();
-        var result = planner.Plan(pieces, Grill);
+        var pieces = BuildManyIdenticalPieces();
+        var result = CreatePlanner().Plan(pieces, Grill);
 
         Validate(pieces, result);
     }
 
     [Fact]
-    public void Planners_HandleEmptyInput()
+    public void HandlesEmptyInput()
     {
-        foreach (var planner in new IGrillPlanner[] { new GreedyShelfPlanner(), new ExactBacktrackingPlanner(), new OptimizedHeuristicPlanner() })
-        {
-            var result = planner.Plan([], Grill);
-            Assert.Equal(0, result.TotalRounds);
-            Assert.Empty(result.Rounds);
-        }
+        var result = CreatePlanner().Plan([], Grill);
+
+        Assert.Equal(0, result.TotalRounds);
+        Assert.Empty(result.Rounds);
     }
 
     [Fact]
-    public void Planners_ThrowForOversizedPiece()
+    public void ThrowsForOversizedPiece()
     {
         List<GrillPiece> oversized = [new GrillPiece("Huge", 40, 5)];
-        foreach (var planner in new IGrillPlanner[] { new GreedyShelfPlanner(), new ExactBacktrackingPlanner(), new OptimizedHeuristicPlanner() })
-        {
-            Assert.Throws<InvalidOperationException>(() => planner.Plan(oversized, Grill));
-        }
+
+        Assert.Throws<InvalidOperationException>(() => CreatePlanner().Plan(oversized, Grill));
     }
 
-    private static List<GrillPiece> BuildFixturePieces()
+    [Fact]
+    public void RespectsLowerBound()
+    {
+        var pieces = BuildManyIdenticalPieces();
+        var lowerBound = GrillPlanHelpers.ComputeLowerBound(pieces, Grill);
+        var result = CreatePlanner().Plan(pieces, Grill);
+
+        Assert.True(result.TotalRounds >= lowerBound, $"{result.Planner} beat the lower bound");
+    }
+
+    [Fact]
+    public void Plan_ReportsPlannerName()
+    {
+        var planner = CreatePlanner();
+        var result = planner.Plan(BuildFixturePieces(), Grill);
+
+        Assert.Equal(planner.Name, result.Planner);
+    }
+
+    protected static List<GrillPiece> BuildFixturePieces()
     {
         var pieces = new List<GrillPiece>();
         pieces.AddRange(Enumerable.Repeat(new GrillPiece("Steak", 10, 5), 2));
@@ -78,7 +89,10 @@ public class GrillingInvariantsTests
         return pieces;
     }
 
-    private static void Validate(IReadOnlyList<GrillPiece> input, GrillPlan result)
+    protected static List<GrillPiece> BuildManyIdenticalPieces() =>
+        Enumerable.Repeat(new GrillPiece("Sausage", 6, 3), 40).ToList();
+
+    protected static void Validate(IReadOnlyList<GrillPiece> input, GrillPlan result)
     {
         var placed = result.Rounds.SelectMany(r => r.Placements.Select(p => p.Piece)).ToList();
 
