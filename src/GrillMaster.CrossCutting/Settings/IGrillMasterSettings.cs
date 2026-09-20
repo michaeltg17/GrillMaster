@@ -10,7 +10,4 @@ public interface IGrillMasterSettings
 
     /// <summary>Default planner name (greedy | exact | optimized); overridable from the CLI.</summary>
     public string Planner { get; }
-
-    /// <summary>Whether to print the full per-round placement breakdown.</summary>
-    public bool Verbose { get; }
 }
