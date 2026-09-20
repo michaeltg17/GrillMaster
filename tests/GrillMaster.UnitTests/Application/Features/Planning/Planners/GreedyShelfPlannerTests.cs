@@ -1,5 +1,6 @@
-using GrillMaster.Application.Features.Plans;
-using GrillMaster.Application.Features.Plans.Planners;
+using AwesomeAssertions;
+using GrillMaster.Application.Features.Planning;
+using GrillMaster.Application.Features.Planning.Planners;
 using Xunit;
 
 namespace GrillMaster.UnitTests.Application.Features.Planning.Planners;
@@ -17,6 +18,6 @@ public sealed class GreedyShelfPlannerTests : PlannerTestsBase
     {
         var result = CreatePlanner().Plan(BuildFixturePieces(), Grill);
 
-        Assert.False(result.IsProvenOptimal);
+        result.IsProvenOptimal.Should().BeFalse();
     }
 }

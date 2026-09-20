@@ -12,7 +12,7 @@
     <File Path="specs.pdf" />
   </Folder>
   <Folder Name="/src/">
-    <Project Path="src/CrossCutting/CrossCutting.csproj" />
+    <Project Path="src/GrillMaster.CrossCutting/GrillMaster.CrossCutting.csproj" />
     <Project Path="src/GrillMaster.Domain/GrillMaster.Domain.csproj" />
     <Project Path="src/GrillMaster.Application/GrillMaster.Application.csproj" />
     <Project Path="src/GrillMaster.Console/GrillMaster.Console.csproj" />

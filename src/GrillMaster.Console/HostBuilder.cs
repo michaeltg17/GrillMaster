@@ -1,6 +1,6 @@
 using GrillMaster.Application;
 using GrillMaster.Application.Features.Menus;
-using GrillMaster.Application.Features.Plans;
+using GrillMaster.Application.Features.Planning;
 using GrillMaster.CrossCutting;
 using GrillMaster.CrossCutting.Settings;
 using Microsoft.Extensions.DependencyInjection;

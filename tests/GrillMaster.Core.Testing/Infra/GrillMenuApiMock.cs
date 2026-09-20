@@ -1,6 +1,6 @@
+using AwesomeAssertions;
 using WireMock.RequestBuilders;
 using WireMock.ResponseBuilders;
-using Xunit;
 
 namespace GrillMaster.Core.Testing.Infra;
 
@@ -11,7 +11,6 @@ namespace GrillMaster.Core.Testing.Infra;
 /// </summary>
 public sealed class GrillMenuApiMock : ApiMock
 {
-    /// <summary>The single endpoint the API exposes.</summary>
     public const string GrillMenuPath = "/api/GrillMenu";
 
     /// <summary>
@@ -32,6 +31,6 @@ public sealed class GrillMenuApiMock : ApiMock
     {
         var entries = Server.LogEntries
             .Where(e => e.RequestMessage?.Url?.EndsWith(GrillMenuPath, StringComparison.Ordinal) == true);
-        Assert.NotEmpty(entries);
+        entries.Should().NotBeEmpty();
     }
 }

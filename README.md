@@ -39,14 +39,14 @@ GrillCommandHandler ──► GrillOrchestrator ──► GrillMenuService ─�
     Serilog ──► console (one "<menu>: N rounds" line + "Total: N rounds")
 ```
 
-- **CrossCutting** (`src/CrossCutting`) — the `GrillMaster` configuration section bound to
+- **GrillMaster.CrossCutting** (`src/GrillMaster.CrossCutting`) — the `GrillMaster` configuration section bound to
   `IGrillMasterSettings` (`GrillMenuApiUrl`, `Planner`, `Verbose`) with validation, registered
   by `DependencyConfigurator.AddCrossCuttingDependencies()`.
 - **Domain** (`src/GrillMaster.Domain`) — pure, dependency‑free models: `GrillSize`,
   `GrillPiece`, `GrillMenuItem`, `GrillMenu`, `GrillPiecePlacement`, `GrillRound`, `GrillPlan`.
 - **Application** (`src/GrillMaster.Application`) — the application layer, organised by feature:
   `Features/Menus` (the grill‑menu `GrillMenuService` and `GrillMenuApiClient`, wire
-  responses) and `Features/Plans` (`IGrillPlanner` and the three planners, sharing a
+   responses) and `Features/Planning` (`IGrillPlanner` and the three planners, sharing a
   `RoundOccupancy` grid and skyline position search). `GrillOrchestrator` ties the two features
   together.
 - **Console** (`src/GrillMaster.Console`) — the executable: `Program.cs` (the CLI),
@@ -148,8 +148,9 @@ grill API — no real network calls and no in‑memory HTTP fakes. Shared test i
 (WireMock mocks, `TestData`, the `grill-menus.json` fixture) lives in
 `tests/GrillMaster.Core.Testing`, a classlib referenced by every test project. The end‑to‑end
 suite builds the real host (the same `HostBuilder` as the console app) via
-`GrillMasterFactory`, points the API at WireMock, and asserts on a per‑test in‑memory Serilog
-sink.
+`GrillMasterFactory`, which creates a `GrillMasterApp` exposing the per‑test in‑memory Serilog
+sink (`Sink`) and `RunAsync`; the API is pointed at WireMock and tests assert on the logged
+events. All assertions use AwesomeAssertions (`Should()`), never xunit's `Assert`.
 
 The suite uses **xUnit v3**, which runs on the Microsoft Testing Platform (MTP) instead of VSTest.
 Each test project is run directly with `dotnet run`:
@@ -181,7 +182,7 @@ Coverage includes:
 
 ```
 src/
-  CrossCutting/                   the GrillMaster configuration section (namespace
+  GrillMaster.CrossCutting/       the GrillMaster configuration section (namespace
                                    GrillMaster.CrossCutting)
     DependencyConfigurator.cs     AddCrossCuttingDependencies(): options + validation
     Settings/                     IGrillMasterSettings, GrillMasterSettings,
@@ -193,7 +194,7 @@ src/
     Features/
       Menus/                      GrillMenuService, GrillMenuApiClient
         Models/                   GrillMenuResponse, GrillMenuItemResponse
-      Plans/                      IGrillPlanner, RoundOccupancy, GrillPlanHelpers,
+      Planning/                   IGrillPlanner, RoundOccupancy, GrillPlanHelpers,
                                    GrillPlannerFactory
         Planners/                 GreedyShelfPlanner, ExactBacktrackingPlanner,
                                    OptimizedHeuristicPlanner
@@ -219,8 +220,9 @@ tests/
   GrillMaster.IntegrationTests/
     GrillMenuApiClientTests.cs    WireMock-based client tests
   GrillMaster.EndToEndTests/
-    Fixtures/GrillMasterFactory.cs  hosts the real app (same HostBuilder) against WireMock
-    EndToEndTests.cs              full pipeline via the hosted app
+    Fixtures/GrillMasterFactory.cs  creates the hosted app (same HostBuilder) against WireMock
+    Fixtures/GrillMasterApp.cs      the hosted app: in-memory sink + RunAsync for the tests
+    EndToEndTests.cs                full pipeline via the hosted app
   GrillMaster.PerformanceTests/
     Performance/                  GrillingBenchmarkTests, PerfBaseline, baseline.json
 ```

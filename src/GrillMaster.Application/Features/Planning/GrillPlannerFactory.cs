@@ -1,6 +1,6 @@
-using GrillMaster.Application.Features.Plans.Planners;
+using GrillMaster.Application.Features.Planning.Planners;
 
-namespace GrillMaster.Application.Features.Plans;
+namespace GrillMaster.Application.Features.Planning;
 
 /// <summary>Creates grilling planners by name.</summary>
 public static class GrillPlannerFactory

@@ -1,8 +1,7 @@
-using GrillMaster;
+using AwesomeAssertions;
 using GrillMaster.Core.Testing;
 using GrillMaster.Core.Testing.Infra;
 using GrillMaster.EndToEndTests.Fixtures;
-using Microsoft.Extensions.DependencyInjection;
 using Serilog.Events;
 using Serilog.Sinks.InMemory.Assertions;
 using Xunit;
@@ -38,10 +37,9 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
         _api.RespondWithMenus();
 
         using var app = GrillMasterFactory.Create(plannerName, _api.Url, verbose: false, output);
-        var exitCode = await app.Services.GetRequiredService<GrillCommandHandler>()
-            .RunAsync(TestContext.Current.CancellationToken);
+        var exitCode = await app.RunAsync(TestContext.Current.CancellationToken);
 
-        Assert.Equal(0, exitCode);
+        exitCode.Should().Be(0);
 
         // One menu message per menu (15 menus in the live dataset), all at Information level.
         app.Sink
@@ -64,7 +62,7 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
             .Select(e => GetScalar<string>(e, "MenuName"))
             .ToList();
 
-        Assert.Equal(expectedNames, loggedNames);
+        loggedNames.Should().Equal(expectedNames);
 
         // The total is the sum of the per-menu round counts.
         var perMenuRounds = app.Sink
@@ -90,8 +88,7 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
 
         using var app = GrillMasterFactory.Create("greedy", _api.Url, verbose: true, output);
 
-        await app.Services.GetRequiredService<GrillCommandHandler>()
-            .RunAsync(TestContext.Current.CancellationToken);
+        await app.RunAsync(TestContext.Current.CancellationToken);
 
         // One round header per round across all menus.
         var totalRounds = app.Sink
@@ -117,8 +114,8 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
             .Where(e => e.MessageTemplate.Text == PieceLineTemplate)
             .ToList();
 
-        Assert.Equal(expectedPieceCount, pieceLines.Count);
-        Assert.Contains(pieceLines, e => GetScalar<string>(e, "PieceName") == "Steak");
+        pieceLines.Count.Should().Be(expectedPieceCount);
+        pieceLines.Should().Contain(e => GetScalar<string>(e, "PieceName") == "Steak");
     }
 
     [Fact]
@@ -127,10 +124,9 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
         _api.RespondWithMenus(body: "[]");
 
         using var app = GrillMasterFactory.Create("greedy", _api.Url, verbose: false, output);
-        var exitCode = await app.Services.GetRequiredService<GrillCommandHandler>()
-            .RunAsync(TestContext.Current.CancellationToken);
+        var exitCode = await app.RunAsync(TestContext.Current.CancellationToken);
 
-        Assert.Equal(0, exitCode);
+        exitCode.Should().Be(0);
 
         app.Sink
             .Should()

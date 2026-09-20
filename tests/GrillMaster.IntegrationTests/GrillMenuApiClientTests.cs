@@ -1,5 +1,6 @@
 using System.Net.Http;
 using System.Text.Json;
+using AwesomeAssertions;
 using GrillMaster.Application.Features.Menus;
 using GrillMaster.Core.Testing.Infra;
 using Xunit;
@@ -33,24 +34,24 @@ public sealed class GrillMenuApiClientTests : IDisposable
         var menus = await _client.GetMenusAsync(TestContext.Current.CancellationToken);
 
         // The live API returns exactly 15 menus (Menu 01 .. Menu 15).
-        Assert.Equal(15, menus.Count);
+        menus.Count.Should().Be(15);
 
         // Menu 04 (first in the API's response order) has two items.
         var menu04 = menus.Single(m => m.Menu == "Menu 04");
-        Assert.Equal(2, menu04.Items.Count);
+        menu04.Items.Count.Should().Be(2);
 
         var paprika = menu04.Items.Single(i => i.Name == "Paprika Sausage");
-        Assert.Equal(6, paprika.Length);
-        Assert.Equal(3, paprika.Width);
-        Assert.Equal(40, paprika.Quantity);
+        paprika.Length.Should().Be(6);
+        paprika.Width.Should().Be(3);
+        paprika.Quantity.Should().Be(40);
 
         var veal = menu04.Items.Single(i => i.Name == "Veal");
-        Assert.Equal(8, veal.Length);
-        Assert.Equal(4, veal.Width);
-        Assert.Equal(10, veal.Quantity);
+        veal.Length.Should().Be(8);
+        veal.Width.Should().Be(4);
+        veal.Quantity.Should().Be(10);
 
         // Quantities expand into the right number of physical pieces.
-        Assert.Equal(50, menu04.Items.Sum(i => i.Quantity)); // 40 paprika + 10 veal
+        menu04.Items.Sum(i => i.Quantity).Should().Be(50); // 40 paprika + 10 veal
     }
 
     [Fact]
@@ -68,8 +69,9 @@ public sealed class GrillMenuApiClientTests : IDisposable
     {
         _api.RespondWithMenus(body: "boom", statusCode: 500);
 
-        await Assert.ThrowsAsync<HttpRequestException>(
-            async () => await _client.GetMenusAsync(TestContext.Current.CancellationToken));
+        var act = async () => await _client.GetMenusAsync(TestContext.Current.CancellationToken);
+
+        await act.Should().ThrowAsync<HttpRequestException>();
     }
 
     [Fact]
@@ -77,8 +79,9 @@ public sealed class GrillMenuApiClientTests : IDisposable
     {
         _api.RespondWithMenus(body: "this is not json");
 
-        await Assert.ThrowsAsync<JsonException>(
-            async () => await _client.GetMenusAsync(TestContext.Current.CancellationToken));
+        var act = async () => await _client.GetMenusAsync(TestContext.Current.CancellationToken);
+
+        await act.Should().ThrowAsync<JsonException>();
     }
 
     [Fact]
@@ -88,6 +91,6 @@ public sealed class GrillMenuApiClientTests : IDisposable
 
         var menus = await _client.GetMenusAsync(TestContext.Current.CancellationToken);
 
-        Assert.Empty(menus);
+        menus.Should().BeEmpty();
     }
 }

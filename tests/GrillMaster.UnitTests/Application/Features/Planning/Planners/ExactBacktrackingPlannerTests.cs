@@ -1,5 +1,6 @@
-using GrillMaster.Application.Features.Plans;
-using GrillMaster.Application.Features.Plans.Planners;
+using AwesomeAssertions;
+using GrillMaster.Application.Features.Planning;
+using GrillMaster.Application.Features.Planning.Planners;
 using GrillMaster.Domain;
 using Xunit;
 
@@ -25,8 +26,8 @@ public sealed class ExactBacktrackingPlannerTests : PlannerTestsBase
 
         var result = CreatePlanner().Plan(pieces, Grill);
 
-        Assert.Equal(1, result.TotalRounds);
-        Assert.True(result.IsProvenOptimal);
+        result.TotalRounds.Should().Be(1);
+        result.IsProvenOptimal.Should().BeTrue();
     }
 
     [Fact]
@@ -38,7 +39,7 @@ public sealed class ExactBacktrackingPlannerTests : PlannerTestsBase
 
         var result = CreatePlanner().Plan(pieces, Grill);
 
-        Assert.Equal(2, result.TotalRounds);
-        Assert.True(result.IsProvenOptimal);
+        result.TotalRounds.Should().Be(2);
+        result.IsProvenOptimal.Should().BeTrue();
     }
 }

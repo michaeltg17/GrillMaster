@@ -1,5 +1,6 @@
-using GrillMaster.Application.Features.Plans;
-using GrillMaster.Application.Features.Plans.Planners;
+using AwesomeAssertions;
+using GrillMaster.Application.Features.Planning;
+using GrillMaster.Application.Features.Planning.Planners;
 using GrillMaster.Core.Testing.Serializers;
 using GrillMaster.Domain;
 using Xunit;
@@ -48,8 +49,8 @@ public abstract class PlannerTestsBase
     {
         var result = CreatePlanner().Plan([], Grill);
 
-        Assert.Equal(0, result.TotalRounds);
-        Assert.Empty(result.Rounds);
+        result.TotalRounds.Should().Be(0);
+        result.Rounds.Should().BeEmpty();
     }
 
     [Fact]
@@ -57,7 +58,9 @@ public abstract class PlannerTestsBase
     {
         List<GrillPiece> oversized = [new GrillPiece("Huge", 40, 5)];
 
-        Assert.Throws<InvalidOperationException>(() => CreatePlanner().Plan(oversized, Grill));
+        var act = () => CreatePlanner().Plan(oversized, Grill);
+
+        act.Should().Throw<InvalidOperationException>();
     }
 
     [Fact]
@@ -67,7 +70,7 @@ public abstract class PlannerTestsBase
         var lowerBound = GrillPlanHelpers.ComputeLowerBound(pieces, Grill);
         var result = CreatePlanner().Plan(pieces, Grill);
 
-        Assert.True(result.TotalRounds >= lowerBound, $"{result.Planner} beat the lower bound");
+        result.TotalRounds.Should().BeGreaterThanOrEqualTo(lowerBound, $"{result.Planner} beat the lower bound");
     }
 
     [Fact]
@@ -76,7 +79,7 @@ public abstract class PlannerTestsBase
         var planner = CreatePlanner();
         var result = planner.Plan(BuildFixturePieces(), Grill);
 
-        Assert.Equal(planner.Name, result.Planner);
+        result.Planner.Should().Be(planner.Name);
     }
 
     protected static List<GrillPiece> BuildFixturePieces()
@@ -97,10 +100,9 @@ public abstract class PlannerTestsBase
         var placed = result.Rounds.SelectMany(r => r.Placements.Select(p => p.Piece)).ToList();
 
         // 1) Same multiset of pieces as the input.
-        Assert.Equal(input.Count, placed.Count);
-        Assert.Equal(
-            input.Select(Identity).OrderBy(x => x),
-            placed.Select(Identity).OrderBy(x => x));
+        placed.Count.Should().Be(input.Count);
+        placed.Select(Identity).OrderBy(x => x)
+            .Should().Equal(input.Select(Identity).OrderBy(x => x));
 
         // 2) Bounds, orientation, and no overlap per round.
         foreach (var round in result.Rounds)
@@ -109,21 +111,21 @@ public abstract class PlannerTestsBase
 
             foreach (var p in round.Placements)
             {
-                Assert.InRange(p.X, 0, Grill.Width - 1);
-                Assert.InRange(p.Y, 0, Grill.Height - 1);
-                Assert.True(p.X + p.FootprintWidth <= Grill.Width, "piece exceeds grill width");
-                Assert.True(p.Y + p.FootprintHeight <= Grill.Height, "piece exceeds grill height");
+                p.X.Should().BeInRange(0, Grill.Width - 1);
+                p.Y.Should().BeInRange(0, Grill.Height - 1);
+                (p.X + p.FootprintWidth).Should().BeLessThanOrEqualTo(Grill.Width, "piece exceeds grill width");
+                (p.Y + p.FootprintHeight).Should().BeLessThanOrEqualTo(Grill.Height, "piece exceeds grill height");
 
-                Assert.True(
+                var footprintMatches =
                     (p.FootprintWidth == p.Piece.Length && p.FootprintHeight == p.Piece.Width) ||
-                    (p.FootprintWidth == p.Piece.Width && p.FootprintHeight == p.Piece.Length),
-                    "footprint does not match piece dimensions");
+                    (p.FootprintWidth == p.Piece.Width && p.FootprintHeight == p.Piece.Length);
+                footprintMatches.Should().BeTrue("footprint does not match piece dimensions");
 
                 for (var y = p.Y; y < p.Bottom; y++)
                 {
                     for (var x = p.X; x < p.Right; x++)
                     {
-                        Assert.False(occupied[x, y], $"overlap at ({x},{y}) in a round");
+                        occupied[x, y].Should().BeFalse($"overlap at ({x},{y}) in a round");
                         occupied[x, y] = true;
                     }
                 }

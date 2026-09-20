@@ -4,7 +4,6 @@ using Microsoft.Extensions.Options;
 
 namespace GrillMaster.CrossCutting;
 
-/// <summary>Registers the crosscutting dependencies shared by all host configurations.</summary>
 public static class DependencyConfigurator
 {
     /// <summary>

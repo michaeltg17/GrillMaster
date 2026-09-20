@@ -1,4 +1,5 @@
-using GrillMaster.Application.Features.Plans.Planners;
+using AwesomeAssertions;
+using GrillMaster.Application.Features.Planning.Planners;
 using GrillMaster.Domain;
 using GrillMaster.UnitTests.Application.Features.Planning.Planners;
 using Xunit;
@@ -23,10 +24,10 @@ public class GrillingOptimalityTests
         var greedy = new GreedyShelfPlanner().Plan(pieces, Grill);
         var optimized = new OptimizedHeuristicPlanner().Plan(pieces, Grill);
 
-        Assert.True(exact.TotalRounds <= greedy.TotalRounds, "exact should beat or tie greedy");
-        Assert.True(exact.TotalRounds <= optimized.TotalRounds, "exact should beat or tie optimized");
-        Assert.True(greedy.TotalRounds >= exact.LowerBound, "greedy cannot beat the lower bound");
-        Assert.True(optimized.TotalRounds >= exact.LowerBound, "optimized cannot beat the lower bound");
+        exact.TotalRounds.Should().BeLessThanOrEqualTo(greedy.TotalRounds, "exact should beat or tie greedy");
+        exact.TotalRounds.Should().BeLessThanOrEqualTo(optimized.TotalRounds, "exact should beat or tie optimized");
+        greedy.TotalRounds.Should().BeGreaterThanOrEqualTo(exact.LowerBound, "greedy cannot beat the lower bound");
+        optimized.TotalRounds.Should().BeGreaterThanOrEqualTo(exact.LowerBound, "optimized cannot beat the lower bound");
     }
 
     private static List<GrillPiece> BuildMixedPieces()

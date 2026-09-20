@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using GrillMaster.Domain;
 
-namespace GrillMaster.Application.Features.Plans.Planners;
+namespace GrillMaster.Application.Features.Planning.Planners;
 
 /// <summary>
 /// Greedy seed followed by a deterministic local search that consolidates pieces into fewer

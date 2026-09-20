@@ -1,6 +1,6 @@
 using GrillMaster.Domain;
 
-namespace GrillMaster.Application.Features.Plans;
+namespace GrillMaster.Application.Features.Planning;
 
 /// <summary>
 /// Shared helpers used by every grilling planner: canonical piece ordering and the

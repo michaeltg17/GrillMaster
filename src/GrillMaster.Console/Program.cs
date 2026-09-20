@@ -1,5 +1,5 @@
 ﻿using System.CommandLine;
-using GrillMaster.Application.Features.Plans;
+using GrillMaster.Application.Features.Planning;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
 using Serilog.Sinks.SystemConsole.Themes;

@@ -1,6 +1,6 @@
 using GrillMaster.Domain;
 
-namespace GrillMaster.Application.Features.Plans;
+namespace GrillMaster.Application.Features.Planning;
 
 /// <summary>
 /// A planner that plans a set of grill pieces into the fewest rounds possible.

@@ -1,5 +1,5 @@
 using AwesomeAssertions;
-using GrillMaster.Application.Features.Plans;
+using GrillMaster.Application.Features.Planning;
 using GrillMaster.Core.Testing;
 using GrillMaster.Domain;
 using Xunit;
