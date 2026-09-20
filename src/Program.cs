@@ -1,6 +1,6 @@
 ﻿using System.CommandLine;
 using GrillMaster.Api;
-using GrillMaster.Packing;
+using GrillMaster.Grilling;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -22,12 +22,12 @@ internal static class Program
     {
         var strategyOption = new Option<string?>("--strategy", "-s")
         {
-            Description = "Packing strategy (greedy | exact | optimized).",
+            Description = "Grilling strategy (greedy | exact | optimized).",
         };
 
         var strategyArgument = new Argument<string?>("strategy")
         {
-            Description = "Packing strategy (greedy | exact | optimized).",
+            Description = "Grilling strategy (greedy | exact | optimized).",
             Arity = ArgumentArity.ZeroOrOne,
         };
 
@@ -64,10 +64,10 @@ internal static class Program
             .WriteTo.Console(outputTemplate: "{Message:lj}{NewLine}")
             .CreateLogger();
 
-        IPackStrategy packStrategy;
+        IGrillPlanStrategy planStrategy;
         try
         {
-            packStrategy = PackStrategyFactory.Create(strategy);
+            planStrategy = GrillPlanStrategyFactory.Create(strategy);
         }
         catch (ArgumentException ex)
         {
@@ -75,7 +75,7 @@ internal static class Program
             return 1;
         }
 
-        using var host = BuildHost(url, packStrategy, verbose);
+        using var host = BuildHost(url, planStrategy, verbose);
         InstallFatalHandlers();
 
         try
@@ -83,19 +83,9 @@ internal static class Program
             var orchestrator = host.Services.GetRequiredService<GrillOrchestrator>();
             return await orchestrator.RunAsync(cancellationToken);
         }
-        catch (ApiErrorException ex)
+        catch (GrillMenuApiException ex)
         {
-            Console.Error.WriteLine($"API error with status code: {(int)ex.StatusCode} {ex.StatusCode}.");
-            return 1;
-        }
-        catch (MalformedApiResponseException)
-        {
-            Console.Error.WriteLine("API error: the response was not valid JSON.");
-            return 1;
-        }
-        catch (GrillApiException ex)
-        {
-            Console.Error.WriteLine($"API error: {ex.Message}");
+            Console.Error.WriteLine(ex.Message);
             return 1;
         }
 #pragma warning disable CA1031 // Do not catch general exception types
@@ -107,25 +97,25 @@ internal static class Program
 #pragma warning restore CA1031 // Do not catch general exception types
     }
 
-    private static IHost BuildHost(string? url, IPackStrategy strategy, bool verbose)
+    private static IHost BuildHost(string? url, IGrillPlanStrategy strategy, bool verbose)
     {
         var builder = Host.CreateApplicationBuilder();
         builder.Logging.ClearProviders();
 
         if (url is not null)
         {
-            builder.Configuration["Grill:ApiBaseUrl"] = url;
+            builder.Configuration["Grill:GrillMenuApiUrl"] = url;
         }
 
-        var baseUrl = builder.Configuration["Grill:ApiBaseUrl"] ?? DefaultBaseUrl;
-        builder.Services.AddHttpClient<IGrillMenuClient, GrillMenuClient>(client =>
+        var baseUrl = builder.Configuration["Grill:GrillMenuApiUrl"] ?? DefaultBaseUrl;
+        builder.Services.AddHttpClient<IGrillMenuApiClient, GrillMenuApiClient>(client =>
         {
             client.BaseAddress = new Uri(baseUrl);
             client.Timeout = TimeSpan.FromSeconds(30);
         });
         builder.Services.AddSingleton(strategy);
         builder.Services.AddSingleton(sp => new GrillOrchestrator(
-            sp.GetRequiredService<IGrillMenuClient>(),
+            sp.GetRequiredService<IGrillMenuApiClient>(),
             strategy,
             Log.Logger,
             verbose));

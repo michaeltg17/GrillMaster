@@ -16,9 +16,9 @@ are needed. In one round, any set of pieces that fit on the grill **without over
 cooked at once. The goal is to place the pieces so that the number of rounds is as small as
 possible.
 
-This is a 2‑D rectangle **bin‑packing** problem (pack each menu's rectangles into 20×30 bins and
-minimise the bin count), which is NP‑hard — so the app ships three strategies with different
-speed/quality trade‑offs, all behind one interface.
+This is a 2‑D rectangle **placement** problem (formally a bin‑packing problem: fit each menu's
+rectangles onto fixed 20×30 grill surfaces and minimise their count), which is NP‑hard — so the app
+ships three strategies with different speed/quality trade‑offs, all behind one interface.
 
 ## How it works
 
@@ -30,19 +30,18 @@ GrillOrchestrator ──► IGrillMenuClient ──► REST API  (GET /api/Grill
         │
         │  for each menu: expand items × quantity into pieces
         ▼
-   IPackStrategy.Pack(pieces, grill)  ──►  PackResult (rounds of placements)
+    IGrillPlanStrategy.Plan(pieces, grill)  ──►  GrillPlan (rounds of placements)
         │
         ▼
    ReportPrinter ──► console (one "<menu>: N rounds" line + "Total: N rounds")
 ```
 
 - **Domain** (`src/Domain`) — pure, dependency‑free models: `GrillSize`,
-  `GrillPiece`, `GrillMenuItem`, `GrillMenu`, `Placement`, `Round`, `PackResult`.
-- **Api** (`src/Api`) — `IGrillMenuClient` / `GrillMenuClient` (an `HttpClient`
+  `GrillPiece`, `GrillMenuItem`, `GrillMenu`, `GrillPiecePlacement`, `GrillRound`, `GrillPlan`.
+- **Api** (`src/Api`) — `IGrillMenuApiClient` / `GrillMenuApiClient` (an `HttpClient`
   whose base address comes from configuration) plus wire DTOs.
-- **Packing** (`src/Packing`) — `IPackStrategy` and the three strategies, sharing a
+- **Grilling** (`src/Grilling`) — `IGrillPlanStrategy` and the three strategies, sharing a
   `RoundOccupancy` grid and skyline position search.
-- **Output** (`src/Output`) — `ReportPrinter` (writes to any `TextWriter`).
 
 Pieces may be **rotated 90°** (both `L×W` and `W×L` are tried). Placement is **axis‑aligned and
 non‑overlapping** (see [Known limitations](#known-limitations)).
@@ -66,10 +65,10 @@ Usage:
   GrillMaster [<strategy>] [options]
 
 Arguments:
-  <strategy>  Packing strategy (greedy | exact | optimized).
+   <strategy>  Grilling strategy (greedy | exact | optimized).
 
 Options:
-  -s, --strategy <strategy>  Packing strategy (greedy | exact | optimized).
+  -s, --strategy <strategy>  Grilling strategy (greedy | exact | optimized).
   -u, --url <url>            API base URL (overrides appsettings.json).
   -v, --verbose              Print the full per-round placement breakdown.
   -h, --help                 Show help and usage information.
@@ -81,8 +80,8 @@ The strategy can be given as a positional argument (`GrillMaster exact`) or with
 `greedy` (best-fit shelf heuristic, default), `exact` (branch-and-bound, proves the
 optimum), `optimized` (greedy seed + local-search consolidation).
 
-The API base URL is read from `src/appsettings.json` (`Grill:ApiBaseUrl`) and can be overridden
-with `--url` or the `GRILL__APIBASEURL` environment variable.
+The API base URL is read from `src/appsettings.json` (`Grill:GrillMenuApiUrl`) and can be overridden
+with `--url` or the `GRILL__GRILLMENUAPIURL` environment variable.
 
 ## The three strategies
 
@@ -90,7 +89,7 @@ with `--url` or the `GRILL__APIBASEURL` environment variable.
 |-------------|-----------------------------------------------------------------------------|---------|-------------------------------------------|
 | `greedy`    | Sort pieces largest‑first; place each into the fullest round that fits.      | Fastest | Good, usually within 1–2 rounds of optimal |
 | `exact`     | Branch‑and‑bound seeded with the greedy bound; skyline positions + symmetry breaking + area bound. | Slower  | **Proven optimum** (within node budget)    |
-| `optimized` | Greedy seed + deterministic local search (bounded repack to drop a round).   | Fast    | Reaches the optimum on the assessment data |
+| `optimized` | Greedy seed + deterministic local search (bounded replan to drop a round).   | Fast    | Reaches the optimum on the assessment data |
 
 All three reuse the same `RoundOccupancy` grid. `exact` and `optimized` rely on a **skyline
 candidate‑position** search (only positions that cannot be shifted up/left are considered), which
@@ -150,11 +149,11 @@ Coverage includes:
 
 - **API client** — parses menus/items/quantities, hits the right endpoint, handles empty menus and
   error responses.
-- **Packing invariants** (all three strategies) — every piece placed exactly once, all pieces
+- **Grilling invariants** (all three strategies) — every piece placed exactly once, all pieces
   within the grill, no overlaps, footprints match the piece (rotated or not).
 - **Optimality** — `exact` is never worse than the heuristics; heuristics never beat the area
   lower bound; known‑optimum instances are solved correctly.
-- **End‑to‑end** — the full pipeline (WireMock → client → packing → report) produces the required
+- **End‑to‑end** — the full pipeline (WireMock → client → grilling → report) produces the required
   per‑menu lines and a `Total:` equal to their sum.
 
 ## Project structure
@@ -163,18 +162,19 @@ Coverage includes:
 src/
   Program.cs                      CLI (System.CommandLine) + host/DI wiring
   appsettings.json                default API base URL, strategy, verbose flag
-  GrillOrchestrator.cs            fetch → pack each menu → print
+  GrillOrchestrator.cs            fetch → plan each menu → print
   Domain/                         GrillSize, GrillPiece, GrillMenuItem, GrillMenu,
-                                  Placement, Round, PackResult
-  Api/                            IGrillMenuClient, GrillMenuClient, GrillMenuDtos
-  Packing/                        IPackStrategy, RoundOccupancy, PackingHelpers,
-                                  GreedyShelfStrategy, ExactBacktrackingStrategy,
-                                  OptimizedHeuristicStrategy, PackStrategyFactory
-  Output/                         ReportPrinter
+                                  GrillPiecePlacement, GrillRound, GrillPlan
+  Api/                            IGrillMenuApiClient, GrillMenuApiClient
+    Models/                       GrillMenuDto, GrillMenuItemDto
+  Grilling/                       IGrillPlanStrategy, RoundOccupancy, GrillPlanHelpers,
+                                  GrillPlanStrategyFactory
+    Strategies/                   GreedyShelfStrategy, ExactBacktrackingStrategy,
+                                  OptimizedHeuristicStrategy
 tests/GrillMaster.Tests/
-  GrillMenuClientTests.cs         WireMock-based client tests
-  PackingInvariantsTests.cs       validity invariants for all strategies
-  PackingOptimalityTests.cs       relative quality / known optima
+  GrillMenuApiClientTests.cs      WireMock-based client tests
+  GrillingInvariantsTests.cs      validity invariants for all strategies
+  GrillingOptimalityTests.cs      relative quality / known optima
   EndToEndTests.cs                full pipeline via WireMock
   grill-menus.json                fixture payload (the live API's 15-menu response)
 ```
@@ -182,12 +182,12 @@ tests/GrillMaster.Tests/
 ## Known limitations
 
 - **Axis‑aligned placement only.** Pieces may be rotated 90°, but arbitrary (non‑right‑angle)
-  rotation is not supported. Allowing free angles would be a continuous 2‑D packing problem and is
+  rotation is not supported. Allowing free angles would be a continuous 2‑D placement problem and is
   well beyond what this assessment needs; the current model is the standard, tractable one.
 - **`exact` has a node budget** (default 20 000 000). On the assessment data it finishes in well
   under a second and proves the optimum. On a much larger or adversarial menu it may hit the
-  budget and then returns the best incumbent found so far, flagged as **not** proven optimal
-  (`PackResult.IsProvenOptimal == false`).
+   budget and then returns the best incumbent found so far, flagged as **not** proven optimal
+   (`GrillPlan.IsProvenOptimal == false`).
 - **Assumes every piece fits the grill.** The current data's largest piece is 22 cm, which fits on
   the 30 cm side. A piece that cannot fit the grill in either orientation throws
   `InvalidOperationException`.

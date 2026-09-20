@@ -1,6 +1,7 @@
 using Core.Testing.Serializers;
 using GrillMaster.Domain;
-using GrillMaster.Packing;
+using GrillMaster.Grilling;
+using GrillMaster.Grilling.Strategies;
 using Xunit;
 using Xunit.Sdk;
 
@@ -10,38 +11,38 @@ using Xunit.Sdk;
 namespace GrillMaster.Tests;
 
 /// <summary>
-/// Verifies that every strategy produces a *valid* packing: each piece placed exactly once, all
+/// Verifies that every strategy produces a *valid* plan: each piece placed exactly once, all
 /// pieces within the grill, no overlaps, and footprints matching the piece dimensions (with or
 /// without a 90° rotation).
 /// </summary>
-public class PackingInvariantsTests
+public class GrillingInvariantsTests
 {
     private static readonly GrillSize Grill = GrillSize.Standard;
 
-    public static IEnumerable<TheoryDataRow<IPackStrategy>> AllStrategies()
+    public static IEnumerable<TheoryDataRow<IGrillPlanStrategy>> AllStrategies()
     {
-        yield return new TheoryDataRow<IPackStrategy>(new GreedyShelfStrategy());
-        yield return new TheoryDataRow<IPackStrategy>(new ExactBacktrackingStrategy());
-        yield return new TheoryDataRow<IPackStrategy>(new OptimizedHeuristicStrategy());
+        yield return new TheoryDataRow<IGrillPlanStrategy>(new GreedyShelfStrategy());
+        yield return new TheoryDataRow<IGrillPlanStrategy>(new ExactBacktrackingStrategy());
+        yield return new TheoryDataRow<IGrillPlanStrategy>(new OptimizedHeuristicStrategy());
     }
 
     [Theory]
     [MemberData(nameof(AllStrategies))]
-    public void Strategies_ProduceValidPacking_ForFixture(IPackStrategy strategy)
+    public void Strategies_ProduceValidPlan_ForFixture(IGrillPlanStrategy strategy)
     {
         var pieces = BuildFixturePieces();
-        var result = strategy.Pack(pieces, Grill);
+        var result = strategy.Plan(pieces, Grill);
 
         Validate(pieces, result);
     }
 
     [Theory]
     [MemberData(nameof(AllStrategies))]
-    public void Strategies_ProduceValidPacking_ForManyIdenticalPieces(IPackStrategy strategy)
+    public void Strategies_ProduceValidPlan_ForManyIdenticalPieces(IGrillPlanStrategy strategy)
     {
         // 40 identical small pieces - stresses symmetry handling.
         var pieces = Enumerable.Repeat(new GrillPiece("Sausage", 6, 3), 40).ToList();
-        var result = strategy.Pack(pieces, Grill);
+        var result = strategy.Plan(pieces, Grill);
 
         Validate(pieces, result);
     }
@@ -49,9 +50,9 @@ public class PackingInvariantsTests
     [Fact]
     public void Strategies_HandleEmptyInput()
     {
-        foreach (var strategy in new IPackStrategy[] { new GreedyShelfStrategy(), new ExactBacktrackingStrategy(), new OptimizedHeuristicStrategy() })
+        foreach (var strategy in new IGrillPlanStrategy[] { new GreedyShelfStrategy(), new ExactBacktrackingStrategy(), new OptimizedHeuristicStrategy() })
         {
-            var result = strategy.Pack([], Grill);
+            var result = strategy.Plan([], Grill);
             Assert.Equal(0, result.TotalRounds);
             Assert.Empty(result.Rounds);
         }
@@ -61,9 +62,9 @@ public class PackingInvariantsTests
     public void Strategies_ThrowForOversizedPiece()
     {
         List<GrillPiece> oversized = [new GrillPiece("Huge", 40, 5)];
-        foreach (var strategy in new IPackStrategy[] { new GreedyShelfStrategy(), new ExactBacktrackingStrategy(), new OptimizedHeuristicStrategy() })
+        foreach (var strategy in new IGrillPlanStrategy[] { new GreedyShelfStrategy(), new ExactBacktrackingStrategy(), new OptimizedHeuristicStrategy() })
         {
-            Assert.Throws<InvalidOperationException>(() => strategy.Pack(oversized, Grill));
+            Assert.Throws<InvalidOperationException>(() => strategy.Plan(oversized, Grill));
         }
     }
 
@@ -77,7 +78,7 @@ public class PackingInvariantsTests
         return pieces;
     }
 
-    private static void Validate(IReadOnlyList<GrillPiece> input, PackResult result)
+    private static void Validate(IReadOnlyList<GrillPiece> input, GrillPlan result)
     {
         var placed = result.Rounds.SelectMany(r => r.Placements.Select(p => p.Piece)).ToList();
 

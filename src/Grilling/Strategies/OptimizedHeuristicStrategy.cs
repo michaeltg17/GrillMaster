@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using GrillMaster.Domain;
 
-namespace GrillMaster.Packing;
+namespace GrillMaster.Grilling.Strategies;
 
 /// <summary>
 /// Greedy seed followed by a deterministic local search that consolidates pieces into fewer
@@ -11,28 +11,28 @@ namespace GrillMaster.Packing;
 /// last round by moving its pieces into earlier rounds. A direct move is tried first; when blocked,
 /// a bounded backtracking sub-search decides whether the last round's pieces can be absorbed by the
 /// earlier rounds (allowing the pieces already there to be rearranged). Several piece orderings are
-/// tried as seeds and the best result is kept. Every accepted move keeps the packing valid and can
+/// tried as seeds and the best result is kept. Every accepted move keeps the plan valid and can
 /// only keep or reduce the round count.
 /// </para>
 /// </summary>
-public sealed class OptimizedHeuristicStrategy : IPackStrategy
+public sealed class OptimizedHeuristicStrategy : IGrillPlanStrategy
 {
     private const int MaxIterations = 200;
     private const long SubSearchNodeBudget = 200_000;
 
     public string Name { get; } = "optimized";
 
-    public PackResult Pack(IReadOnlyList<GrillPiece> pieces, GrillSize grill)
+    public GrillPlan Plan(IReadOnlyList<GrillPiece> pieces, GrillSize grill)
     {
         var stopwatch = Stopwatch.StartNew();
-        var lowerBound = PackingHelpers.ComputeLowerBound(pieces, grill);
+        var lowerBound = GrillPlanHelpers.ComputeLowerBound(pieces, grill);
 
         if (pieces.Count == 0)
         {
-            return new PackResult([], Name, lowerBound, IsProvenOptimal: false, SearchNodes: 0, stopwatch.Elapsed);
+            return new GrillPlan([], Name, lowerBound, IsProvenOptimal: false, SearchNodes: 0, stopwatch.Elapsed);
         }
 
-        var best = default(List<Round>);
+        var best = default(List<GrillRound>);
         var bestCount = int.MaxValue;
 
         foreach (var seed in BuildSeeds(pieces, grill))
@@ -51,31 +51,31 @@ public sealed class OptimizedHeuristicStrategy : IPackStrategy
         }
 
         stopwatch.Stop();
-        return new PackResult(best!, Name, lowerBound, IsProvenOptimal: bestCount == lowerBound, SearchNodes: 0, stopwatch.Elapsed);
+        return new GrillPlan(best!, Name, lowerBound, IsProvenOptimal: bestCount == lowerBound, SearchNodes: 0, stopwatch.Elapsed);
     }
 
     // A few deterministic orderings to seed the greedy heuristic from.
-    private static IEnumerable<IReadOnlyList<Round>> BuildSeeds(IReadOnlyList<GrillPiece> pieces, GrillSize grill)
+    private static IEnumerable<IReadOnlyList<GrillRound>> BuildSeeds(IReadOnlyList<GrillPiece> pieces, GrillSize grill)
     {
         var greeds = new GreedyShelfStrategy();
 
         // Seed 1: canonical order (largest area first) - the default greedy.
-        yield return greeds.Pack(pieces, grill).Rounds;
+        yield return greeds.Plan(pieces, grill).Rounds;
 
         // Seed 2: longest side first.
-        yield return greeds.Pack(
+        yield return greeds.Plan(
             pieces.OrderByDescending(p => p.LongSide).ThenByDescending(p => p.Area).ThenBy(p => p.Name, StringComparer.Ordinal).ToList(),
             grill).Rounds;
 
-        // Seed 3: shortest side first (small pieces first can sometimes pack tighter).
-        yield return greeds.Pack(
+        // Seed 3: shortest side first (small pieces first can sometimes fit tighter).
+        yield return greeds.Plan(
             pieces.OrderBy(p => p.ShortSide).ThenBy(p => p.Name, StringComparer.Ordinal).ToList(),
             grill).Rounds;
     }
 
-    private static List<Round> Consolidate(IReadOnlyList<Round> seed, GrillSize grill)
+    private static List<GrillRound> Consolidate(IReadOnlyList<GrillRound> seed, GrillSize grill)
     {
-        var rounds = seed.Select(r => new Round(r.Placements)).ToList();
+        var rounds = seed.Select(r => new GrillRound(r.Placements)).ToList();
         var occupancies = RebuildOccupancies(rounds, grill);
 
         var iterations = 0;
@@ -92,8 +92,8 @@ public sealed class OptimizedHeuristicStrategy : IPackStrategy
         return rounds;
     }
 
-    // Tries to reduce the packing by one round by repacking all pieces into (count - 1) rounds.
-    private static bool TryReduceByOne(List<Round> rounds, List<RoundOccupancy> occupancies, GrillSize grill)
+    // Tries to reduce the plan by one round by replanning all pieces into (count - 1) rounds.
+    private static bool TryReduceByOne(List<GrillRound> rounds, List<RoundOccupancy> occupancies, GrillSize grill)
     {
         var targetRounds = rounds.Count - 1;
         if (targetRounds < 1)
@@ -113,25 +113,25 @@ public sealed class OptimizedHeuristicStrategy : IPackStrategy
             return false;
         }
 
-        var bins = new RoundOccupancy[targetRounds];
+        var roundsOccupancy = new RoundOccupancy[targetRounds];
         for (var i = 0; i < targetRounds; i++)
         {
-            bins[i] = new RoundOccupancy(grill);
+            roundsOccupancy[i] = new RoundOccupancy(grill);
         }
 
-        var placements = new Placement[targetRounds][];
+        var placements = new GrillPiecePlacement[targetRounds][];
         for (var i = 0; i < targetRounds; i++)
         {
             placements[i] = [];
         }
 
         var budget = new long[] { SubSearchNodeBudget };
-        if (!DfsRepack(allPieces, 0, targetRounds, bins, placements, budget))
+        if (!DfsReplan(allPieces, 0, targetRounds, roundsOccupancy, placements, budget))
         {
             return false;
         }
 
-        // Commit the new packing.
+        // Commit the new plan.
         for (var i = 0; i < rounds.Count; i++)
         {
             rounds[i].Clear();
@@ -163,8 +163,8 @@ public sealed class OptimizedHeuristicStrategy : IPackStrategy
         return true;
     }
 
-    // Bounded DFS: pack all pieces into `bins` bins. Returns true on a complete packing.
-    private static bool DfsRepack(List<GrillPiece> pieces, int index, int binCount, RoundOccupancy[] bins, Placement[][] placements, long[] budget)
+    // Bounded DFS: plan all pieces into `rounds` rounds. Returns true on a complete plan.
+    private static bool DfsReplan(List<GrillPiece> pieces, int index, int roundCount, RoundOccupancy[] rounds, GrillPiecePlacement[][] placements, long[] budget)
     {
         if (budget[0]-- <= 0)
         {
@@ -178,9 +178,9 @@ public sealed class OptimizedHeuristicStrategy : IPackStrategy
 
         var piece = pieces[index];
 
-        for (var bin = 0; bin < binCount; bin++)
+        for (var round = 0; round < roundCount; round++)
         {
-            var occupancy = bins[bin];
+            var occupancy = rounds[round];
             if (!occupancy.CanFit(piece))
             {
                 continue;
@@ -189,14 +189,14 @@ public sealed class OptimizedHeuristicStrategy : IPackStrategy
             foreach (var placement in occupancy.EnumerateSkylinePositions(piece))
             {
                 occupancy.MarkOccupied(placement.X, placement.Y, placement.FootprintWidth, placement.FootprintHeight);
-                placements[bin] = Append(placements[bin], placement);
+                placements[round] = Append(placements[round], placement);
 
-                if (DfsRepack(pieces, index + 1, binCount, bins, placements, budget))
+                if (DfsReplan(pieces, index + 1, roundCount, rounds, placements, budget))
                 {
                     return true;
                 }
 
-                placements[bin] = placements[bin][..^1];
+                placements[round] = placements[round][..^1];
                 occupancy.MarkFree(placement.X, placement.Y, placement.FootprintWidth, placement.FootprintHeight);
             }
         }
@@ -204,15 +204,15 @@ public sealed class OptimizedHeuristicStrategy : IPackStrategy
         return false;
     }
 
-    private static Placement[] Append(Placement[] array, Placement item)
+    private static GrillPiecePlacement[] Append(GrillPiecePlacement[] array, GrillPiecePlacement item)
     {
-        var copy = new Placement[array.Length + 1];
+        var copy = new GrillPiecePlacement[array.Length + 1];
         Array.Copy(array, copy, array.Length);
         copy[array.Length] = item;
         return copy;
     }
 
-    private static List<RoundOccupancy> RebuildOccupancies(List<Round> rounds, GrillSize grill)
+    private static List<RoundOccupancy> RebuildOccupancies(List<GrillRound> rounds, GrillSize grill)
     {
         return rounds.Select(r =>
         {

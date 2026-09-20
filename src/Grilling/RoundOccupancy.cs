@@ -1,6 +1,6 @@
 using GrillMaster.Domain;
 
-namespace GrillMaster.Packing;
+namespace GrillMaster.Grilling;
 
 /// <summary>
 /// Tracks which centimetre cells of a single grill round are occupied, and finds free
@@ -70,7 +70,7 @@ public sealed class RoundOccupancy
     public void Clear() => Array.Clear(_occupied, 0, _occupied.Length);
 
     /// <summary>Rebuilds the occupancy grid from a set of placements (discarding previous state).</summary>
-    public void Rebuild(IEnumerable<Placement> placements)
+    public void Rebuild(IEnumerable<GrillPiecePlacement> placements)
     {
         Clear();
         foreach (var p in placements)
@@ -85,9 +85,9 @@ public sealed class RoundOccupancy
     /// lowest x, that leaves the least empty area to the piece's left and above (tight packing).
     /// Returns null when the piece does not fit anywhere in this round.
     /// </summary>
-    public Placement? FindBestPosition(GrillPiece piece)
+    public GrillPiecePlacement? FindBestPosition(GrillPiece piece)
     {
-        var best = default(Placement?);
+        var best = default(GrillPiecePlacement?);
         var bestScore = int.MaxValue;
 
         foreach (var orientation in new[] { false, true })
@@ -108,7 +108,7 @@ public sealed class RoundOccupancy
                     if (score < bestScore)
                     {
                         bestScore = score;
-                        best = new Placement(piece, x, y, orientation);
+                        best = new GrillPiecePlacement(piece, x, y, orientation);
                     }
                 }
             }
@@ -121,7 +121,7 @@ public sealed class RoundOccupancy
     /// Returns the single lowest free position (first-fit scan) for a piece, or null. Used by the
     /// exact strategy where a deterministic, complete enumeration of positions is preferred.
     /// </summary>
-    public Placement? FindFirstPosition(GrillPiece piece)
+    public GrillPiecePlacement? FindFirstPosition(GrillPiece piece)
     {
         foreach (var orientation in new[] { false, true })
         {
@@ -134,7 +134,7 @@ public sealed class RoundOccupancy
                 {
                     if (IsFree(x, y, w, h))
                     {
-                        return new Placement(piece, x, y, orientation);
+                        return new GrillPiecePlacement(piece, x, y, orientation);
                     }
                 }
             }
@@ -143,7 +143,7 @@ public sealed class RoundOccupancy
         return null;
     }
 
-    // Tight-packing score: prefer positions hugging the top-left and existing pieces.
+    // Tight-placement score: prefer positions hugging the top-left and existing pieces.
     // Penalise empty space to the left of and above the candidate rectangle.
     private int Score(int x, int y, int w, int h)
     {
@@ -190,7 +190,7 @@ public sealed class RoundOccupancy
     /// occupied cell or leaving the grill. Restricting the search to these positions removes the
     /// large symmetry classes of equivalent placements and is what makes exact search tractable.
     /// </summary>
-    public IEnumerable<Placement> EnumerateSkylinePositions(GrillPiece piece)
+    public IEnumerable<GrillPiecePlacement> EnumerateSkylinePositions(GrillPiece piece)
     {
         foreach (var orientation in new[] { false, true })
         {
@@ -206,7 +206,7 @@ public sealed class RoundOccupancy
                     // Canonical only if it rests on the floor or on an occupied cell.
                     if (y == 0 || HasOccupiedAbove(x, w, y))
                     {
-                        yield return new Placement(piece, x, y, orientation);
+                        yield return new GrillPiecePlacement(piece, x, y, orientation);
                     }
 
                     // Next skyline level in this column: just above the highest occupied cell.

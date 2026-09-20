@@ -1,5 +1,5 @@
 using System.Text.Json;
-using GrillMaster.Api;
+using GrillMaster.Api.Models;
 
 namespace GrillMaster.Tests;
 

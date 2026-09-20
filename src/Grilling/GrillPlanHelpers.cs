@@ -1,16 +1,16 @@
 using GrillMaster.Domain;
 
-namespace GrillMaster.Packing;
+namespace GrillMaster.Grilling;
 
 /// <summary>
-/// Shared helpers used by every packing strategy: canonical piece ordering and the
+/// Shared helpers used by every grilling strategy: canonical piece ordering and the
 /// area-based lower bound on the number of rounds.
 /// </summary>
-public static class PackingHelpers
+public static class GrillPlanHelpers
 {
     /// <summary>
     /// The theoretical minimum number of rounds, based purely on total area:
-    /// <c>ceil(totalArea / grillArea)</c>. Any valid packing uses at least this many rounds.
+    /// <c>ceil(totalArea / grillArea)</c>. Any valid plan uses at least this many rounds.
     /// </summary>
     public static int ComputeLowerBound(IReadOnlyList<GrillPiece> pieces, GrillSize grill)
     {

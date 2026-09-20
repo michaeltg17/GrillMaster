@@ -8,7 +8,7 @@
     <PackageVersion Include="System.CommandLine" Version="2.0.12" />
 
     <!-- Testing -->
-    <PackageVersion Include="FluentAssertions" Version="8.11.0" />
+    <PackageVersion Include="AwesomeAssertions" Version="9.6.0" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
     <PackageVersion Include="Serilog.Sinks.InMemory" Version="2.0.0" />
     <PackageVersion Include="Serilog.Sinks.InMemory.Assertions" Version="2.0.0" />

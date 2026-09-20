@@ -1,12 +1,14 @@
-namespace GrillMaster.Packing;
+using GrillMaster.Grilling.Strategies;
 
-/// <summary>Creates packing strategies by name.</summary>
-public static class PackStrategyFactory
+namespace GrillMaster.Grilling;
+
+/// <summary>Creates grilling strategies by name.</summary>
+public static class GrillPlanStrategyFactory
 {
     /// <summary>All strategy names, in display order.</summary>
     public static IReadOnlyList<string> Available { get; } = ["greedy", "exact", "optimized"];
 
-    public static IPackStrategy Create(string name) => name?.Trim().ToUpperInvariant() switch
+    public static IGrillPlanStrategy Create(string name) => name?.Trim().ToUpperInvariant() switch
     {
         "GREEDY" => new GreedyShelfStrategy(),
         "EXACT" => new ExactBacktrackingStrategy(),

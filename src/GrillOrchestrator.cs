@@ -1,18 +1,18 @@
 using GrillMaster.Api;
 using GrillMaster.Domain;
-using GrillMaster.Packing;
+using GrillMaster.Grilling;
 using Serilog;
 
 namespace GrillMaster;
 
 /// <summary>
-/// Coordinates the end-to-end flow: fetch menus, pack each one with the selected strategy, and
+/// Coordinates the end-to-end flow: fetch menus, plan each one with the selected strategy, and
 /// log the report. Menus are processed in name order so the report is deterministic. Kept
 /// separate from <c>Program</c> so the whole pipeline is unit-testable.
 /// </summary>
 public sealed class GrillOrchestrator(
-    IGrillMenuClient client,
-    IPackStrategy strategy,
+    IGrillMenuApiClient client,
+    IGrillPlanStrategy strategy,
     ILogger logger,
     bool verbose = false)
 {
@@ -28,11 +28,11 @@ public sealed class GrillOrchestrator(
 
         var grill = GrillSize.Standard;
 
-        var results = new List<(GrillMenu Menu, PackResult Result)>();
+        var results = new List<(GrillMenu Menu, GrillPlan Result)>();
         foreach (var menu in menus.OrderBy(m => m.Name, StringComparer.Ordinal))
         {
             var pieces = menu.ExpandPieces();
-            var result = strategy.Pack(pieces, grill);
+            var result = strategy.Plan(pieces, grill);
             results.Add((menu, result));
         }
 
@@ -47,7 +47,7 @@ public sealed class GrillOrchestrator(
         return 0;
     }
 
-    private void LogMenu(GrillMenu menu, PackResult result)
+    private void LogMenu(GrillMenu menu, GrillPlan result)
     {
         logger.Information(
             "{MenuName}: {RoundCount} rounds",

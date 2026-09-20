@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using GrillMaster.Api.Models;
 using GrillMaster.Domain;
 
 namespace GrillMaster.Api;
@@ -9,7 +10,7 @@ namespace GrillMaster.Api;
 /// <see cref="HttpClient"/> (configured via dependency injection), so it is trivially overridable
 /// for tests and different environments.
 /// </summary>
-public sealed class GrillMenuClient(HttpClient http) : IGrillMenuClient
+public sealed class GrillMenuApiClient(HttpClient http) : IGrillMenuApiClient
 {
     private static readonly Uri MenusEndpoint = new("api/GrillMenu", UriKind.Relative);
 
@@ -29,7 +30,7 @@ public sealed class GrillMenuClient(HttpClient http) : IGrillMenuClient
         catch (HttpRequestException ex)
         {
             // Transport-level failure: DNS, connection refused, timeout, TLS, etc.
-            throw new ApiUnreachableException("Could not reach the grill menu API.", ex);
+            throw new ApiUnreachableException(ex);
         }
 
         // Drain the body before disposing the response so non-2xx payloads are not left open.
@@ -37,20 +38,18 @@ public sealed class GrillMenuClient(HttpClient http) : IGrillMenuClient
 
         if (!response.IsSuccessStatusCode)
         {
-            throw new ApiErrorException(
-                $"The grill menu API returned an error (status {(int)response.StatusCode} {response.ReasonPhrase}).",
-                response.StatusCode);
+            throw new ApiErrorException(response.StatusCode);
         }
 
         List<GrillMenuDto> dtos;
         try
         {
             dtos = JsonSerializer.Deserialize<List<GrillMenuDto>>(body, SerializerOptions)
-                ?? throw new MalformedApiResponseException("The grill menu API returned an empty JSON body.");
+                ?? throw new MalformedApiResponseException();
         }
         catch (JsonException ex)
         {
-            throw new MalformedApiResponseException("The grill menu API returned a body that is not valid JSON.", ex);
+            throw new MalformedApiResponseException(ex);
         }
 
         return dtos.Select(ToDomain).ToList();
