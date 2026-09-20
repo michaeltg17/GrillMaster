@@ -15,7 +15,7 @@ namespace GrillMaster.Application.Features.Plans.Strategies;
 /// the result is flagged as not proven optimal.
 /// </para>
 /// </summary>
-public sealed class ExactBacktrackingStrategy : IGrillPlanStrategy
+public sealed class ExactBacktrackingStrategy : IGrillPlanner
 {
     public string Name { get; } = "exact";
 

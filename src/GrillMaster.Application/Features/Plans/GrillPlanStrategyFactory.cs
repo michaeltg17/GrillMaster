@@ -8,7 +8,7 @@ public static class GrillPlanStrategyFactory
     /// <summary>All strategy names, in display order.</summary>
     public static IReadOnlyList<string> Available { get; } = ["greedy", "exact", "optimized"];
 
-    public static IGrillPlanStrategy Create(string name) => name?.Trim().ToUpperInvariant() switch
+    public static IGrillPlanner Create(string name) => name?.Trim().ToUpperInvariant() switch
     {
         "GREEDY" => new GreedyShelfStrategy(),
         "EXACT" => new ExactBacktrackingStrategy(),

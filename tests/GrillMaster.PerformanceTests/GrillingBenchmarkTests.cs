@@ -95,7 +95,7 @@ public sealed class GrillingBenchmarkTests(ITestOutputHelper output)
     /// (rounds, lower bound, search nodes) plus the median elapsed milliseconds.
     /// </summary>
     private static (int TotalRounds, int LowerBound, long SearchNodes, double MedianMs)
-        Benchmark(IGrillPlanStrategy strategy, IReadOnlyList<GrillMenu> menus)
+        Benchmark(IGrillPlanner strategy, IReadOnlyList<GrillMenu> menus)
     {
         var elapsed = new List<double>(Runs);
         var totalRounds = 0;

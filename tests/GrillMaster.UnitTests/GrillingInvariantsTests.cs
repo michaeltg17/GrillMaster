@@ -19,16 +19,16 @@ public class GrillingInvariantsTests
 {
     private static readonly GrillSize Grill = GrillSize.Standard;
 
-    public static IEnumerable<TheoryDataRow<IGrillPlanStrategy>> AllStrategies()
+    public static IEnumerable<TheoryDataRow<IGrillPlanner>> AllStrategies()
     {
-        yield return new TheoryDataRow<IGrillPlanStrategy>(new GreedyShelfStrategy());
-        yield return new TheoryDataRow<IGrillPlanStrategy>(new ExactBacktrackingStrategy());
-        yield return new TheoryDataRow<IGrillPlanStrategy>(new OptimizedHeuristicStrategy());
+        yield return new TheoryDataRow<IGrillPlanner>(new GreedyShelfStrategy());
+        yield return new TheoryDataRow<IGrillPlanner>(new ExactBacktrackingStrategy());
+        yield return new TheoryDataRow<IGrillPlanner>(new OptimizedHeuristicStrategy());
     }
 
     [Theory]
     [MemberData(nameof(AllStrategies))]
-    public void Strategies_ProduceValidPlan_ForFixture(IGrillPlanStrategy strategy)
+    public void Strategies_ProduceValidPlan_ForFixture(IGrillPlanner strategy)
     {
         var pieces = BuildFixturePieces();
         var result = strategy.Plan(pieces, Grill);
@@ -38,7 +38,7 @@ public class GrillingInvariantsTests
 
     [Theory]
     [MemberData(nameof(AllStrategies))]
-    public void Strategies_ProduceValidPlan_ForManyIdenticalPieces(IGrillPlanStrategy strategy)
+    public void Strategies_ProduceValidPlan_ForManyIdenticalPieces(IGrillPlanner strategy)
     {
         // 40 identical small pieces - stresses symmetry handling.
         var pieces = Enumerable.Repeat(new GrillPiece("Sausage", 6, 3), 40).ToList();
@@ -50,7 +50,7 @@ public class GrillingInvariantsTests
     [Fact]
     public void Strategies_HandleEmptyInput()
     {
-        foreach (var strategy in new IGrillPlanStrategy[] { new GreedyShelfStrategy(), new ExactBacktrackingStrategy(), new OptimizedHeuristicStrategy() })
+        foreach (var strategy in new IGrillPlanner[] { new GreedyShelfStrategy(), new ExactBacktrackingStrategy(), new OptimizedHeuristicStrategy() })
         {
             var result = strategy.Plan([], Grill);
             Assert.Equal(0, result.TotalRounds);
@@ -62,7 +62,7 @@ public class GrillingInvariantsTests
     public void Strategies_ThrowForOversizedPiece()
     {
         List<GrillPiece> oversized = [new GrillPiece("Huge", 40, 5)];
-        foreach (var strategy in new IGrillPlanStrategy[] { new GreedyShelfStrategy(), new ExactBacktrackingStrategy(), new OptimizedHeuristicStrategy() })
+        foreach (var strategy in new IGrillPlanner[] { new GreedyShelfStrategy(), new ExactBacktrackingStrategy(), new OptimizedHeuristicStrategy() })
         {
             Assert.Throws<InvalidOperationException>(() => strategy.Plan(oversized, Grill));
         }

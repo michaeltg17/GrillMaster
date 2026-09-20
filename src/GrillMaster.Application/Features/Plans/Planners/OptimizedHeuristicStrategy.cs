@@ -15,7 +15,7 @@ namespace GrillMaster.Application.Features.Plans.Strategies;
 /// only keep or reduce the round count.
 /// </para>
 /// </summary>
-public sealed class OptimizedHeuristicStrategy : IGrillPlanStrategy
+public sealed class OptimizedHeuristicStrategy : IGrillPlanner
 {
     private const int MaxIterations = 200;
     private const long SubSearchNodeBudget = 200_000;

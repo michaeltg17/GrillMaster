@@ -7,7 +7,7 @@ namespace GrillMaster.Application.Features.Plans;
 /// Implementations must place every piece exactly once, keep pieces non-overlapping and
 /// within the grill bounds, and may rotate pieces 90°.
 /// </summary>
-public interface IGrillPlanStrategy
+public interface IGrillPlanner
 {
     /// <summary>Stable, human readable name of the strategy (used in output and tests).</summary>
     string Name { get; }

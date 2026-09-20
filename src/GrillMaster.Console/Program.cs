@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Serilog;
+using Serilog.Sinks.SystemConsole.Themes;
 
 namespace GrillMaster;
 
@@ -62,11 +63,15 @@ internal static class Program
         var url = parseResult.GetValue<string>("--url");
         var verbose = parseResult.GetValue<bool>("--verbose");
 
+        var whiteStyle = new SystemConsoleThemeStyle { Foreground = ConsoleColor.White };
+        var whiteTheme = new SystemConsoleTheme(
+            Enum.GetValues<ConsoleThemeStyle>().Distinct().ToDictionary(style => style, _ => whiteStyle));
+
         Log.Logger = new LoggerConfiguration()
-            .WriteTo.Console(outputTemplate: "{Message:lj}{NewLine}")
+            .WriteTo.Console(theme: whiteTheme, outputTemplate: "{Message:lj}{NewLine}")
             .CreateLogger();
 
-        IGrillPlanStrategy planStrategy;
+        IGrillPlanner planStrategy;
         try
         {
             planStrategy = GrillPlanStrategyFactory.Create(strategy);
@@ -78,7 +83,7 @@ internal static class Program
         }
 
         using var host = BuildHost(url, planStrategy, verbose);
-        InstallFatalHandlers();
+        ConfigureFatalHandlers();
 
         try
         {
@@ -99,7 +104,7 @@ internal static class Program
 #pragma warning restore CA1031 // Do not catch general exception types
     }
 
-    private static IHost BuildHost(string? url, IGrillPlanStrategy strategy, bool verbose)
+    private static IHost BuildHost(string? url, IGrillPlanner strategy, bool verbose)
     {
         var builder = Host.CreateApplicationBuilder();
         builder.Logging.ClearProviders();
@@ -127,16 +132,10 @@ internal static class Program
         return builder.Build();
     }
 
-    // Last-resort safety net: if a failure escapes the handler above (e.g. raised on a thread we do
-    // not await), still exit cleanly with a message instead of a raw crash.
-    private static void InstallFatalHandlers()
+    // Last-resort safety net: the runtime silently swallows unobserved task exceptions (fire-and-forget
+    // tasks on threads we do not await), so surface them and fail the run instead of exiting 0.
+    private static void ConfigureFatalHandlers()
     {
-        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
-        {
-            Console.Error.WriteLine($"Fatal: {e.ExceptionObject}");
-            Environment.ExitCode = 1;
-        };
-
         TaskScheduler.UnobservedTaskException += (_, e) =>
         {
             Console.Error.WriteLine($"Fatal (unobserved task): {e.Exception}");

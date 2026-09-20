@@ -63,7 +63,7 @@ public class GrillingOptimalityTests
         var pieces = BuildMixedPieces();
         var lowerBound = GrillPlanHelpers.ComputeLowerBound(pieces, Grill);
 
-        foreach (var strategy in new IGrillPlanStrategy[] { new GreedyShelfStrategy(), new ExactBacktrackingStrategy(), new OptimizedHeuristicStrategy() })
+        foreach (var strategy in new IGrillPlanner[] { new GreedyShelfStrategy(), new ExactBacktrackingStrategy(), new OptimizedHeuristicStrategy() })
         {
             var result = strategy.Plan(pieces, Grill);
             Assert.True(result.TotalRounds >= lowerBound, $"{strategy.Name} beat the lower bound");

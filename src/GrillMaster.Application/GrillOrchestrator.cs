@@ -12,7 +12,7 @@ namespace GrillMaster.Application;
 /// </summary>
 public sealed class GrillOrchestrator(
     GrillMenuService menuService,
-    IGrillPlanStrategy strategy,
+    IGrillPlanner strategy,
     ILogger logger,
     bool verbose = false)
 {

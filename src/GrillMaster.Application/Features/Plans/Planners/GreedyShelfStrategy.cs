@@ -12,7 +12,7 @@ namespace GrillMaster.Application.Features.Plans.Strategies;
 /// </para>
 /// Fast and readable; typically within one or two rounds of optimal.
 /// </summary>
-public sealed class GreedyShelfStrategy : IGrillPlanStrategy
+public sealed class GreedyShelfStrategy : IGrillPlanner
 {
     public string Name { get; } = "greedy";
 
