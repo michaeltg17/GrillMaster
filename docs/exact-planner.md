@@ -32,9 +32,12 @@ Before searching, the planner does two quick things:
 
 **The floor.** Add up all the meat's area. A grill holds 600 cm². If the meat needs
 900 cm², then *no matter how clever you are*, at least 2 rounds are needed (2 × 600 =
-1200 ≥ 900, but 1 × 600 = 600 < 900). This "round up" number is the **floor** — no plan
+1200 ≥ 900, but 1 × 600 = 600 < 900). This "round up" number is **one** floor — no plan
 can ever go below it. (The only *math* in this whole program, and it's just
-division-and-round-up.)
+division-and-round-up.) There is a second floor for menus full of one meat: 40 sausages
+need 2 rounds when a grill holds at most 30, even if the area says 1 — that part is
+computed exactly (see [the batch planner](batch-planner.md)). The floor is the larger of
+the two.
 
 **The champion.** Run the [greedy planner](greedy-planner.md) first and keep *its*
 answer as the current best — the **champion**. Now the search only has one job:
@@ -42,7 +45,7 @@ answer as the current best — the **champion**. Now the search only has one job
 is already worthless, so it can be abandoned the moment it becomes clear.
 
 A lovely side effect: if the champion is *already* standing on the floor (greedy found
-a plan that hits the area minimum), the search can stop before it even starts — a score
+a plan that hits the lower bound), the search can stop before it even starts — a score
 below the floor is impossible, so the champion is proven optimal instantly.
 
 ## 3. The search: place one piece, look ahead, undo, try the next spot
@@ -167,7 +170,7 @@ Code, translated into the story:
 |------|--------------------------|
 | `Plan(menu, grill)` | Takes the job: builds the floor, the champion, then starts the search. |
 | `new GreedyShelfPlanner().Plan(...)` | Hiring the fast cook to set the champion's score. |
-| `GrillPlanHelpers.ComputeLowerBound(...)` | The floor: total area ÷ 600, rounded up. Computed once and cached. |
+| `GrillPlannerHelpers.ComputeLowerBound(...)` | The floor: the larger of total area ÷ 600 and the per-type capacity count. Computed once and cached. |
 | `Search(index)` | The patient person, mid-arrangement: `index` = "which piece am I placing now?". |
 | `for (var round = 0; ...)` | Trying each grill, one after another. |
 | `round > _nonEmptyRounds → break` | Rule 4: never open a later grill while an earlier one is empty. |

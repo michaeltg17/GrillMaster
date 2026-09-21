@@ -1,129 +1,38 @@
 # Grill Master
 
-A .NET / C# console application that helps the grill master **minimise the number of cooking
-rounds** needed to grill every piece of meat on a set of menus, given a fixed-size grill.
+A small console app that tells you **how many rounds of grilling** you need to cook every piece
+of meat on a list of menus — without burning anything.
 
 This is the solution for the *isolutions "Assessment Grill Master"* task.
 
-## Problem
+## The problem, in plain words
 
-The grill is a fixed **20 cm × 30 cm** surface. A REST API returns a number of **menus**; each
-menu is a list of meat items, and each item has a size (`Length` × `Width` in cm) and a
-`Quantity` (how many identical pieces must be grilled).
+You have a grill — a flat **30 cm × 20 cm** patch — and a list of menus that a cooking API
+sends you. Each menu is a shopping list of meat: "2 rumpsteaks (15 cm × 7 cm)",
+"4 sausages (6 cm × 3 cm)", and so on.
 
-All pieces take the **same** cooking time, so the only thing that matters is **how many rounds**
-are needed. In one round, any set of pieces that fit on the grill **without overlapping** can be
-cooked at once. The goal is to place the pieces so that the number of rounds is as small as
-possible.
+Everything takes the **same time** to cook. So the only question is: **how many rounds
+(batches) do you need?** In one round, anything that fits on the grill at the same time — with
+no pieces overlapping — cooks together. Pieces may be turned sideways (a 15×7 steak may lie
+7×15), but they must stay on the grill, on whole centimetres.
 
-This is a 2‑D rectangle **placement** problem (formally a bin‑packing problem: fit each menu's
-rectangles onto fixed 20×30 grill surfaces and minimise their count), which is NP‑hard — so the app
-ships five planners with different speed/quality trade‑offs, all behind one interface.
+That is the whole problem. It is the same kind of puzzle as fitting boxes into a lorry: obvious
+for one or two boxes, genuinely hard in general — which is why the app ships several different
+strategies (we call them *planners*) and lets you compare them.
 
-## How it works
-
-```
-Program.cs
-        │
-        ▼
-HostBuilder.CreateHost (composition root: configuration + DI)
-        │
-        ▼
-host.RunAsync() ──► GrillPipelineHostedService ──► GrillOrchestrator ──► GrillMenuService ──► GrillMenuApiClient ──► REST API  (GET /api/GrillMenu)
-        │
-        │  for each menu: the planner expands its items × quantity into pieces
-        ▼
-    IGrillPlanner.Plan(menu, grill)  ──►  GrillPlan (menu + rounds of placements)
-        │
-        ▼
-    Serilog ──► console (one "<menu>: N rounds" line + "Total: N rounds")
-```
-
-- **GrillMaster.CrossCutting** (`src/GrillMaster.CrossCutting`) — the `GrillMaster` configuration section bound to
-  `IGrillMasterSettings` (`GrillMenuApiUrl`, `Planner`) with validation, registered
-  by `DependencyConfigurator.AddCrossCuttingDependencies()`.
-- **Domain** (`src/GrillMaster.Domain`) — pure, dependency‑free models: `GrillSize`,
-  `GrillPiece`, `GrillMenuItem`, `GrillMenu`, `GrillPiecePlacement`, `GrillRound`, `GrillPlan`.
-- **Application** (`src/GrillMaster.Application`) — the application layer, organised by feature:
-  `Features/Menus` (the grill‑menu `GrillMenuService` and `GrillMenuApiClient`, wire
-   responses) and `Features/Planning` (`IGrillPlanner` and the five planners, most sharing a
-   `RoundOccupancy` grid and skyline position search). `GrillMasterApp` ties the two features
-  together. The layer's DI is registered by
-  `DependencyConfigurator.AddApplicationDependencies()` (menu client + service, the planners as
-  `IGrillPlanner` singletons, `GrillPlannerFactory`, `GrillMasterApp`).
-- **Console** (`src/GrillMaster.Console`) — the executable: `Program.cs` (runs the host built by
-  `HostBuilder`), `HostBuilder.cs` (the composition root: `CreateHost` wires logging — Serilog
-  with the all‑white console sink — and the application DI) and `appsettings.json`, the only
-  configuration source (there is no CLI). The pipeline runs as the `GrillMasterAppHostedService`
-  hosted service. The API client's `HttpClient` base address comes from configuration.
-
-Pieces may be **rotated 90°** (both `L×W` and `W×L` are tried). Placement is **axis‑aligned and
-non‑overlapping** (see [Known limitations](#known-limitations)).
-
-## Getting started
+## How to run it
 
 Requires the **.NET 10 SDK**.
 
 ```bash
-# restore + build everything
+# build everything
 dotnet build GrillMaster.slnx
 
-# run (planner from appsettings.json)
+# run it (downloads the menus, then prints one line per menu plus a total)
 dotnet run --project src/GrillMaster.Console
 ```
 
-### Configuration
-
-There is no command line — everything comes from the `GrillMaster` section of
-`src/GrillMaster.Console/appsettings.json`:
-
-```json
-{
-  "GrillMaster": {
-    "GrillMenuApiUrl": "http://isol-grillassessment.azurewebsites.net",
-    "Planner": "greedy"
-  }
-}
-```
-
-Planners: `greedy` (best-fit shelf heuristic, default), `exact` (branch-and-bound, proves the
-optimum), `optimized` (greedy seed + local-search consolidation), `maxrects` (MaxRects
-best-shortest-side, the fastest), `portfolio` (runs all of them, keeps the best plan). Any
-setting can be overridden with an environment variable (e.g. `GRILLMASTER__GRILLMENUAPIURL`,
-`GRILLMASTER__PLANNER`). Plain-language walkthroughs for every planner live in [`docs/`](docs/README.md).
-
-## The five planners
-
-| Planner     | Approach                                                                    | Speed   | Quality                                   |
-|-------------|-----------------------------------------------------------------------------|---------|-------------------------------------------|
-| `greedy`    | Sort pieces largest‑first; place each into the fullest round that fits.      | Fast    | Good, usually within 1–2 rounds of optimal |
-| `exact`     | Branch‑and‑bound seeded with the greedy bound; skyline positions + symmetry breaking + area bound. | Slower  | **Proven optimum** (within node budget)    |
-| `optimized` | Greedy seed + deterministic local search (bounded replan to drop a round).   | Fast    | Reaches the optimum on the assessment data |
-| `maxrects`  | MaxRects best‑shortest‑side over maximal free rectangles (own bookkeeping, no grid scan). | Fastest | Ties `greedy` on the assessment data       |
-| `portfolio` | Runs `greedy`, `optimized`, `exact`, `maxrects`; keeps the fewest‑round plan; proven as soon as any hits the lower bound. | Fast    | Best of all members; **proven optimum** on the assessment data |
-
-`greedy`, `optimized` and `exact` reuse the same `RoundOccupancy` grid; `exact` and `optimized`
-rely on a **skyline candidate‑position** search (only positions that cannot be shifted up/left are
-considered), which is what keeps them tractable. `maxrects` keeps its own list of maximal free
-rectangles instead of scanning the grid. `portfolio` contains no packing logic of its own.
-
-### Results on the live dataset (15 menus)
-
-| Planner     | Total rounds | Notes                                  |
-|-------------|--------------|----------------------------------------|
-| `greedy`    | 39           | fast baseline                          |
-| `exact`     | **37**       | equals the area lower bound → optimal  |
-| `optimized` | **37**       | matches the optimum via local search   |
-| `maxrects`  | 39           | fastest planner, ~0.02 ms/menu         |
-| `portfolio` | **37**       | best of all members; proven optimal, 0 search nodes (early stop) |
-
-`37` is the sum of the per‑menu area lower bounds (`ceil(totalArea / 600)`), so no solution can
-use fewer rounds — `exact` proves it, `optimized` reaches it, and `portfolio` collects it
-without `exact` ever needing to run.
-
-## Output
-
-The output matches the format requested in the brief:
+The output looks like:
 
 ```
 Menu 04: 2 rounds
@@ -133,19 +42,20 @@ Menu 03: 3 rounds
 Total: 37 rounds
 ```
 
+## How it thinks (one paragraph)
+
+The app arranges the meat with a *planner* — a strategy for deciding what goes on the grill in
+each round. There are **eight** of them: a fast "biggest first, tuck it in" cook; a patient one
+that tries arrangements until it can *prove* no better answer exists; a specialist
+integer-programming engine; and a team captain that runs the good ones and keeps the best
+plate. You pick one in a single line of a configuration file. The plain-language explanations,
+the results table, and the configuration details all live in
+[`docs/planners.md`](docs/planners.md).
+
 ## Testing
 
-Tests live in `tests/` and use **WireMock.Net** to stand up a local HTTP server that mimics the
-grill API — no real network calls and no in‑memory HTTP fakes. Shared test infrastructure
-(WireMock mocks, `TestData`, the `grill-menus.json` fixture) lives in
-`tests/GrillMaster.Core.Testing`, a classlib referenced by every test project. The end‑to‑end
-suite builds the real host (the same `HostBuilder.CreateHost` as the console app) via
-`GrillMasterFactory`, which creates a `GrillMasterApp` exposing the per‑test in‑memory Serilog
-sink (`Sink`) and `RunAsync`; the planner and API base URL are supplied as in‑memory
-configuration, the API is pointed at WireMock, and tests assert on the logged events. All assertions use AwesomeAssertions (`Should()`), never xunit's `Assert`.
-
-The suite uses **xUnit v3**, which runs on the Microsoft Testing Platform (MTP) instead of VSTest.
-Each test project is run directly with `dotnet run`:
+The app comes with four test suites — unit, integration, end-to-end, and performance — that run
+against a local stand-in for the API, so no network is needed:
 
 ```bash
 dotnet run --project tests/GrillMaster.UnitTests
@@ -154,84 +64,21 @@ dotnet run --project tests/GrillMaster.EndToEndTests
 dotnet run --project tests/GrillMaster.PerformanceTests
 ```
 
-> `dotnet test` is also wired up for MTP (`global.json` + `UseMicrosoftTestingPlatformRunner`),
-> but on some .NET 10 SDK + xUnit v3 combinations it reports “zero tests” — the `dotnet run`
-> commands above are the reliable way to run the suite.
+## What's in the repo
 
-Coverage includes:
+- `src/` — the app itself, in four small parts: the configuration, the plain data (menus,
+  pieces, rounds), the grilling logic (the eight planners), and the console program that ties
+  them together.
+- `tests/` — the four test suites above, plus a shared library holding the API stand-in and
+  the 15-menu fixture.
+- `docs/` — the plain-language planner explanations, starting from
+  [`docs/planners.md`](docs/planners.md).
 
-- **API client** — parses menus/items/quantities, hits the right endpoint, handles empty menus,
-  and propagates transport errors / non‑2xx responses / malformed bodies as raw
-  `HttpRequestException` / `JsonException` (no try/catch in the request path).
-- **Grilling invariants** (all five planners) — every piece placed exactly once, all pieces
-  within the grill, no overlaps, footprints match the piece (rotated or not).
-- **Optimality** — `exact` is never worse than the heuristics; heuristics never beat the area
-  lower bound; known‑optimum instances are solved correctly.
-- **End‑to‑end** — the full pipeline (WireMock → client → grilling → report) produces the required
-  per‑menu lines and a `Total:` equal to their sum.
+## Things it does not do
 
-## Project structure
-
-```
-src/
-  GrillMaster.CrossCutting/       the GrillMaster configuration section (namespace
-                                   GrillMaster.CrossCutting)
-    DependencyConfigurator.cs     AddCrossCuttingDependencies(): options + validation
-    Settings/                     IGrillMasterSettings, GrillMasterSettings,
-                                   GrillMasterSettingsValidator
-  GrillMaster.Domain/             pure models: GrillSize, GrillPiece, GrillMenuItem, GrillMenu,
-                                   GrillPiecePlacement, GrillRound, GrillPlan
-  GrillMaster.Application/        the application layer (namespace GrillMaster.Application)
-    DependencyConfigurator.cs     AddApplicationDependencies(): menu client + service, planners,
-                                    factory, app
-    GrillMasterApp.cs             fetch → plan each menu → log the report
-    Features/
-      Menus/                      GrillMenuService, GrillMenuApiClient
-        Models/                   GrillMenuResponse, GrillMenuItemResponse
-      Planning/                   IGrillPlanner, RoundOccupancy, GrillPlanHelpers,
-                                    GrillPlannerFactory (DI-resolved, picks by IGrillPlanner.Name)
-        Planners/                 GreedyShelfPlanner, ExactBacktrackingPlanner,
-                                   OptimizedHeuristicPlanner, MaxRectsPlanner,
-                                   PortfolioPlanner
-  GrillMaster.Console/            the executable
-    Program.cs                    entry point (Run)
-    HostBuilder.cs                CreateHost composition root: logging (Serilog) + DI wiring
-    GrillMasterAppHostedService.cs  runs the app on host start, then stops the host
-    appsettings.json              API base URL + planner (the only configuration source)
-tests/
-  GrillMaster.Core.Testing/       shared test classlib (no tests of its own)
-    Infra/                        WireMock mocks (ApiMock, GrillMenuApiMock)
-    Core/                         TestCaseSerializer
-    TestData.cs                   loads the grill-menus.json fixture
-    grill-menus.json              fixture payload (the live API's 15-menu response)
-  GrillMaster.UnitTests/
-    GrillingOptimalityTests.cs    cross-planner quality checks
-    Planners/
-      PlannerTestsBase.cs         common planner contract, inherited per planner
-       GreedyShelfPlannerTests.cs  greedy-specific tests
-       ExactBacktrackingPlannerTests.cs  exact-specific tests (known optima)
-       OptimizedHeuristicPlannerTests.cs optimized-specific tests
-       MaxRectsPlannerTests.cs     maxrects-specific tests
-       PortfolioPlannerTests.cs    portfolio-specific tests
-  GrillMaster.IntegrationTests/
-    GrillMenuApiClientTests.cs    WireMock-based client tests
-  GrillMaster.EndToEndTests/
-    Fixtures/GrillMasterFactory.cs  creates the hosted app (same HostBuilder.CreateHost as Program) against WireMock
-    Fixtures/GrillMasterApp.cs      the hosted app: in-memory sink + RunAsync for the tests
-    EndToEndTests.cs                full pipeline via the hosted app
-  GrillMaster.PerformanceTests/
-    Performance/                  GrillingBenchmarkTests, PerfBaseline, baseline.json
-```
-
-## Known limitations
-
-- **Axis‑aligned placement only.** Pieces may be rotated 90°, but arbitrary (non‑right‑angle)
-  rotation is not supported. Allowing free angles would be a continuous 2‑D placement problem and is
-  well beyond what this assessment needs; the current model is the standard, tractable one.
-- **`exact` has a node budget** (default 20 000 000). On the assessment data it finishes in well
-  under a second and proves the optimum. On a much larger or adversarial menu it may hit the
-   budget and then returns the best incumbent found so far, flagged as **not** proven optimal
-   (`GrillPlan.IsProvenOptimal == false`).
-- **Assumes every piece fits the grill.** The current data's largest piece is 22 cm, which fits on
-  the 30 cm side. A piece that cannot fit the grill in either orientation throws
-  `InvalidOperationException`.
+- Pieces may be turned 90°, but not at an arbitrary angle.
+- The "prove it's the best" planners have a time budget; on this data they finish almost
+  instantly, but on a huge or hostile menu they may stop and return the best plan found so
+  far, clearly marked as *not proven*.
+- Every piece is assumed to fit the grill (the largest piece in this data is 22 cm; the grill
+  is 30 cm wide). A piece that cannot fit in either orientation is an error, not a guess.

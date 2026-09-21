@@ -7,6 +7,9 @@ namespace GrillMaster.Application.Features.Planning.Planners;
 /// Greedy guillotine-constrained placement: pieces are biggest first, each placed in a corner of a
 /// free rectangle so that a single straight cut can always separate it from the remaining space;
 /// the corner is chosen to keep the narrowest leftover strip as wide as possible.
+/// The free space of a round is kept as a disjoint guillotine partition: a placement splits only
+/// the rectangle it was chosen from, into at most two non-overlapping rectangles, so the list
+/// grows at most linearly with the placed pieces and never needs a containment prune.
 /// See <c>docs/guillotine-planner.md</c> for a full walkthrough.
 /// </summary>
 public sealed class GuillotinePlanner : IGrillPlanner
@@ -34,14 +37,14 @@ public sealed class GuillotinePlanner : IGrillPlanner
                 var chosen = ChoosePlacement(piece, free)
                     ?? throw new InvalidOperationException(
                         $"Piece '{piece.Name}' ({piece.Length}x{piece.Width}) does not fit an empty grill of {grill.Width}x{grill.Height}.");
-                Place(round, free, chosen.Placement);
+                Place(round, free, chosen.RectIndex, chosen.Placement);
                 rounds.Add(round);
                 freeRects.Add(free);
             }
             else
             {
-                var (roundIndex, placement) = target.Value;
-                Place(rounds[roundIndex], freeRects[roundIndex], placement);
+                var (roundIndex, rectIndex, placement) = target.Value;
+                Place(rounds[roundIndex], freeRects[roundIndex], rectIndex, placement);
             }
         }
 
@@ -49,12 +52,12 @@ public sealed class GuillotinePlanner : IGrillPlanner
         return new GrillPlan(menu, rounds, Name, lowerBound, IsProvenOptimal: false, SearchNodes: 0, stopwatch.Elapsed);
     }
 
-    // Best round + corner placement for the piece across all rounds; null when the piece fits no
-    // corner of any free rectangle in any round.
-    private static (int RoundIndex, GrillPiecePlacement Placement)? FindBestTarget(
+    // Best round + free rectangle + corner placement for the piece across all rounds; null when
+    // the piece fits no corner of any free rectangle in any round.
+    private static (int RoundIndex, int RectIndex, GrillPiecePlacement Placement)? FindBestTarget(
         GrillPiece piece, IReadOnlyList<GrillRound> rounds, IReadOnlyList<List<GRect>> freeRects)
     {
-        (int RoundIndex, GrillPiecePlacement Placement)? best = null;
+        (int RoundIndex, int RectIndex, GrillPiecePlacement Placement)? best = null;
         var bestScore = int.MinValue;
 
         for (var i = 0; i < rounds.Count; i++)
@@ -66,20 +69,22 @@ public sealed class GuillotinePlanner : IGrillPlanner
             }
 
             bestScore = candidate.Value.Score;
-            best = (i, candidate.Value.Placement);
+            best = (i, candidate.Value.RectIndex, candidate.Value.Placement);
         }
 
         return best;
     }
 
     // Every free rectangle, both orientations, all four corners (guillotine positions only);
-    // keeps the placement whose narrowest leftover strip is widest.
-    private static (GrillPiecePlacement Placement, int Score)? ChoosePlacement(GrillPiece piece, IReadOnlyList<GRect> freeRects)
+    // keeps the placement whose narrowest leftover strip is widest, with the index of the free
+    // rectangle it was taken from.
+    private static (GrillPiecePlacement Placement, int RectIndex, int Score)? ChoosePlacement(GrillPiece piece, IReadOnlyList<GRect> freeRects)
     {
-        (GrillPiecePlacement Placement, int Score)? best = null;
+        (GrillPiecePlacement Placement, int RectIndex, int Score)? best = null;
 
-        foreach (var rect in freeRects)
+        for (var i = 0; i < freeRects.Count; i++)
         {
+            var rect = freeRects[i];
             foreach (var rotated in new[] { false, true })
             {
                 var w = rotated ? piece.Width : piece.Length;
@@ -92,11 +97,13 @@ public sealed class GuillotinePlanner : IGrillPlanner
                 foreach (var (dx, dy) in new[] { (0, 0), (rect.W - w, 0), (0, rect.H - h), (rect.W - w, rect.H - h) })
                 {
                     var score = Score(rect, w, h, dx, dy);
-                    var placement = new GrillPiecePlacement(piece, rect.X + dx, rect.Y + dy, rotated);
-                    if (best is null || score > best.Value.Score)
+                    if (best is not null && score <= best.Value.Score)
                     {
-                        best = (placement, score);
+                        continue;
                     }
+
+                    var placement = new GrillPiecePlacement(piece, rect.X + dx, rect.Y + dy, rotated);
+                    best = (placement, i, score);
                 }
             }
         }
@@ -110,8 +117,8 @@ public sealed class GuillotinePlanner : IGrillPlanner
     {
         var left = dx;
         var right = rect.W - (dx + w);
-        var top = rect.H - (dy + h);
-        var bottom = dy;
+        var top = dy;
+        var bottom = rect.H - (dy + h);
 
         // A corner placement leaves a full-height strip (left or right) and a full-width strip
         // (top or bottom); one of each pair is zero.
@@ -136,9 +143,9 @@ public sealed class GuillotinePlanner : IGrillPlanner
         return score;
     }
 
-    // Records the placement and updates every free rectangle the piece touches (split + prune),
-    // so the list stays the set of maximal free rectangles.
-    private static void Place(GrillRound round, List<GRect> freeRects, GrillPiecePlacement placement)
+    // Records the placement and replaces the chosen free rectangle with the leftover of the
+    // corner placement, so the list stays a disjoint guillotine partition of the free space.
+    private static void Place(GrillRound round, List<GRect> freeRects, int rectIndex, GrillPiecePlacement placement)
     {
         round.Add(placement);
 
@@ -147,68 +154,27 @@ public sealed class GuillotinePlanner : IGrillPlanner
         var w = placement.FootprintWidth;
         var h = placement.FootprintHeight;
 
-        var updated = new List<GRect>(freeRects.Count * 2);
-        foreach (var rect in freeRects)
+        var rect = freeRects[rectIndex];
+        freeRects.RemoveAt(rectIndex);
+
+        var left = x - rect.X;
+        var top = y - rect.Y;
+
+        // The piece hugs a left/right edge and a top/bottom edge of the rectangle, so one side of
+        // each axis is zero. The leftover tiles with two disjoint rectangles: the full-height
+        // strip on the far horizontal side of the piece, and the corner rectangle on the far
+        // vertical side, under the piece's own columns.
+        if (rect.W - w > 0)
         {
-            if (x >= rect.X + rect.W || x + w <= rect.X || y >= rect.Y + rect.H || y + h <= rect.Y)
-            {
-                updated.Add(rect);
-                continue;
-            }
-
-            if (x > rect.X)
-            {
-                updated.Add(new GRect(rect.X, rect.Y, x - rect.X, rect.H));
-            }
-
-            if (x + w < rect.X + rect.W)
-            {
-                updated.Add(new GRect(x + w, rect.Y, rect.X + rect.W - x - w, rect.H));
-            }
-
-            if (y > rect.Y)
-            {
-                updated.Add(new GRect(rect.X, rect.Y, rect.W, y - rect.Y));
-            }
-
-            if (y + h < rect.Y + rect.H)
-            {
-                updated.Add(new GRect(rect.X, y + h, rect.W, rect.Y + rect.H - y - h));
-            }
+            freeRects.Add(new GRect(left > 0 ? rect.X : x + w, rect.Y, rect.W - w, rect.H));
         }
 
-        freeRects.Clear();
-        freeRects.AddRange(Prune(updated));
-    }
-
-    // Drops every rectangle that is contained in another (only maximal free rectangles are kept).
-    private static List<GRect> Prune(List<GRect> rects)
-    {
-        var kept = new List<GRect>(rects.Count);
-        for (var i = 0; i < rects.Count; i++)
+        if (rect.H - h > 0)
         {
-            var dominated = false;
-            for (var j = 0; j < rects.Count && !dominated; j++)
-            {
-                if (i != j && Contains(rects[j], rects[i]))
-                {
-                    dominated = true;
-                }
-            }
-
-            if (!dominated)
-            {
-                kept.Add(rects[i]);
-            }
+            freeRects.Add(new GRect(x, top > 0 ? rect.Y : y + h, w, rect.H - h));
         }
-
-        return kept;
     }
 
-    private static bool Contains(GRect outer, GRect inner) =>
-        outer.X <= inner.X && outer.Y <= inner.Y &&
-        outer.X + outer.W >= inner.X + inner.W && outer.Y + outer.H >= inner.Y + inner.H;
-
-    /// <summary>A maximal free (unoccupied) axis-aligned rectangle within the grill.</summary>
+    /// <summary>A free (unoccupied) axis-aligned rectangle; the per-round rectangles are disjoint.</summary>
     private readonly record struct GRect(int X, int Y, int W, int H);
 }

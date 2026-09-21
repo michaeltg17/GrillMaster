@@ -13,12 +13,13 @@ public sealed class PortfolioPlanner : IGrillPlanner
     public string Name { get; } = "portfolio";
 
     // Cheapest-to-strongest: once any plan reaches the lower bound the rest is skipped, so the
-    // fast heuristics run first and the exact solver last.
+    // fast heuristics run first and the exact solvers last.
     private static readonly IGrillPlanner[] Members =
     [
         new GreedyShelfPlanner(),
         new OptimizedHeuristicPlanner(),
         new ExactBacktrackingPlanner(),
+        new OrToolsPlanner(),
     ];
 
     public GrillPlan Plan(GrillMenu menu, GrillSize grill)

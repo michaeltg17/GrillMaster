@@ -143,7 +143,7 @@ Note it does **not** use the shared `RoundOccupancy` grid — it keeps its own m
 | Code | What it is in the story |
 |------|--------------------------|
 | `Plan(menu, grill)` | The attendant taking over the lot. |
-| `GrillPlanHelpers.OrderPieces(pieces)` | The usual biggest-first queue. |
+| `GrillPlannerHelpers.OrderPieces(pieces)` | The usual biggest-first queue. |
 | `freeRects` | The notepad: one list of open patches per grill in use. |
 | `new List<MaxRect> { new(0, 0, grill.Width, grill.Height) }` | A fresh grill: one open patch, the whole grill. |
 | `FindBestTarget(piece, ...)` | "Which grill has the best spot for this piece?" Checks every grill's notepad, keeps the best score. |
@@ -162,7 +162,7 @@ Note it does **not** use the shared `RoundOccupancy` grid — it keeps its own m
 - **Quality:** 39 rounds on the 15-menu fixture — the same total as the shelf
   planner, reached with a different layout per menu.
 - **Guarantees:** a valid plan (no overlaps, nothing off the grill), never fewer
-  rounds than the area floor, but no claim of optimality.
+  rounds than the lower bound, but no claim of optimality.
 
 Its real job in the team: give the [portfolio](portfolio-planner.md) a fast,
 differently-shaped answer to compare against.
