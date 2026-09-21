@@ -6,7 +6,7 @@ namespace GrillMaster.EndToEndTests.Fixtures;
 
 /// <summary>
 /// The application under test: hosted exactly the way <c>Program</c> does (the same
-/// <c>Program.CreateHost</c>), with the API pointed at a mock and logging routed to an
+/// <c>HostBuilder.CreateHost</c>), with the API pointed at a mock and logging routed to an
 /// in-memory sink plus the xUnit test output. Tests run the pipeline via
 /// <see cref="RunAsync"/> and assert on the events captured in <see cref="Sink"/>.
 /// </summary>

@@ -4,16 +4,8 @@ using GrillMaster.Domain;
 namespace GrillMaster.Application.Features.Planning.Planners;
 
 /// <summary>
-/// Exact branch-and-bound search for the minimum number of rounds.
-/// <para>
-/// The search is seeded with the greedy result as an upper bound and then places pieces (largest
-/// first) depth-first, pruning any branch that has already opened at least as many rounds as the
-/// best solution found. Symmetry breaking (never skip an empty round; identical consecutive pieces
-/// may not reuse the same or an earlier slot) plus an area bound keep the search tractable. The
-/// first time the bound reaches the area lower bound the search stops, because no solution can be
-/// better. A node budget bounds worst-case runtime; if exceeded the best incumbent is returned and
-/// the result is flagged as not proven optimal.
-/// </para>
+/// Exact branch-and-bound search for the minimum number of rounds; proven optimal whenever the
+/// node budget is not exceeded. See <c>docs/exact-planner.md</c> for a full walkthrough.
 /// </summary>
 public sealed class ExactBacktrackingPlanner : IGrillPlanner
 {
@@ -25,12 +17,15 @@ public sealed class ExactBacktrackingPlanner : IGrillPlanner
     private GrillSize _grill;
     private IReadOnlyList<GrillPiece> _pieces = [];
     private RoundOccupancy[] _roundOccupancies = [];
-    private int[] _roundUsedArea = [];
-    private GrillPiecePlacement[][] _roundPlacements = [];
+    private List<GrillPiecePlacement>[] _roundPlacements = [];
     private int[] _placementRound = [];
     private GrillPiecePlacement[] _placementPos = [];
+    private int[] _pieceType = [];
+    private int[] _remainingArea = [];
     private int _maxRounds;
     private int _nonEmptyRounds;
+    private int _totalUsedArea;
+    private int _lowerBound;
     private int _best;
     private List<GrillRound>? _bestRounds;
     private long _nodes;
@@ -40,8 +35,8 @@ public sealed class ExactBacktrackingPlanner : IGrillPlanner
     {
         var stopwatch = Stopwatch.StartNew();
         var pieces = menu.ExpandPieces();
-        var lowerBound = GrillPlanHelpers.ComputeLowerBound(pieces, grill);
-        var ordered = GrillPlanHelpers.OrderPieces(pieces);
+        var lowerBound = GrillPlannerHelpers.ComputeLowerBound(pieces, grill);
+        var ordered = GrillPlannerHelpers.OrderPieces(pieces);
         var n = ordered.Count;
 
         if (n == 0)
@@ -66,25 +61,31 @@ public sealed class ExactBacktrackingPlanner : IGrillPlanner
         _grill = grill;
         _pieces = ordered;
         _maxRounds = _best;
+        _lowerBound = lowerBound;
         _placementRound = new int[n];
         _placementPos = new GrillPiecePlacement[n];
+        _pieceType = BuildPieceTypes(ordered);
+
+        // Suffix sums: _remainingArea[i] = total area of pieces i..n-1, so the area bound is O(1) per node.
+        _remainingArea = new int[n + 1];
+        for (var i = n - 1; i >= 0; i--)
+        {
+            _remainingArea[i] = _remainingArea[i + 1] + ordered[i].Area;
+        }
+
         _nodes = 0;
         _budgetExceeded = false;
 
         _roundOccupancies = new RoundOccupancy[_maxRounds];
+        _roundPlacements = new List<GrillPiecePlacement>[_maxRounds];
         for (var i = 0; i < _maxRounds; i++)
         {
             _roundOccupancies[i] = new RoundOccupancy(grill);
-        }
-
-        _roundUsedArea = new int[_maxRounds];
-        _roundPlacements = new GrillPiecePlacement[_maxRounds][];
-        for (var i = 0; i < _maxRounds; i++)
-        {
             _roundPlacements[i] = [];
         }
 
         _nonEmptyRounds = 0;
+        _totalUsedArea = 0;
         Search(0);
 
         stopwatch.Stop();
@@ -105,7 +106,7 @@ public sealed class ExactBacktrackingPlanner : IGrillPlanner
             return;
         }
 
-        if (_best == GrillPlanHelpers.ComputeLowerBound(_pieces, _grill))
+        if (_best == _lowerBound)
         {
             // Cannot do better than the lower bound; stop early.
             return;
@@ -124,7 +125,7 @@ public sealed class ExactBacktrackingPlanner : IGrillPlanner
 
         var piece = _pieces[index];
 
-        if (RemainingAreaFrom(index) > TotalFreeCapacity())
+        if (_remainingArea[index] > TotalFreeCapacity())
         {
             return;
         }
@@ -132,7 +133,7 @@ public sealed class ExactBacktrackingPlanner : IGrillPlanner
         // Identical-piece symmetry breaking: if the previous piece is identical, record the round and
         // slot it was placed in so this copy is constrained to a later round, or the same round at a
         // slot that is not earlier than the previous slot.
-        var hasPrevSame = index > 0 && IsIdentical(_pieces[index - 1], piece);
+        var hasPrevSame = index > 0 && _pieceType[index] == _pieceType[index - 1];
         var prevRound = hasPrevSame ? _placementRound[index - 1] : 0;
         var prevSlot = hasPrevSame ? SlotOrder(_placementPos[index - 1]) : 0;
 
@@ -175,8 +176,8 @@ public sealed class ExactBacktrackingPlanner : IGrillPlanner
                 }
 
                 occupancy.MarkOccupied(placement.X, placement.Y, placement.FootprintWidth, placement.FootprintHeight);
-                _roundUsedArea[round] += piece.Area;
-                _roundPlacements[round] = Append(_roundPlacements[round], placement);
+                _totalUsedArea += piece.Area;
+                _roundPlacements[round].Add(placement);
                 _placementRound[index] = round;
                 _placementPos[index] = placement;
 
@@ -184,7 +185,7 @@ public sealed class ExactBacktrackingPlanner : IGrillPlanner
 
                 Undo(round, placement, piece.Area);
 
-                if (_budgetExceeded || _best == GrillPlanHelpers.ComputeLowerBound(_pieces, _grill))
+                if (_budgetExceeded || _best == _lowerBound)
                 {
                     return;
                 }
@@ -194,14 +195,33 @@ public sealed class ExactBacktrackingPlanner : IGrillPlanner
 
     private void Undo(int round, GrillPiecePlacement placement, int area)
     {
-        if (_roundPlacements[round].Length == 1)
+        if (_roundPlacements[round].Count == 1)
         {
             _nonEmptyRounds--;
         }
 
         _roundOccupancies[round].MarkFree(placement.X, placement.Y, placement.FootprintWidth, placement.FootprintHeight);
-        _roundUsedArea[round] -= area;
-        _roundPlacements[round] = _roundPlacements[round][..^1];
+        _totalUsedArea -= area;
+        _roundPlacements[round].RemoveAt(_roundPlacements[round].Count - 1);
+    }
+
+    // One integer per distinct (name, length, width) group, so identical-piece detection is an int compare.
+    // Identical pieces are adjacent in the ordered list, which the symmetry breaking relies on.
+    private static int[] BuildPieceTypes(IReadOnlyList<GrillPiece> ordered)
+    {
+        var types = new int[ordered.Count];
+        var nextType = 0;
+        for (var i = 1; i < ordered.Count; i++)
+        {
+            if (!IsIdentical(ordered[i], ordered[i - 1]))
+            {
+                nextType++;
+            }
+
+            types[i] = nextType;
+        }
+
+        return types;
     }
 
     private static bool IsIdentical(GrillPiece a, GrillPiece b) =>
@@ -215,27 +235,8 @@ public sealed class ExactBacktrackingPlanner : IGrillPlanner
         return (row * 2L) + rotation;
     }
 
-    private static GrillPiecePlacement[] Append(GrillPiecePlacement[] array, GrillPiecePlacement item)
-    {
-        var copy = new GrillPiecePlacement[array.Length + 1];
-        Array.Copy(array, copy, array.Length);
-        copy[array.Length] = item;
-        return copy;
-    }
-
-    private int RemainingAreaFrom(int index)
-    {
-        var total = 0;
-        for (var i = index; i < _pieces.Count; i++)
-        {
-            total += _pieces[i].Area;
-        }
-
-        return total;
-    }
-
     // We can only use at most (_best - 1) rounds to improve, so that caps the usable capacity.
-    private int TotalFreeCapacity() => (_grill.Area * (_best - 1)) - _roundUsedArea.Sum();
+    private int TotalFreeCapacity() => (_grill.Area * (_best - 1)) - _totalUsedArea;
 
     private List<GrillRound> SnapshotRounds()
     {

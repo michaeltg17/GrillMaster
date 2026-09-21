@@ -18,7 +18,7 @@ possible.
 
 This is a 2‑D rectangle **placement** problem (formally a bin‑packing problem: fit each menu's
 rectangles onto fixed 20×30 grill surfaces and minimise their count), which is NP‑hard — so the app
-ships three planners with different speed/quality trade‑offs, all behind one interface.
+ships five planners with different speed/quality trade‑offs, all behind one interface.
 
 ## How it works
 
@@ -26,7 +26,7 @@ ships three planners with different speed/quality trade‑offs, all behind one i
 Program.cs
         │
         ▼
-CreateHost (composition root: configuration + DI)
+HostBuilder.CreateHost (composition root: configuration + DI)
         │
         ▼
 host.RunAsync() ──► GrillPipelineHostedService ──► GrillOrchestrator ──► GrillMenuService ──► GrillMenuApiClient ──► REST API  (GET /api/GrillMenu)
@@ -46,13 +46,16 @@ host.RunAsync() ──► GrillPipelineHostedService ──► GrillOrchestrator
   `GrillPiece`, `GrillMenuItem`, `GrillMenu`, `GrillPiecePlacement`, `GrillRound`, `GrillPlan`.
 - **Application** (`src/GrillMaster.Application`) — the application layer, organised by feature:
   `Features/Menus` (the grill‑menu `GrillMenuService` and `GrillMenuApiClient`, wire
-   responses) and `Features/Planning` (`IGrillPlanner` and the three planners, sharing a
-  `RoundOccupancy` grid and skyline position search). `GrillOrchestrator` ties the two features
-  together.
-- **Console** (`src/GrillMaster.Console`) — the executable: `Program.cs` (builds the host in
-  `CreateHost` and runs it — the pipeline runs as the `GrillPipelineHostedService` hosted
-  service) and `appsettings.json`, the only configuration source (there is no CLI). The API
-  client's `HttpClient` base address comes from configuration.
+   responses) and `Features/Planning` (`IGrillPlanner` and the five planners, most sharing a
+   `RoundOccupancy` grid and skyline position search). `GrillMasterApp` ties the two features
+  together. The layer's DI is registered by
+  `DependencyConfigurator.AddApplicationDependencies()` (menu client + service, the planners as
+  `IGrillPlanner` singletons, `GrillPlannerFactory`, `GrillMasterApp`).
+- **Console** (`src/GrillMaster.Console`) — the executable: `Program.cs` (runs the host built by
+  `HostBuilder`), `HostBuilder.cs` (the composition root: `CreateHost` wires logging — Serilog
+  with the all‑white console sink — and the application DI) and `appsettings.json`, the only
+  configuration source (there is no CLI). The pipeline runs as the `GrillMasterAppHostedService`
+  hosted service. The API client's `HttpClient` base address comes from configuration.
 
 Pieces may be **rotated 90°** (both `L×W` and `W×L` are tried). Placement is **axis‑aligned and
 non‑overlapping** (see [Known limitations](#known-limitations)).
@@ -84,20 +87,25 @@ There is no command line — everything comes from the `GrillMaster` section of
 ```
 
 Planners: `greedy` (best-fit shelf heuristic, default), `exact` (branch-and-bound, proves the
-optimum), `optimized` (greedy seed + local-search consolidation). Any setting can be overridden
-with an environment variable (e.g. `GRILLMASTER__GRILLMENUAPIURL`, `GRILLMASTER__PLANNER`).
+optimum), `optimized` (greedy seed + local-search consolidation), `maxrects` (MaxRects
+best-shortest-side, the fastest), `portfolio` (runs all of them, keeps the best plan). Any
+setting can be overridden with an environment variable (e.g. `GRILLMASTER__GRILLMENUAPIURL`,
+`GRILLMASTER__PLANNER`). Plain-language walkthroughs for every planner live in [`docs/`](docs/README.md).
 
-## The three planners
+## The five planners
 
 | Planner     | Approach                                                                    | Speed   | Quality                                   |
 |-------------|-----------------------------------------------------------------------------|---------|-------------------------------------------|
-| `greedy`    | Sort pieces largest‑first; place each into the fullest round that fits.      | Fastest | Good, usually within 1–2 rounds of optimal |
+| `greedy`    | Sort pieces largest‑first; place each into the fullest round that fits.      | Fast    | Good, usually within 1–2 rounds of optimal |
 | `exact`     | Branch‑and‑bound seeded with the greedy bound; skyline positions + symmetry breaking + area bound. | Slower  | **Proven optimum** (within node budget)    |
 | `optimized` | Greedy seed + deterministic local search (bounded replan to drop a round).   | Fast    | Reaches the optimum on the assessment data |
+| `maxrects`  | MaxRects best‑shortest‑side over maximal free rectangles (own bookkeeping, no grid scan). | Fastest | Ties `greedy` on the assessment data       |
+| `portfolio` | Runs `greedy`, `optimized`, `exact`, `maxrects`; keeps the fewest‑round plan; proven as soon as any hits the lower bound. | Fast    | Best of all members; **proven optimum** on the assessment data |
 
-All three reuse the same `RoundOccupancy` grid. `exact` and `optimized` rely on a **skyline
-candidate‑position** search (only positions that cannot be shifted up/left are considered), which
-is what keeps them tractable.
+`greedy`, `optimized` and `exact` reuse the same `RoundOccupancy` grid; `exact` and `optimized`
+rely on a **skyline candidate‑position** search (only positions that cannot be shifted up/left are
+considered), which is what keeps them tractable. `maxrects` keeps its own list of maximal free
+rectangles instead of scanning the grid. `portfolio` contains no packing logic of its own.
 
 ### Results on the live dataset (15 menus)
 
@@ -106,9 +114,12 @@ is what keeps them tractable.
 | `greedy`    | 39           | fast baseline                          |
 | `exact`     | **37**       | equals the area lower bound → optimal  |
 | `optimized` | **37**       | matches the optimum via local search   |
+| `maxrects`  | 39           | fastest planner, ~0.02 ms/menu         |
+| `portfolio` | **37**       | best of all members; proven optimal, 0 search nodes (early stop) |
 
 `37` is the sum of the per‑menu area lower bounds (`ceil(totalArea / 600)`), so no solution can
-use fewer rounds — `exact` proves it and `optimized` reaches it.
+use fewer rounds — `exact` proves it, `optimized` reaches it, and `portfolio` collects it
+without `exact` ever needing to run.
 
 ## Output
 
@@ -128,7 +139,7 @@ Tests live in `tests/` and use **WireMock.Net** to stand up a local HTTP server 
 grill API — no real network calls and no in‑memory HTTP fakes. Shared test infrastructure
 (WireMock mocks, `TestData`, the `grill-menus.json` fixture) lives in
 `tests/GrillMaster.Core.Testing`, a classlib referenced by every test project. The end‑to‑end
-suite builds the real host (the same `CreateHost` as the console app) via
+suite builds the real host (the same `HostBuilder.CreateHost` as the console app) via
 `GrillMasterFactory`, which creates a `GrillMasterApp` exposing the per‑test in‑memory Serilog
 sink (`Sink`) and `RunAsync`; the planner and API base URL are supplied as in‑memory
 configuration, the API is pointed at WireMock, and tests assert on the logged events. All assertions use AwesomeAssertions (`Should()`), never xunit's `Assert`.
@@ -152,7 +163,7 @@ Coverage includes:
 - **API client** — parses menus/items/quantities, hits the right endpoint, handles empty menus,
   and propagates transport errors / non‑2xx responses / malformed bodies as raw
   `HttpRequestException` / `JsonException` (no try/catch in the request path).
-- **Grilling invariants** (all three planners) — every piece placed exactly once, all pieces
+- **Grilling invariants** (all five planners) — every piece placed exactly once, all pieces
   within the grill, no overlaps, footprints match the piece (rotated or not).
 - **Optimality** — `exact` is never worse than the heuristics; heuristics never beat the area
   lower bound; known‑optimum instances are solved correctly.
@@ -171,17 +182,21 @@ src/
   GrillMaster.Domain/             pure models: GrillSize, GrillPiece, GrillMenuItem, GrillMenu,
                                    GrillPiecePlacement, GrillRound, GrillPlan
   GrillMaster.Application/        the application layer (namespace GrillMaster.Application)
-    GrillOrchestrator.cs          fetch → plan each menu → log the report
+    DependencyConfigurator.cs     AddApplicationDependencies(): menu client + service, planners,
+                                    factory, app
+    GrillMasterApp.cs             fetch → plan each menu → log the report
     Features/
       Menus/                      GrillMenuService, GrillMenuApiClient
         Models/                   GrillMenuResponse, GrillMenuItemResponse
       Planning/                   IGrillPlanner, RoundOccupancy, GrillPlanHelpers,
-                                   GrillPlannerFactory
+                                    GrillPlannerFactory (DI-resolved, picks by IGrillPlanner.Name)
         Planners/                 GreedyShelfPlanner, ExactBacktrackingPlanner,
-                                   OptimizedHeuristicPlanner
+                                   OptimizedHeuristicPlanner, MaxRectsPlanner,
+                                   PortfolioPlanner
   GrillMaster.Console/            the executable
-    Program.cs                    entry point + CreateHost composition root
-    GrillPipelineHostedService.cs runs the orchestrator on host start, then stops the app
+    Program.cs                    entry point (Run)
+    HostBuilder.cs                CreateHost composition root: logging (Serilog) + DI wiring
+    GrillMasterAppHostedService.cs  runs the app on host start, then stops the host
     appsettings.json              API base URL + planner (the only configuration source)
 tests/
   GrillMaster.Core.Testing/       shared test classlib (no tests of its own)
@@ -193,13 +208,15 @@ tests/
     GrillingOptimalityTests.cs    cross-planner quality checks
     Planners/
       PlannerTestsBase.cs         common planner contract, inherited per planner
-      GreedyShelfPlannerTests.cs  greedy-specific tests
-      ExactBacktrackingPlannerTests.cs  exact-specific tests (known optima)
-      OptimizedHeuristicPlannerTests.cs optimized-specific tests
+       GreedyShelfPlannerTests.cs  greedy-specific tests
+       ExactBacktrackingPlannerTests.cs  exact-specific tests (known optima)
+       OptimizedHeuristicPlannerTests.cs optimized-specific tests
+       MaxRectsPlannerTests.cs     maxrects-specific tests
+       PortfolioPlannerTests.cs    portfolio-specific tests
   GrillMaster.IntegrationTests/
     GrillMenuApiClientTests.cs    WireMock-based client tests
   GrillMaster.EndToEndTests/
-    Fixtures/GrillMasterFactory.cs  creates the hosted app (same CreateHost as Program) against WireMock
+    Fixtures/GrillMasterFactory.cs  creates the hosted app (same HostBuilder.CreateHost as Program) against WireMock
     Fixtures/GrillMasterApp.cs      the hosted app: in-memory sink + RunAsync for the tests
     EndToEndTests.cs                full pipeline via the hosted app
   GrillMaster.PerformanceTests/

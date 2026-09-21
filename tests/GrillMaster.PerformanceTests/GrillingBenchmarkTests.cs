@@ -1,5 +1,6 @@
 using AwesomeAssertions;
 using GrillMaster.Application.Features.Planning;
+using GrillMaster.Application.Features.Planning.Planners;
 using GrillMaster.Core.Testing;
 using GrillMaster.Domain;
 using Xunit;
@@ -7,7 +8,7 @@ using Xunit;
 namespace GrillMaster.PerformanceTests;
 
 /// <summary>
-/// Benchmarks every grilling planner over the full 15-menu fixture and compares the result against the
+/// Benchmarks every grill planner over the full 15-menu fixture and compares the result against the
 /// git-committed baseline (<c>baseline.json</c>). Quality (total rounds) is a hard failure if
 /// it regresses; speed is a hard failure only on a significant relative regression (default +50%) so that
 /// machine-to-machine variance does not cause flaky failures. Regenerate the baseline with
@@ -31,11 +32,19 @@ public sealed class GrillingBenchmarkTests(ITestOutputHelper output)
         var menus = LoadMenus();
         var measured = new List<PlannerPerf>();
 
-        foreach (var name in GrillPlannerFactory.Available)
+        var planners = new IGrillPlanner[]
         {
-            var planner = GrillPlannerFactory.Create(name);
+            new GreedyShelfPlanner(),
+            new ExactBacktrackingPlanner(),
+            new OptimizedHeuristicPlanner(),
+            new MaxRectsPlanner(),
+            new PortfolioPlanner(),
+        };
+
+        foreach (var planner in planners)
+        {
             var (totalRounds, lowerBound, searchNodes, medianMs) = Benchmark(planner, menus);
-            measured.Add(new PlannerPerf(name, totalRounds, lowerBound, searchNodes, medianMs));
+            measured.Add(new PlannerPerf(planner.Name, totalRounds, lowerBound, searchNodes, medianMs));
         }
 
         if (PerfBaselineStore.UpdateMode)
@@ -91,19 +100,25 @@ public sealed class GrillingBenchmarkTests(ITestOutputHelper output)
     }
 
     /// <summary>
-    /// Runs the planner over every menu <see cref="Runs"/> times and returns the deterministic totals
-    /// (rounds, lower bound, search nodes) plus the median elapsed milliseconds.
+    /// Runs the planner over every menu <see cref="Runs"/> times and returns the deterministic
+    /// totals for a single pass over all menus (rounds, lower bound, search nodes) plus the
+    /// median elapsed milliseconds over all runs. The planners are deterministic, so every run
+    /// produces identical totals.
     /// </summary>
     private static (int TotalRounds, int LowerBound, long SearchNodes, double MedianMs)
         Benchmark(IGrillPlanner planner, IReadOnlyList<GrillMenu> menus)
     {
-        var elapsed = new List<double>(Runs);
+        var elapsed = new List<double>(Runs * menus.Count);
         var totalRounds = 0;
         var lowerBound = 0;
         var searchNodes = 0L;
 
         for (var run = 0; run < Runs; run++)
         {
+            totalRounds = 0;
+            lowerBound = 0;
+            searchNodes = 0L;
+
             foreach (var menu in menus)
             {
                 var result = planner.Plan(menu, Grill);

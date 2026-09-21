@@ -30,6 +30,8 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
     [InlineData("greedy")]
     [InlineData("exact")]
     [InlineData("optimized")]
+    [InlineData("maxrects")]
+    [InlineData("portfolio")]
     public async Task Pipeline_LogsPerMenuRoundsAndTotal(string plannerName)
     {
         _api.SetGetMenus();
