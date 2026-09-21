@@ -1,5 +1,6 @@
 using AwesomeAssertions;
 using GrillMaster.Application.Features.Planning;
+using GrillMaster.Application.Features.Planning.Planners;
 using GrillMaster.Core.Testing;
 using GrillMaster.Domain;
 using Xunit;
@@ -31,11 +32,17 @@ public sealed class GrillingBenchmarkTests(ITestOutputHelper output)
         var menus = LoadMenus();
         var measured = new List<PlannerPerf>();
 
-        foreach (var name in GrillPlannerFactory.Available)
+        var planners = new IGrillPlanner[]
         {
-            var planner = GrillPlannerFactory.Create(name);
+            new GreedyShelfPlanner(),
+            new ExactBacktrackingPlanner(),
+            new OptimizedHeuristicPlanner(),
+        };
+
+        foreach (var planner in planners)
+        {
             var (totalRounds, lowerBound, searchNodes, medianMs) = Benchmark(planner, menus);
-            measured.Add(new PlannerPerf(name, totalRounds, lowerBound, searchNodes, medianMs));
+            measured.Add(new PlannerPerf(planner.Name, totalRounds, lowerBound, searchNodes, medianMs));
         }
 
         if (PerfBaselineStore.UpdateMode)

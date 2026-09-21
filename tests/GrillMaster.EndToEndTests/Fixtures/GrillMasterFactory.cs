@@ -11,7 +11,7 @@ namespace GrillMaster.EndToEndTests.Fixtures;
 
 /// <summary>
 /// Creates a <see cref="GrillMasterApp"/>: hosts the application exactly the way <c>Program</c>
-/// does (the same <c>Program.CreateHost</c>), with the API pointed at a mock, the planner and
+/// does (the same <c>HostBuilder.CreateHost</c>), with the API pointed at a mock, the planner and
 /// API base URL supplied as configuration, and logging routed to an in-memory sink plus the
 /// xUnit test output.
 /// </summary>
@@ -24,7 +24,7 @@ internal static class GrillMasterFactory
         var testOutputSink = new InjectableTestOutputSink(outputTemplate: "{Message:lj}{NewLine}");
         testOutputSink.Inject(output);
 
-        var host = Program.CreateHost(
+        var host = HostBuilder.CreateHost(
             configureLogging: configuration => configuration
                 .WriteTo.Sink(sink)
                 .WriteTo.InjectableTestOutput(testOutputSink),

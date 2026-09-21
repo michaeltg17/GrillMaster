@@ -12,7 +12,7 @@ namespace GrillMaster.Application;
 /// </summary>
 public sealed partial class GrillMasterApp(
     GrillMenuService menuService,
-    IGrillPlanner planner,
+    GrillPlannerFactory plannerFactory,
     ILogger<GrillMasterApp> logger)
 {
     public async Task RunAsync(CancellationToken cancellationToken = default)
@@ -24,7 +24,7 @@ public sealed partial class GrillMasterApp(
         var results = new List<GrillPlan>();
         foreach (var menu in menus.OrderBy(m => m.Name, StringComparer.Ordinal))
         {
-            results.Add(planner.Plan(menu, grillSize));
+            results.Add(plannerFactory.Current.Plan(menu, grillSize));
         }
 
         var total = 0;

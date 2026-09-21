@@ -1,19 +1,25 @@
-using GrillMaster.Application.Features.Planning.Planners;
+using GrillMaster.CrossCutting.Settings;
 
 namespace GrillMaster.Application.Features.Planning;
 
-/// <summary>Creates grilling planners by name.</summary>
-public static class GrillPlannerFactory
+/// <summary>
+/// Resolves the grilling planner selected by <see cref="IGrillMasterSettings.Planner"/> out of the
+/// planner implementations registered in DI, matched by <see cref="IGrillPlanner.Name"/>.
+/// </summary>
+public sealed class GrillPlannerFactory(
+    IEnumerable<IGrillPlanner> planners,
+    IGrillMasterSettings settings)
 {
-    /// <summary>All planner names, in display order.</summary>
-    public static IReadOnlyList<string> Available { get; } = ["greedy", "exact", "optimized"];
+    private readonly IReadOnlyList<IGrillPlanner> _planners = planners.ToList();
 
-    public static IGrillPlanner Create(string name) => name?.Trim().ToUpperInvariant() switch
-    {
-        "GREEDY" => new GreedyShelfPlanner(),
-        "EXACT" => new ExactBacktrackingPlanner(),
-        "OPTIMIZED" => new OptimizedHeuristicPlanner(),
-        _ => throw new ArgumentException(
-            $"Unknown planner '{name}'. Available: {string.Join(", ", Available)}.", nameof(name)),
-    };
+    /// <summary>All planner names, in display order (the registration order).</summary>
+    public IReadOnlyList<string> Available => _planners.Select(p => p.Name).ToList();
+
+    /// <summary>The planner selected by <see cref="IGrillMasterSettings.Planner"/>.</summary>
+    public IGrillPlanner Current => Create(settings.Planner);
+
+    private IGrillPlanner Create(string name) =>
+        _planners.FirstOrDefault(p => string.Equals(p.Name, name?.Trim(), StringComparison.OrdinalIgnoreCase))
+            ?? throw new ArgumentException(
+                $"Unknown planner '{name}'. Available: {string.Join(", ", Available)}.", nameof(name));
 }
