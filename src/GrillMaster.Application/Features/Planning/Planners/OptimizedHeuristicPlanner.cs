@@ -4,24 +4,8 @@ using GrillMaster.Domain;
 namespace GrillMaster.Application.Features.Planning.Planners;
 
 /// <summary>
-/// Greedy seed followed by a deterministic local search that consolidates pieces into fewer
-/// rounds.
-/// <code>
-/// plan = greedy plan
-///
-/// while plan has more than 1 round:
-///     try to fit ALL pieces into (rounds - 1) grills
-///         (bounded DFS, pieces largest → smallest,
-///          over each round × canonical skyline position)
-///     if it fits:
-///         commit the smaller plan
-///     else:
-///         stop
-/// </code>
-/// <para>
-/// Every accepted re-plan keeps the plan valid and can only keep or reduce the round count. The
-/// result is proven optimal iff it reached the area lower bound.
-/// </para>
+/// Greedy seed followed by a deterministic consolidation loop that re-plans all pieces into one
+/// fewer round whenever it can. See <c>docs/optimized-planner.md</c> for a full walkthrough.
 /// </summary>
 public sealed class OptimizedHeuristicPlanner : IGrillPlanner
 {
@@ -94,7 +78,7 @@ public sealed class OptimizedHeuristicPlanner : IGrillPlanner
             roundsOccupancy[i] = new RoundOccupancy(grill);
         }
 
-        var placements = new GrillPiecePlacement[targetRounds][];
+        var placements = new List<GrillPiecePlacement>[targetRounds];
         for (var i = 0; i < targetRounds; i++)
         {
             placements[i] = [];
@@ -139,7 +123,7 @@ public sealed class OptimizedHeuristicPlanner : IGrillPlanner
     }
 
     // Bounded DFS: plan all pieces into `rounds` rounds. Returns true on a complete plan.
-    private static bool DfsReplan(List<GrillPiece> pieces, int index, int roundCount, RoundOccupancy[] rounds, GrillPiecePlacement[][] placements, long[] budget)
+    private static bool DfsReplan(List<GrillPiece> pieces, int index, int roundCount, RoundOccupancy[] rounds, List<GrillPiecePlacement>[] placements, long[] budget)
     {
         if (budget[0]-- <= 0)
         {
@@ -164,27 +148,19 @@ public sealed class OptimizedHeuristicPlanner : IGrillPlanner
             foreach (var placement in occupancy.EnumerateSkylinePositions(piece))
             {
                 occupancy.MarkOccupied(placement.X, placement.Y, placement.FootprintWidth, placement.FootprintHeight);
-                placements[round] = Append(placements[round], placement);
+                placements[round].Add(placement);
 
                 if (DfsReplan(pieces, index + 1, roundCount, rounds, placements, budget))
                 {
                     return true;
                 }
 
-                placements[round] = placements[round][..^1];
+                placements[round].RemoveAt(placements[round].Count - 1);
                 occupancy.MarkFree(placement.X, placement.Y, placement.FootprintWidth, placement.FootprintHeight);
             }
         }
 
         return false;
-    }
-
-    private static GrillPiecePlacement[] Append(GrillPiecePlacement[] array, GrillPiecePlacement item)
-    {
-        var copy = new GrillPiecePlacement[array.Length + 1];
-        Array.Copy(array, copy, array.Length);
-        copy[array.Length] = item;
-        return copy;
     }
 
     private static List<RoundOccupancy> RebuildOccupancies(List<GrillRound> rounds, GrillSize grill)

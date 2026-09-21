@@ -9,7 +9,8 @@ namespace GrillMaster.Application.Features.Planning;
 /// </summary>
 public sealed class RoundOccupancy
 {
-    private readonly bool[,] _occupied;
+    // Flattened row-major grid (cell = y * Width + x) for fast contiguous access in the inner loops.
+    private readonly bool[] _occupied;
     private readonly int _width;
     private readonly int _height;
 
@@ -17,7 +18,7 @@ public sealed class RoundOccupancy
     {
         _width = grill.Width;
         _height = grill.Height;
-        _occupied = new bool[_width, _height];
+        _occupied = new bool[_width * _height];
     }
 
     public int Width => _width;
@@ -31,15 +32,18 @@ public sealed class RoundOccupancy
             return false;
         }
 
+        var start = (y * _width) + x;
         for (var cy = y; cy < y + h; cy++)
         {
             for (var cx = x; cx < x + w; cx++)
             {
-                if (_occupied[cx, cy])
+                if (_occupied[start + (cx - x)])
                 {
                     return false;
                 }
             }
+
+            start += _width;
         }
 
         return true;
@@ -47,23 +51,29 @@ public sealed class RoundOccupancy
 
     public void MarkOccupied(int x, int y, int w, int h)
     {
+        var start = (y * _width) + x;
         for (var cy = y; cy < y + h; cy++)
         {
             for (var cx = x; cx < x + w; cx++)
             {
-                _occupied[cx, cy] = true;
+                _occupied[start + (cx - x)] = true;
             }
+
+            start += _width;
         }
     }
 
     public void MarkFree(int x, int y, int w, int h)
     {
+        var start = (y * _width) + x;
         for (var cy = y; cy < y + h; cy++)
         {
             for (var cx = x; cx < x + w; cx++)
             {
-                _occupied[cx, cy] = false;
+                _occupied[start + (cx - x)] = false;
             }
+
+            start += _width;
         }
     }
 
@@ -126,7 +136,7 @@ public sealed class RoundOccupancy
         {
             for (var cy = y; cy < y + h; cy++)
             {
-                if (!_occupied[cx, cy])
+                if (!_occupied[(cy * _width) + cx])
                 {
                     leftFree++;
                 }
@@ -136,9 +146,10 @@ public sealed class RoundOccupancy
         var topFree = 0;
         for (var cy = 0; cy < y; cy++)
         {
+            var rowStart = (cy * _width) + x;
             for (var cx = x; cx < x + w; cx++)
             {
-                if (!_occupied[cx, cy])
+                if (!_occupied[rowStart + (cx - x)])
                 {
                     topFree++;
                 }
@@ -218,9 +229,10 @@ public sealed class RoundOccupancy
             return false;
         }
 
+        var rowStart = ((y - 1) * _width) + x;
         for (var cx = x; cx < x + w; cx++)
         {
-            if (_occupied[cx, y - 1])
+            if (_occupied[rowStart + (cx - x)])
             {
                 return true;
             }
@@ -235,9 +247,10 @@ public sealed class RoundOccupancy
     {
         for (var y = fromY; y < _height; y++)
         {
+            var rowStart = (y * _width) + x;
             for (var cx = x; cx < x + w; cx++)
             {
-                if (_occupied[cx, y])
+                if (_occupied[rowStart + (cx - x)])
                 {
                     return y + 1;
                 }

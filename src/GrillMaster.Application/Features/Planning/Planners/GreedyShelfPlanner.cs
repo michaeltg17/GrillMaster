@@ -4,24 +4,8 @@ using GrillMaster.Domain;
 namespace GrillMaster.Application.Features.Planning.Planners;
 
 /// <summary>
-/// Greedy best-fit shelf placement.
-/// <code>
-/// sort pieces largest → smallest
-///
-/// for each piece:
-///     find existing grill where:
-///         piece physically fits (either orientation)
-///         AND resulting unused area is smallest
-///     if found:
-///         place it at the tightest position
-///     else:
-///         create new grill
-///         place piece there
-/// </code>
-/// <para>
-/// "Tightest position" minimises the empty space above and to the left of the piece (vertical
-/// gaps count more, which encourages shelves). Heuristic: no optimality guarantee.
-/// </para>
+/// Greedy best-fit shelf placement: largest pieces first, each into the tightest fitting spot;
+/// no optimality guarantee. See <c>docs/greedy-planner.md</c> for a full walkthrough.
 /// </summary>
 public sealed class GreedyShelfPlanner : IGrillPlanner
 {
