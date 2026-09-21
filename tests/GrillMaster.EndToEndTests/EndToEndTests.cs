@@ -32,6 +32,9 @@ public sealed class EndToEndTests(ITestOutputHelper output) : IDisposable
     [InlineData("optimized")]
     [InlineData("maxrects")]
     [InlineData("guillotine")]
+    [InlineData("batch")]
+    // "ortools" is deliberately not end-to-end tested: its 30 s CP-SAT time cap per menu would
+    // make this suite take ~8 minutes; the planner itself is covered by OrToolsPlannerTests.
     [InlineData("portfolio")]
     public async Task Pipeline_LogsPerMenuRoundsAndTotal(string plannerName)
     {

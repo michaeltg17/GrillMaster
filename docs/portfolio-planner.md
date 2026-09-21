@@ -11,7 +11,7 @@ for this particular menu — so we just ask all of them?"*
 
 ## 1. The rule in one sentence
 
-Run `greedy`, `optimized`, `exact` and `maxrects` on the menu; the final plan is the
+Run `greedy`, `optimized`, `exact` and `ortools` on the menu; the final plan is the
 one with the **fewest rounds**.
 
 That's it. And because it only ever *keeps* an existing valid plan, the result is
@@ -19,7 +19,8 @@ always a valid plan — and it is **never worse than the best of the four cooks*
 
 ### The moment it becomes a proof
 
-Remember the floor from the other docs: total meat area ÷ 600, rounded up. No plan —
+Remember the floor from the other docs: the larger of total meat area ÷ 600 and the
+per-type capacity count. No plan —
 from any planner, ever — can use fewer rounds than the floor. So if **any** of the
 cooks reaches the floor, its plan *is* the best possible, full stop. The portfolio
 stops asking cooks as soon as that happens.
@@ -35,15 +36,16 @@ cook produced, and it can never claim a proof it doesn't have.
 ### The order matters (a little)
 
 The cooks are asked **cheapest first**: `greedy`, then `optimized`, then `exact`,
-then `maxrects`. Two reasons:
+then `ortools`. Two reasons:
 
 - the fast ones often hit the floor, in which case the expensive ones never run;
-- if the menu is hard, you still get `exact`'s answer before anything else can be
-  wasted on it.
+- if the menu is hard, you still get `exact`'s answer before the slow specialist
+  (`ortools`, up to 30 s per menu) is even asked.
 
 On our 15-menu fixture, every menu is settled by `greedy` or `optimized` — `exact`
-never has to run at all (that's why the portfolio reports **0** search decisions),
-and the whole thing still takes about 2 ms per menu.
+and `ortools` never have to run at all (that's why the portfolio reports **0**
+search decisions and finishes in milliseconds), and the whole thing still takes
+about 2 ms per menu.
 
 ## 2. Worked examples (all verified against the real code)
 
@@ -79,16 +81,18 @@ reached the floor first.
   round on two menus; `optimized` and `exact` are never off. But on *other* menus the
   ranking could change — and the portfolio doesn't care, because it keeps whatever is
   best.
-- **When you want the proof without the risk.** `exact` alone can hit its time budget
-  on a nasty menu and come back unproven. The portfolio still gets `optimized`'s
-  (often proven) answer, and takes `exact`'s partial answer only if it's better.
-- **When you'd rather wait a millisecond than be suboptimal.** All four cooks together
-  cost a few milliseconds per menu — nothing a human would notice, but it buys the
-  best available plan (and a proof whenever one exists).
+- **When you want the proof without the risk.** `exact` alone can hit its node budget
+  on a nasty menu and come back unproven, and `ortools` can hit its time cap the same
+  way. The portfolio still gets `optimized`'s (often proven) answer, and takes the
+  stronger exact answer only if it's better.
+- **When you'd rather wait a millisecond than be suboptimal.** On our fixture the
+  first two cooks settle everything, so the portfolio costs a couple of milliseconds
+  per menu — but on a hard menu it is happy to wait for `exact` or `ortools` to do
+  their thinking, because that is where the proof comes from.
 
-If you *do* care about raw speed on huge menus, run `greedy` or `maxrects` alone.
-If you want the portfolio's guarantees, the extra time is the price — and on menus
-like ours it's a couple of milliseconds.
+If you *do* care about raw speed on huge menus, run `greedy`, `maxrects` or
+`guillotine` alone. If you want the portfolio's guarantees, the extra time is the
+price — and on menus like ours it's a couple of milliseconds.
 
 ## 4. How the code does this
 
@@ -97,7 +101,7 @@ The planner lives in
 
 | Code | What it is in the story |
 |------|--------------------------|
-| `Members` | The four cooks, in the order they get asked: greedy, optimized, exact, maxrects. |
+| `Members` | The four cooks, in the order they get asked: greedy, optimized, exact, ortools. |
 | `var best = Members[0].Plan(menu, grill);` | Ask the first cook; their plate is the current best. |
 | `for (var i = 1; i < Members.Length && best.Rounds.Count > lowerBound; i++)` | Keep asking the next cooks **while** the best plate isn't yet at the floor. |
 | `if (plan.Rounds.Count < best.Rounds.Count) best = plan;` | A better plate arrives — swap it in. |
@@ -120,10 +124,11 @@ about 40 lines of glue: no packing logic of its own, nothing to get out of sync.
 
 ## 6. Where it fits
 
-- `greedy` / `maxrects` — single fast cooks, different styles.
-- `optimized` / `exact` — single strong cooks (improve a guess / prove the best).
-- `portfolio` — the head chef: **runs all of them, serves the best plate, and tells
-  you honestly whether that plate is provably the best possible.**
+- `greedy` / `maxrects` / `guillotine` — single fast cooks, different styles.
+- `optimized` / `exact` / `ortools` — single strong cooks (improve a guess / prove
+  the best ourselves / prove it with a hired specialist).
+- `portfolio` — the head chef: **runs the four cooks above, serves the best plate,
+  and tells you honestly whether that plate is provably the best possible.**
 
 For the assessment's menus it is the strongest default: optimal and proven, in a few
 milliseconds per menu.

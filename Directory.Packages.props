@@ -1,6 +1,7 @@
 <Project>
   <ItemGroup>
     <!-- Application -->
+    <PackageVersion Include="Google.OrTools" Version="9.15.6755" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
     <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.12" />

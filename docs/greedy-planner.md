@@ -217,8 +217,8 @@ Here is each piece of code translated back into the story:
 |------|--------------------------|
 | `Plan(menu, grill)` | The cook taking on the whole job. |
 | `menu.ExpandPieces()` | Unpacking the menu: "2 rumpsteaks" becomes two separate steak pieces. |
-| `GrillPlanHelpers.OrderPieces(pieces)` | Step 1: sorting the meat biggest-first. |
-| `GrillPlanHelpers.ComputeLowerBound(...)` | The area floor: total meat area ÷ 600, rounded up. Reported with the plan (but not used to place anything). |
+| `GrillPlannerHelpers.OrderPieces(pieces)` | Step 1: sorting the meat biggest-first. |
+| `GrillPlannerHelpers.ComputeLowerBound(...)` | The floor: the larger of total meat area ÷ 600 and the per-type capacity count. Reported with the plan (but not used to place anything). |
 | `rounds` / `occupancies` | The list of grills in use, and each grill's map of which squares are taken. |
 | `FindBestRound(piece, ...)` | "Which of my grills should this piece go on?" Tries the piece on every grill, keeps the one that would be fullest afterwards (`freeAfter = 600 − used − piece`). |
 | `occupancy.FindBestPosition(piece)` | "And exactly *where* on that grill?" Looks at every possible position in both orientations, scores them, returns the snuggest. |
@@ -238,7 +238,7 @@ The grill's map itself is `RoundOccupancy`
 - **Quality:** 39 rounds on the 15-menu fixture (best possible: 37). It ties the best
   answer on most menus and is off by a round on two of them.
 - **Guarantees:** a valid plan (no overlaps, nothing off the grill), never fewer rounds
-  than the area floor, but no claim that it is optimal.
+  than the lower bound, but no claim that it is optimal.
 
 If you want the same speed with the best possible answer, look at
 [the optimized planner](optimized-planner.md) — it starts with exactly this plan and

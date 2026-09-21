@@ -28,6 +28,7 @@ public static class DependencyConfigurator
         services.AddSingleton<IGrillPlanner, MaxRectsPlanner>();
         services.AddSingleton<IGrillPlanner, GuillotinePlanner>();
         services.AddSingleton<IGrillPlanner, BatchPlanner>();
+        services.AddSingleton<IGrillPlanner, OrToolsPlanner>();
         services.AddSingleton<IGrillPlanner, PortfolioPlanner>();
 
         services.AddSingleton<GrillMasterApp>();

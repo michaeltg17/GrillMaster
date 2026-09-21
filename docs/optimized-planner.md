@@ -146,7 +146,7 @@ Code, translated into the story:
 | `SubSearchNodeBudget` (200,000) | The decisions allowed for one question. |
 | The commit block (`rounds[i].Add(p)` …) | "Yes!" — throw away the old plan and keep the new, smaller one. |
 | `RebuildOccupancies(rounds, grill)` | Redraw each grill's map so the next question starts from the new plan. |
-| `IsProvenOptimal: best.Count == lowerBound` | The honesty clause: "proven" only when the plan has reached the area floor. |
+| `IsProvenOptimal: best.Count == lowerBound` | The honesty clause: "proven" only when the plan has reached the lower bound (the larger of the area and per-type floors). |
 
 The search reuses the same shared machinery as the other planners: `RoundOccupancy`
 (the grill map) and `EnumerateSkylinePositions` (the "resting spots only" rule, so a
@@ -163,19 +163,27 @@ piece never floats or can be slid down).
   exactly when it reached the floor. It is not a general proof engine (if the search
   budget runs out on a question, it stops and reports what it has).
 
-## 6. How the five planners relate
+## 6. How the eight planners relate
 
 - `greedy` makes one fast, never-revisited pass → a good plan, fast, unproven.
 - `maxrects` makes one fast pass too, but from a different angle (biggest free
   rectangles) → a good plan, fastest of all, a different layout.
+- `guillotine` also makes one fast pass, keeping the free space as a small list of
+  disjoint rectangles (corner cuts only) → a good plan, lightest bookkeeping.
+- `batch` pre-fills proven full grills of one meat type each, then mixes the leftovers
+  → weakest on mixed menus, strong on single-type ones.
 - `optimized` takes greedy's plan and *challenges it* one round at a time → usually
   the best plan, still fast.
 - `exact` searches for the best plan directly and can *prove* it → the definitive
   answer, with a safety budget.
-- `portfolio` runs all four above and keeps the best plan → the best available answer,
-  proven whenever any of them reaches the floor.
+- `ortools` writes the whole problem as maths and hands it to a professional IP solver
+  → an independent second opinion, slow (30 s cap), proves some menus.
+- `portfolio` runs `greedy`, `optimized`, `exact` and `ortools` (cheapest first) and
+  keeps the best plan → the best available answer, proven whenever any of them reaches
+  the floor.
 
 `greedy`, `optimized` and `exact` share the same grill map (`RoundOccupancy`), the same
 biggest-first piece ordering, and the same "pieces must rest, never float" rule — they
-differ only in how much they are willing to think. `maxrects` keeps its own map of free
-rectangles, and `portfolio` contains no packing logic at all.
+differ only in how much they are willing to think. `maxrects` and `guillotine` keep
+their own maps of free rectangles, `batch` leans on the exact per-type capacity search,
+and `portfolio` contains no packing logic at all.

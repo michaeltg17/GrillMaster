@@ -39,6 +39,9 @@ public sealed class GrillingBenchmarkTests(ITestOutputHelper output)
             new OptimizedHeuristicPlanner(),
             new MaxRectsPlanner(),
             new GuillotinePlanner(),
+            new BatchPlanner(),
+            // OrToolsPlanner is deliberately not benchmarked: its 30 s CP-SAT time cap per menu
+            // would make this suite take ~35 minutes and the baseline would only record the cap.
             new PortfolioPlanner(),
         };
 
