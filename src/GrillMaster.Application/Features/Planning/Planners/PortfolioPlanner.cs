@@ -12,21 +12,20 @@ public sealed class PortfolioPlanner : IGrillPlanner
 {
     public string Name { get; } = "portfolio";
 
-    // Cheapest-to-strongest: once any plan reaches the area lower bound the rest is skipped, so
-    // the fast planners run first.
+    // Cheapest-to-strongest: once any plan reaches the lower bound the rest is skipped, so the
+    // fast heuristics run first and the exact solver last.
     private static readonly IGrillPlanner[] Members =
     [
         new GreedyShelfPlanner(),
         new OptimizedHeuristicPlanner(),
         new ExactBacktrackingPlanner(),
-        new MaxRectsPlanner(),
     ];
 
     public GrillPlan Plan(GrillMenu menu, GrillSize grill)
     {
         var stopwatch = Stopwatch.StartNew();
         var pieces = menu.ExpandPieces();
-        var lowerBound = GrillPlanHelpers.ComputeLowerBound(pieces, grill);
+        var lowerBound = GrillPlannerHelpers.ComputeLowerBound(pieces, grill);
 
         var best = Members[0].Plan(menu, grill);
         var searchNodes = best.SearchNodes;

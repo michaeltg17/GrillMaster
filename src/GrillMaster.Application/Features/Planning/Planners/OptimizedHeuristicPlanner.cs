@@ -18,7 +18,7 @@ public sealed class OptimizedHeuristicPlanner : IGrillPlanner
     {
         var stopwatch = Stopwatch.StartNew();
         var pieces = menu.ExpandPieces();
-        var lowerBound = GrillPlanHelpers.ComputeLowerBound(pieces, grill);
+        var lowerBound = GrillPlannerHelpers.ComputeLowerBound(pieces, grill);
 
         if (pieces.Count == 0)
         {

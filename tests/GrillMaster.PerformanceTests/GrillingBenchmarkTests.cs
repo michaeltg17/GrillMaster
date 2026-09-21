@@ -8,7 +8,7 @@ using Xunit;
 namespace GrillMaster.PerformanceTests;
 
 /// <summary>
-/// Benchmarks every grilling planner over the full 15-menu fixture and compares the result against the
+/// Benchmarks every grill planner over the full 15-menu fixture and compares the result against the
 /// git-committed baseline (<c>baseline.json</c>). Quality (total rounds) is a hard failure if
 /// it regresses; speed is a hard failure only on a significant relative regression (default +50%) so that
 /// machine-to-machine variance does not cause flaky failures. Regenerate the baseline with

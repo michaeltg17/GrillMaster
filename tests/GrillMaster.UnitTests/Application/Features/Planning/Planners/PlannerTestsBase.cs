@@ -66,7 +66,7 @@ public abstract class PlannerTestsBase
     public void RespectsLowerBound()
     {
         var menu = BuildMenu(BuildManyIdenticalPieces());
-        var lowerBound = GrillPlanHelpers.ComputeLowerBound(menu.ExpandPieces(), Grill);
+        var lowerBound = GrillPlannerHelpers.ComputeLowerBound(menu.ExpandPieces(), Grill);
         var result = CreatePlanner().Plan(menu, Grill);
 
         result.Rounds.Count.Should().BeGreaterThanOrEqualTo(lowerBound, $"{result.Planner} beat the lower bound");

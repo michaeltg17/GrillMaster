@@ -15,8 +15,8 @@ public sealed class GreedyShelfPlanner : IGrillPlanner
     {
         var stopwatch = Stopwatch.StartNew();
         var pieces = menu.ExpandPieces();
-        var lowerBound = GrillPlanHelpers.ComputeLowerBound(pieces, grill);
-        var ordered = GrillPlanHelpers.OrderPieces(pieces);
+        var lowerBound = GrillPlannerHelpers.ComputeLowerBound(pieces, grill);
+        var ordered = GrillPlannerHelpers.OrderPieces(pieces);
 
         var rounds = new List<GrillRound>();
         var occupancies = new List<RoundOccupancy>();
