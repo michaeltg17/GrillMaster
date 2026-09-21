@@ -25,6 +25,8 @@ public static class DependencyConfigurator
         services.AddSingleton<IGrillPlanner, GreedyShelfPlanner>();
         services.AddSingleton<IGrillPlanner, ExactBacktrackingPlanner>();
         services.AddSingleton<IGrillPlanner, OptimizedHeuristicPlanner>();
+        services.AddSingleton<IGrillPlanner, MaxRectsPlanner>();
+        services.AddSingleton<IGrillPlanner, PortfolioPlanner>();
         services.AddSingleton<GrillPlannerFactory>();
 
         services.AddSingleton<GrillMasterApp>();

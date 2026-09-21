@@ -7,7 +7,8 @@ using Xunit;
 using Xunit.Sdk;
 
 [assembly: RegisterXunitSerializer(typeof(TestCaseSerializer),
-    typeof(GreedyShelfPlanner), typeof(ExactBacktrackingPlanner), typeof(OptimizedHeuristicPlanner))]
+    typeof(GreedyShelfPlanner), typeof(ExactBacktrackingPlanner), typeof(OptimizedHeuristicPlanner),
+    typeof(MaxRectsPlanner), typeof(PortfolioPlanner))]
 
 namespace GrillMaster.UnitTests.Application.Features.Planning.Planners;
 

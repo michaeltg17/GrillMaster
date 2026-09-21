@@ -1,0 +1,129 @@
+# The Portfolio Planner (`portfolio`)
+
+> "Hire every cook, let them all plan the menu, and serve the best plate."
+
+This planner doesn't bring any new packing ideas of its own. It runs **all the other
+planners** on the menu, keeps the plan with the fewest rounds, and throws the rest
+away. It is the answer to the question: *"what if we're not sure which cook is best
+for this particular menu — so we just ask all of them?"*
+
+---
+
+## 1. The rule in one sentence
+
+Run `greedy`, `optimized`, `exact` and `maxrects` on the menu; the final plan is the
+one with the **fewest rounds**.
+
+That's it. And because it only ever *keeps* an existing valid plan, the result is
+always a valid plan — and it is **never worse than the best of the four cooks**.
+
+### The moment it becomes a proof
+
+Remember the floor from the other docs: total meat area ÷ 600, rounded up. No plan —
+from any planner, ever — can use fewer rounds than the floor. So if **any** of the
+cooks reaches the floor, its plan *is* the best possible, full stop. The portfolio
+stops asking cooks as soon as that happens.
+
+So the portfolio gives you one of two things:
+
+- a plan **with a proof** that it is optimal (some cook hit the floor), or
+- the **best plan any of the cooks found**, honestly flagged as unproven.
+
+There is no third option. It can never return something worse than what the best
+cook produced, and it can never claim a proof it doesn't have.
+
+### The order matters (a little)
+
+The cooks are asked **cheapest first**: `greedy`, then `optimized`, then `exact`,
+then `maxrects`. Two reasons:
+
+- the fast ones often hit the floor, in which case the expensive ones never run;
+- if the menu is hard, you still get `exact`'s answer before anything else can be
+  wasted on it.
+
+On our 15-menu fixture, every menu is settled by `greedy` or `optimized` — `exact`
+never has to run at all (that's why the portfolio reports **0** search decisions),
+and the whole thing still takes about 2 ms per menu.
+
+## 2. Worked examples (all verified against the real code)
+
+### Example A: the menu that fools greedy
+
+The spare-rib menu from the [greedy doc](greedy-planner.md): 2 spare ribs (24×5),
+1 pork chop (20×6), 1 sirloin (18×6), 1 steak (10×5), 1 sausage (6×3), 2 patties
+(4×4). Area 568 cm² → the floor is **1**.
+
+1. `greedy` runs: **2 rounds**. Not the floor — keep going.
+2. `optimized` runs: **1 round** — that *is* the floor. Stop.
+
+`exact` and `maxrects` never run. Final answer: the 1-round plan, **proven optimal**
+(some cook hit the floor). Total cost: roughly one fast planner plus one medium one.
+
+### Example B: a menu greedy nails
+
+2 rumpsteaks (15×7) + 4 sausages (6×3). `greedy` runs: **1 round**, and 1 *is* the
+floor (282 cm² < 600 cm²). Stop immediately. Nobody else runs.
+
+### Example C: the full 15-menu fixture
+
+Every one of the 15 menus is settled by `greedy` or `optimized` before `exact` is
+ever consulted. Total: **37 rounds — the floor for every menu, i.e. proven optimal
+for all of them** — in about 2 ms per menu, with **0** search decisions spent.
+Compare: running `exact` alone would spend about 38,000 search decisions to prove the
+same 37 rounds. The portfolio got the same *proof* for free, because `optimized`
+reached the floor first.
+
+## 3. When does the portfolio actually pay off?
+
+- **When no single cook is reliably best.** On our fixture `greedy` is off by one
+  round on two menus; `optimized` and `exact` are never off. But on *other* menus the
+  ranking could change — and the portfolio doesn't care, because it keeps whatever is
+  best.
+- **When you want the proof without the risk.** `exact` alone can hit its time budget
+  on a nasty menu and come back unproven. The portfolio still gets `optimized`'s
+  (often proven) answer, and takes `exact`'s partial answer only if it's better.
+- **When you'd rather wait a millisecond than be suboptimal.** All four cooks together
+  cost a few milliseconds per menu — nothing a human would notice, but it buys the
+  best available plan (and a proof whenever one exists).
+
+If you *do* care about raw speed on huge menus, run `greedy` or `maxrects` alone.
+If you want the portfolio's guarantees, the extra time is the price — and on menus
+like ours it's a couple of milliseconds.
+
+## 4. How the code does this
+
+The planner lives in
+`src/GrillMaster.Application/Features/Planning/Planners/PortfolioPlanner.cs`:
+
+| Code | What it is in the story |
+|------|--------------------------|
+| `Members` | The four cooks, in the order they get asked: greedy, optimized, exact, maxrects. |
+| `var best = Members[0].Plan(menu, grill);` | Ask the first cook; their plate is the current best. |
+| `for (var i = 1; i < Members.Length && best.Rounds.Count > lowerBound; i++)` | Keep asking the next cooks **while** the best plate isn't yet at the floor. |
+| `if (plan.Rounds.Count < best.Rounds.Count) best = plan;` | A better plate arrives — swap it in. |
+| `searchNodes += plan.SearchNodes;` | Keep the running total of search decisions spent (0 here: `exact` rarely runs). |
+| `IsProvenOptimal: best.Rounds.Count == lowerBound` | The honesty clause: "proven" exactly when some cook reached the floor. |
+| `Name` = `"portfolio"` | The report says "portfolio" produced this plan, whatever cook's plate it kept. |
+
+Because each member is itself a complete, tested `IGrillPlanner`, the portfolio is
+about 40 lines of glue: no packing logic of its own, nothing to get out of sync.
+
+## 5. The numbers
+
+- **Speed:** about 2 ms per menu on the 15-menu fixture (the early stop means it costs
+  roughly one or two cooks, not four).
+- **Quality:** **37 rounds — the floor for every menu, proven optimal** — versus 39
+  for `greedy`/`maxrects` and the same 37 for `optimized`/`exact`.
+- **Guarantees:** never worse than the best member; `IsProvenOptimal` is true exactly
+  when the floor was reached by any member.
+- **Search decisions:** 0 on the fixture (every menu was settled before `exact` ran).
+
+## 6. Where it fits
+
+- `greedy` / `maxrects` — single fast cooks, different styles.
+- `optimized` / `exact` — single strong cooks (improve a guess / prove the best).
+- `portfolio` — the head chef: **runs all of them, serves the best plate, and tells
+  you honestly whether that plate is provably the best possible.**
+
+For the assessment's menus it is the strongest default: optimal and proven, in a few
+milliseconds per menu.

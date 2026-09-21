@@ -157,20 +157,25 @@ piece never floats or can be slid down).
 - **Speed:** about 2 ms per menu (median, over repeated runs of the 15-menu
   fixture) — usually one or two re-packing questions per menu, and many questions are
   settled by the area shortcut alone.
-- **Quality:** 185 rounds on the 15-menu fixture — **exactly the floor, i.e. optimal
-  for every menu** — versus 195 for greedy.
+- **Quality:** 37 rounds on the 15-menu fixture — **exactly the floor, i.e. optimal
+  for every menu** — versus 39 for greedy.
 - **Guarantees:** a valid plan that is never worse than greedy's; "proven optimal"
   exactly when it reached the floor. It is not a general proof engine (if the search
   budget runs out on a question, it stops and reports what it has).
 
-## 6. How the three planners relate
+## 6. How the five planners relate
 
 - `greedy` makes one fast, never-revisited pass → a good plan, fast, unproven.
-- `optimized` takes that plan and *challenges it* one round at a time → usually the
-  best plan, still fast.
+- `maxrects` makes one fast pass too, but from a different angle (biggest free
+  rectangles) → a good plan, fastest of all, a different layout.
+- `optimized` takes greedy's plan and *challenges it* one round at a time → usually
+  the best plan, still fast.
 - `exact` searches for the best plan directly and can *prove* it → the definitive
   answer, with a safety budget.
+- `portfolio` runs all four above and keeps the best plan → the best available answer,
+  proven whenever any of them reaches the floor.
 
-All three share the same grill map (`RoundOccupancy`), the same biggest-first piece
-ordering, and the same "pieces must rest, never float" rule — they differ only in how
-much they are willing to think.
+`greedy`, `optimized` and `exact` share the same grill map (`RoundOccupancy`), the same
+biggest-first piece ordering, and the same "pieces must rest, never float" rule — they
+differ only in how much they are willing to think. `maxrects` keeps its own map of free
+rectangles, and `portfolio` contains no packing logic at all.

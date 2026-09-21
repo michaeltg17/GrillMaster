@@ -152,7 +152,7 @@ is hopeless by definition — the search ends, and the answer is *proven*.
 
 Real menus can be nasty, and "try everything promising" can still be large. So the
 search counts every decision it makes against a **budget** (default: 20,000,000
-decisions). On the full 15-menu fixture it uses only about 191,000 in total — a tiny
+decisions). On the full 15-menu fixture it uses only about 38,000 in total — a tiny
 fraction. But if a menu *did* blow the budget, the planner would stop and return the
 best arrangement it had found so far, honestly flagged as **not proven optimal**. It
 never lies: `IsProvenOptimal` is true only when it can *prove* the floor was reached.
@@ -188,9 +188,9 @@ would actually rest: the bottom edge, then the tops of whatever is already down)
 ## 7. The numbers
 
 - **Speed:** about 2 ms per menu (median, over repeated runs of the 15-menu fixture),
-  191,305 decisions in total. Menus where greedy already hit the floor cost
-  essentially nothing.
-- **Quality:** 185 rounds on the 15-menu fixture — exactly the floor, i.e. **proven
+  38,261 decisions for all 15 menus together. Menus where greedy already hit the floor
+  cost essentially nothing.
+- **Quality:** 37 rounds on the 15-menu fixture — exactly the floor, i.e. **proven
   optimal for every menu**.
 - **Guarantees:** a valid plan, and — within budget — a *proof* that nothing is better.
   If the budget is ever exceeded, the best-so-far plan is returned and honestly flagged
@@ -202,6 +202,6 @@ would actually rest: the bottom edge, then the tops of whatever is already down)
   dozen pieces), which is all the search handles comfortably.
 - On huge or adversarial menus it could hit its budget; then you get the best
   arrangement found within budget, not a proof. For everyday use the
-  [optimized planner](optimized-planner.md) reaches the same 185-round answer on our
+  [optimized planner](optimized-planner.md) reaches the same 37-round answer on our
   fixture with a fraction of the machinery — `exact` is the one to reach for when
   "I must know this is the best" matters.

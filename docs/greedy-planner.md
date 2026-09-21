@@ -204,7 +204,7 @@ One round. Done.
 This is the fundamental trade-off: greedy makes each choice in an instant and never
 revisits it. When the choices line up (which is most of the time) it's excellent; when
 they don't, it pays for it with an extra round. On the full 15-menu fixture, greedy
-needs **195 rounds** where the true best is **185** — usually it ties the best answer,
+needs **39 rounds** where the true best is **37** — usually it ties the best answer,
 occasionally it is a round or two off.
 
 ## 5. How the code does this
@@ -229,14 +229,14 @@ Here is each piece of code translated back into the story:
 
 The grill's map itself is `RoundOccupancy`
 (`src/GrillMaster.Application/Features/Planning/RoundOccupancy.cs`): a 30×20 grid of
-"taken / free" squares shared by all three planners.
+"taken / free" squares shared by `greedy`, `optimized` and `exact`.
 
 ## 6. The numbers
 
 - **Speed:** about 2 ms per menu (median, over repeated runs of the 15-menu fixture).
   It never searches or backtracks — every piece gets exactly one decision.
-- **Quality:** 195 rounds on the 15-menu fixture (best possible: 185). It beats or ties
-  the best answer on most menus.
+- **Quality:** 39 rounds on the 15-menu fixture (best possible: 37). It ties the best
+  answer on most menus and is off by a round on two of them.
 - **Guarantees:** a valid plan (no overlaps, nothing off the grill), never fewer rounds
   than the area floor, but no claim that it is optimal.
 
