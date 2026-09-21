@@ -38,6 +38,7 @@ public sealed class GrillingBenchmarkTests(ITestOutputHelper output)
             new ExactBacktrackingPlanner(),
             new OptimizedHeuristicPlanner(),
             new MaxRectsPlanner(),
+            new GuillotinePlanner(),
             new PortfolioPlanner(),
         };
 
