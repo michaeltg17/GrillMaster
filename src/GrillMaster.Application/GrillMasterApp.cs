@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 namespace GrillMaster.Application;
 
 /// <summary>
-/// Coordinates the end-to-end flow: fetch menus, plan each one with the selected planner, and
+/// The GrillMaster. Coordinates the end-to-end flow: fetch menus, plan each one with the selected planner, and
 /// log the report. Menus are processed in name order so the report is deterministic.
 /// </summary>
 public sealed partial class GrillMasterApp(
