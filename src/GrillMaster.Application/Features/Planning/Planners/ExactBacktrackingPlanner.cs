@@ -5,14 +5,24 @@ namespace GrillMaster.Application.Features.Planning.Planners;
 
 /// <summary>
 /// Exact branch-and-bound search for the minimum number of rounds.
+/// <code>
+/// best = greedy plan (upper bound)
+///
+/// search pieces largest → smallest, depth-first:
+///     for each round:
+///         never open a later empty round while an earlier one is empty
+///         prune if this branch cannot beat best
+///         prune if the remaining area cannot fit in (best - 1) grills
+///         for each skyline position where the piece fits:
+///             place, recurse, undo
+///     stop early when best reaches the area lower bound (proven optimal)
+///
+/// node budget exceeded → return the best incumbent, flagged not proven optimal
+/// </code>
 /// <para>
-/// The search is seeded with the greedy result as an upper bound and then places pieces (largest
-/// first) depth-first, pruning any branch that has already opened at least as many rounds as the
-/// best solution found. Symmetry breaking (never skip an empty round; identical consecutive pieces
-/// may not reuse the same or an earlier slot) plus an area bound keep the search tractable. The
-/// first time the bound reaches the area lower bound the search stops, because no solution can be
-/// better. A node budget bounds worst-case runtime; if exceeded the best incumbent is returned and
-/// the result is flagged as not proven optimal.
+/// Symmetry breaking (identical consecutive pieces may not reuse the same or an earlier slot) plus
+/// the area bound keep the search tractable. A node budget bounds worst-case runtime; if exceeded
+/// the best incumbent is returned and the result is flagged as not proven optimal.
 /// </para>
 /// </summary>
 public sealed class ExactBacktrackingPlanner : IGrillPlanner

@@ -6,12 +6,21 @@ namespace GrillMaster.Application.Features.Planning.Planners;
 /// <summary>
 /// Greedy seed followed by a deterministic local search that consolidates pieces into fewer
 /// rounds.
+/// <code>
+/// plan = greedy plan
+///
+/// while plan has more than 1 round:
+///     try to fit ALL pieces into (rounds - 1) grills
+///         (bounded DFS, pieces largest → smallest,
+///          over each round × canonical skyline position)
+///     if it fits:
+///         commit the smaller plan
+///     else:
+///         stop
+/// </code>
 /// <para>
-/// It starts from the <see cref="GreedyShelfPlanner"/> result and repeatedly tries to empty the
-/// last round by moving its pieces into earlier rounds. A direct move is tried first; when blocked,
-/// a bounded backtracking sub-search decides whether the last round's pieces can be absorbed by the
-/// earlier rounds (allowing the pieces already there to be rearranged). Every accepted move keeps
-/// the plan valid and can only keep or reduce the round count.
+/// Every accepted re-plan keeps the plan valid and can only keep or reduce the round count. The
+/// result is proven optimal iff it reached the area lower bound.
 /// </para>
 /// </summary>
 public sealed class OptimizedHeuristicPlanner : IGrillPlanner

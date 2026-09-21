@@ -5,12 +5,23 @@ namespace GrillMaster.Application.Features.Planning.Planners;
 
 /// <summary>
 /// Greedy best-fit shelf placement.
+/// <code>
+/// sort pieces largest → smallest
+///
+/// for each piece:
+///     find existing grill where:
+///         piece physically fits (either orientation)
+///         AND resulting unused area is smallest
+///     if found:
+///         place it at the tightest position
+///     else:
+///         create new grill
+///         place piece there
+/// </code>
 /// <para>
-/// Pieces are placed in canonical order (largest first). Each piece goes into the existing round
-/// that becomes the fullest after placement (best fit); if no existing round can take it, a new
-/// round is opened. Within a round the tightest free position is chosen.
+/// "Tightest position" minimises the empty space above and to the left of the piece (vertical
+/// gaps count more, which encourages shelves). Heuristic: no optimality guarantee.
 /// </para>
-/// Fast and readable; typically within one or two rounds of optimal.
 /// </summary>
 public sealed class GreedyShelfPlanner : IGrillPlanner
 {
@@ -30,7 +41,7 @@ public sealed class GreedyShelfPlanner : IGrillPlanner
         {
             var target = FindBestRound(piece, grill, rounds, occupancies);
 
-            if (target < 0)
+            if (target is null)
             {
                 var round = new GrillRound();
                 var occupancy = new RoundOccupancy(grill);
@@ -44,10 +55,9 @@ public sealed class GreedyShelfPlanner : IGrillPlanner
             }
             else
             {
-                var occupancy = occupancies[target];
-                var placement = occupancy.FindBestPosition(piece)!;
-                occupancy.MarkOccupied(placement.X, placement.Y, placement.FootprintWidth, placement.FootprintHeight);
-                rounds[target].Add(placement);
+                var (roundIndex, placement) = target.Value;
+                occupancies[roundIndex].MarkOccupied(placement.X, placement.Y, placement.FootprintWidth, placement.FootprintHeight);
+                rounds[roundIndex].Add(placement);
             }
         }
 
@@ -55,15 +65,18 @@ public sealed class GreedyShelfPlanner : IGrillPlanner
         return new GrillPlan(menu, rounds, Name, lowerBound, IsProvenOptimal: false, SearchNodes: 0, stopwatch.Elapsed);
     }
 
-    // Best fit: the existing round whose free space is smallest after the piece is added.
-    private static int FindBestRound(GrillPiece piece, GrillSize grill, IReadOnlyList<GrillRound> rounds, IReadOnlyList<RoundOccupancy> occupancies)
+    // Best fit: the existing round whose free space is smallest after the piece is added, along
+    // with the position already found there so it is not searched for twice.
+    private static (int RoundIndex, GrillPiecePlacement Placement)? FindBestRound(
+        GrillPiece piece, GrillSize grill, IReadOnlyList<GrillRound> rounds, IReadOnlyList<RoundOccupancy> occupancies)
     {
-        var bestIndex = -1;
+        (int RoundIndex, GrillPiecePlacement Placement)? best = null;
         var bestFreeAfter = int.MaxValue;
 
         for (var i = 0; i < rounds.Count; i++)
         {
-            if (occupancies[i].FindBestPosition(piece) is null)
+            var placement = occupancies[i].FindBestPosition(piece);
+            if (placement is null)
             {
                 continue;
             }
@@ -72,10 +85,10 @@ public sealed class GreedyShelfPlanner : IGrillPlanner
             if (freeAfter < bestFreeAfter)
             {
                 bestFreeAfter = freeAfter;
-                bestIndex = i;
+                best = (i, placement);
             }
         }
 
-        return bestIndex;
+        return best;
     }
 }

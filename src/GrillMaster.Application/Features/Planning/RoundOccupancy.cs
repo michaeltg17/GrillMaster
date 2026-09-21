@@ -117,32 +117,6 @@ public sealed class RoundOccupancy
         return best;
     }
 
-    /// <summary>
-    /// Returns the single lowest free position (first-fit scan) for a piece, or null. Used by the
-    /// exact planner where a deterministic, complete enumeration of positions is preferred.
-    /// </summary>
-    public GrillPiecePlacement? FindFirstPosition(GrillPiece piece)
-    {
-        foreach (var orientation in new[] { false, true })
-        {
-            var w = orientation ? piece.Width : piece.Length;
-            var h = orientation ? piece.Length : piece.Width;
-
-            for (var y = 0; y + h <= _height; y++)
-            {
-                for (var x = 0; x + w <= _width; x++)
-                {
-                    if (IsFree(x, y, w, h))
-                    {
-                        return new GrillPiecePlacement(piece, x, y, orientation);
-                    }
-                }
-            }
-        }
-
-        return null;
-    }
-
     // Tight-placement score: prefer positions hugging the top-left and existing pieces.
     // Penalise empty space to the left of and above the candidate rectangle.
     private int Score(int x, int y, int w, int h)
