@@ -14,7 +14,7 @@ namespace GrillMaster.Application.Features.Planning.Planners;
 /// </summary>
 public sealed class GuillotinePlanner : IGrillPlanner
 {
-    public string Name { get; } = "guillotine";
+    public string Name { get; } = PlannerNames.Guillotine;
 
     public GrillPlan Plan(GrillMenu menu, GrillSize grill)
     {

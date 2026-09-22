@@ -9,7 +9,7 @@ namespace GrillMaster.Application.Features.Planning.Planners;
 /// </summary>
 public sealed class ExactBacktrackingPlanner : IGrillPlanner
 {
-    public string Name { get; } = "exact";
+    public string Name { get; } = PlannerNames.Exact;
 
     /// <summary>Node budget before falling back to the best incumbent found so far.</summary>
     public long MaxNodes { get; init; } = 20_000_000;

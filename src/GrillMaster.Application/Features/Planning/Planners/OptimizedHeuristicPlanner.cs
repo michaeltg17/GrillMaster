@@ -12,7 +12,7 @@ public sealed class OptimizedHeuristicPlanner : IGrillPlanner
     private const int MaxIterations = 200;
     private const long SubSearchNodeBudget = 200_000;
 
-    public string Name { get; } = "optimized";
+    public string Name { get; } = PlannerNames.Optimized;
 
     public GrillPlan Plan(GrillMenu menu, GrillSize grill)
     {

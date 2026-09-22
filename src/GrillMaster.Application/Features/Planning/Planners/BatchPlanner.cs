@@ -11,7 +11,7 @@ namespace GrillMaster.Application.Features.Planning.Planners;
 /// </summary>
 public sealed class BatchPlanner : IGrillPlanner
 {
-    public string Name { get; } = "batch";
+    public string Name { get; } = PlannerNames.Batch;
 
     public GrillPlan Plan(GrillMenu menu, GrillSize grill)
     {

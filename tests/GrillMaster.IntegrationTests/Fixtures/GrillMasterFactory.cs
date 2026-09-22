@@ -7,7 +7,7 @@ using Serilog.Sinks.XUnit.Injectable;
 using Serilog.Sinks.XUnit.Injectable.Extensions;
 using Xunit;
 
-namespace GrillMaster.EndToEndTests.Fixtures;
+namespace GrillMaster.IntegrationTests.Fixtures;
 
 /// <summary>
 /// Creates a <see cref="GrillMasterApp"/>: hosts the application exactly the way <c>Program</c>
