@@ -1,7 +1,7 @@
 using AwesomeAssertions;
 using GrillMaster.Application.Features.Plans;
-using GrillMaster.Core.Testing;
-using GrillMaster.IntegrationTests.Fixtures;
+using GrillMaster.Core.Testing.Data;
+using GrillMaster.IntegrationTests.Extensions;
 using Serilog.Events;
 using Serilog.Sinks.InMemory.Assertions;
 using System.Net.Http;
@@ -38,8 +38,8 @@ public sealed class GrillMasterIntegrationTests(ITestOutputHelper output) : Gril
 
         app.ExitCode.Should().Be(0);
 
-        var expectedNames = TestData
-            .ParseMenus(TestData.GrillMenusJson)
+        var expectedNames = GrillMenusProvider
+            .ParseMenus(GrillMenusProvider.GrillMenusJson)
             .Select(m => m.Menu)
             .OrderBy(n => n, StringComparer.Ordinal)
             .ToArray();

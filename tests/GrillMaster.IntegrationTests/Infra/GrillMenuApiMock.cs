@@ -1,8 +1,9 @@
 using AwesomeAssertions;
+using GrillMaster.Core.Testing.Data;
 using WireMock.RequestBuilders;
 using WireMock.ResponseBuilders;
 
-namespace GrillMaster.Core.Testing.Infra;
+namespace GrillMaster.IntegrationTests.Infra;
 
 public sealed class GrillMenuApiMock : ApiMock
 {
@@ -16,7 +17,7 @@ public sealed class GrillMenuApiMock : ApiMock
         Server.Given(Request.Create().UsingGet().WithPath(GrillMenuPath))
             .RespondWith(Response.Create()
                 .WithStatusCode(statusCode)
-                .WithBody(body ?? TestData.GrillMenusJson)
+                .WithBody(body ?? GrillMenusProvider.GrillMenusJson)
                 .WithHeader("Content-Type", "application/json"));
     }
 

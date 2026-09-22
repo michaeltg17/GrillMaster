@@ -1,12 +1,12 @@
-using GrillMaster;
 using GrillMaster.Application.Settings;
+using GrillMaster.IntegrationTests.Fixtures;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog.Sinks.InMemory;
 using Serilog.Sinks.XUnit.Injectable;
 using Serilog.Sinks.XUnit.Injectable.Extensions;
 using Xunit;
 
-namespace GrillMaster.IntegrationTests.Fixtures;
+namespace GrillMaster.IntegrationTests.Infra;
 
 /// <summary>
 /// Creates a <see cref="GrillMasterApp"/>: hosts the application exactly the way <c>Program</c>

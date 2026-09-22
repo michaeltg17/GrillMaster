@@ -1,7 +1,7 @@
 using AwesomeAssertions;
 using GrillMaster.Application.Features.Plans;
 using GrillMaster.Application.Features.Plans.Planners;
-using GrillMaster.Core.Testing;
+using GrillMaster.Core.Testing.Data;
 using GrillMaster.Domain;
 using GrillMaster.PerformanceTests.Base;
 using GrillMaster.PerformanceTests.Base.Models;
@@ -155,7 +155,7 @@ public sealed class GrillMasterPerformanceTests(ITestOutputHelper output)
 
     private static IReadOnlyList<GrillMenu> LoadMenus()
     {
-        var dtos = TestData.ParseMenus(TestData.GrillMenusJson);
+        var dtos = GrillMenusProvider.ParseMenus(GrillMenusProvider.GrillMenusJson);
         return dtos
             .OrderBy(d => d.Menu, StringComparer.Ordinal)
             .Select(d => new GrillMenu(

@@ -1,10 +1,10 @@
 using System.Text.Json;
 using GrillMaster.Application.Features.Menus.Models;
 
-namespace GrillMaster.Core.Testing;
+namespace GrillMaster.Core.Testing.Data;
 
 /// <summary>Loads the JSON fixture used to drive the WireMock-based tests.</summary>
-public static class TestData
+public static class GrillMenusProvider
 {
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {

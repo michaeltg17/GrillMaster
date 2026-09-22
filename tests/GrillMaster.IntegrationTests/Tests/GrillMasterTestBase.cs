@@ -1,5 +1,5 @@
-using GrillMaster.Core.Testing.Infra;
 using GrillMaster.IntegrationTests.Fixtures;
+using GrillMaster.IntegrationTests.Infra;
 using Xunit;
 
 namespace GrillMaster.IntegrationTests.Tests;

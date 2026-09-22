@@ -5,7 +5,7 @@ using System.Runtime.CompilerServices;
 using System.Text.Json;
 using Xunit.Sdk;
 
-namespace GrillMaster.Core.Testing.Core
+namespace GrillMaster.Core.Testing.Serializers
 {
     public class TestCaseSerializer : IXunitSerializer
     {

@@ -1,6 +1,6 @@
 ﻿using WireMock.Server;
 
-namespace GrillMaster.Core.Testing.Infra;
+namespace GrillMaster.IntegrationTests.Infra;
 
 /// <summary>
 /// Base for WireMock-backed API mocks. Owns a <see cref="WireMockServer"/> (started in the
