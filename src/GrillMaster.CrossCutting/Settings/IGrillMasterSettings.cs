@@ -8,6 +8,6 @@ public interface IGrillMasterSettings
     /// <summary>Base URL of the grill menu REST API.</summary>
     public Uri GrillMenuApiUrl { get; }
 
-    /// <summary>Planner name (greedy | exact | optimized).</summary>
+    /// <summary>The grilling planner to use; must be one of the known planner names.</summary>
     public string Planner { get; }
 }

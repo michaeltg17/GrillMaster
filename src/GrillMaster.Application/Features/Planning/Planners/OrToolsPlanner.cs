@@ -18,7 +18,7 @@ public sealed class OrToolsPlanner : IGrillPlanner
     /// <summary>CP-SAT time limit in seconds; beyond it the best plan found so far is returned.</summary>
     public int MaxTimeSeconds { get; init; } = 30;
 
-    public string Name { get; } = "ortools";
+    public string Name { get; } = PlannerNames.OrTools;
 
     public GrillPlan Plan(GrillMenu menu, GrillSize grill)
     {

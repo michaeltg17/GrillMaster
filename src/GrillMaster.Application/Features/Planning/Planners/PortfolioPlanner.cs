@@ -10,7 +10,7 @@ namespace GrillMaster.Application.Features.Planning.Planners;
 /// </summary>
 public sealed class PortfolioPlanner : IGrillPlanner
 {
-    public string Name { get; } = "portfolio";
+    public string Name { get; } = PlannerNames.Portfolio;
 
     // Cheapest-to-strongest: once any plan reaches the lower bound the rest is skipped, so the
     // fast heuristics run first and the exact solvers last.

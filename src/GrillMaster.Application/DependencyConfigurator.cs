@@ -3,6 +3,7 @@ using GrillMaster.Application.Features.Planning;
 using GrillMaster.Application.Features.Planning.Planners;
 using GrillMaster.CrossCutting.Settings;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace GrillMaster.Application;
 
@@ -30,6 +31,8 @@ public static class DependencyConfigurator
         services.AddSingleton<IGrillPlanner, BatchPlanner>();
         services.AddSingleton<IGrillPlanner, OrToolsPlanner>();
         services.AddSingleton<IGrillPlanner, PortfolioPlanner>();
+
+        services.AddSingleton<IValidateOptions<GrillMasterSettings>, PlannerSettingsValidator>();
 
         services.AddSingleton<GrillMasterApp>();
 

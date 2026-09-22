@@ -121,7 +121,7 @@ dotnet_diagnostic.IDE0032.severity = none
 dotnet_diagnostic.IDE0005.severity = none
 dotnet_diagnostic.IDE0090.severity = none
 
-[src/GrillMaster.CrossCutting/**.cs]
-# CA1812: internal types instantiated via DI registrations in other assemblies are invisible to
-# the intra-assembly analysis, so "never instantiated" is a false positive here.
+[src/{GrillMaster.CrossCutting,GrillMaster.Application,GrillMaster.Console}/**.cs]
+# CA1812: internal types instantiated only via DI registrations (e.g. the options validators) are
+# invisible to the CA1812 analysis, so "never instantiated" is a false positive here.
 dotnet_diagnostic.CA1812.severity = none

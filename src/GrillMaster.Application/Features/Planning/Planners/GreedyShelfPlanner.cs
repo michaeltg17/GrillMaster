@@ -9,7 +9,7 @@ namespace GrillMaster.Application.Features.Planning.Planners;
 /// </summary>
 public sealed class GreedyShelfPlanner : IGrillPlanner
 {
-    public string Name { get; } = "greedy";
+    public string Name { get; } = PlannerNames.Greedy;
 
     public GrillPlan Plan(GrillMenu menu, GrillSize grill)
     {

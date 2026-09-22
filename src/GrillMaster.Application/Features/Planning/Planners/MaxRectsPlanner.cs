@@ -10,7 +10,7 @@ namespace GrillMaster.Application.Features.Planning.Planners;
 /// </summary>
 public sealed class MaxRectsPlanner : IGrillPlanner
 {
-    public string Name { get; } = "maxrects";
+    public string Name { get; } = PlannerNames.MaxRects;
 
     public GrillPlan Plan(GrillMenu menu, GrillSize grill)
     {

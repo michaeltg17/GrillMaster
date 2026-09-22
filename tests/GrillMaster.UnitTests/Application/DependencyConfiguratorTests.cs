@@ -20,8 +20,7 @@ public sealed class DependencyConfiguratorTests
 
         var names = provider.GetServices<IGrillPlanner>().Select(p => p.Name).ToList();
 
-        names.Should().HaveCount(8);
-        names.Distinct().Should().BeEquivalentTo(
-            "greedy", "exact", "optimized", "maxrects", "guillotine", "batch", "ortools", "portfolio");
+        names.Should().HaveCount(PlannerNames.All.Count);
+        names.Distinct().Should().BeEquivalentTo(PlannerNames.All);
     }
 }
