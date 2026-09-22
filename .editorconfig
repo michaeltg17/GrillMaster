@@ -37,6 +37,16 @@ dotnet_diagnostic.IDE0011.severity = none
 # IDE0022: Use block body for method
 dotnet_diagnostic.IDE0022.severity = none
 
+# IDE0023/IDE0024: Use block body for conversion operator / operator - the codebase uses
+# expression bodies throughout (e.g. the Centimeters / SquareCentimeters / Point operators).
+dotnet_diagnostic.IDE0023.severity = none
+dotnet_diagnostic.IDE0024.severity = none
+
+# CA2225: Operator overloads have friendly alternates - the value types (Centimeters,
+# SquareCentimeters) get the operators users actually need; the Add/Subtract/Multiply method
+# alternates would be unused boilerplate.
+dotnet_diagnostic.CA2225.severity = none
+
 # IDE0036: Order modifiers
 dotnet_diagnostic.IDE0036.severity = none
 

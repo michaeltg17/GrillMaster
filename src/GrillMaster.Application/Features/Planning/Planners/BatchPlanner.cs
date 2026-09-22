@@ -57,8 +57,8 @@ public sealed class BatchPlanner : IGrillPlanner
                 for (var k = 0; k < fits; k++)
                 {
                     var source = pattern[k];
-                    var placement = new GrillPiecePlacement(ordered[i + (r * fits) + k], source.X, source.Y, source.Rotated);
-                    occupancy.MarkOccupied(placement.X, placement.Y, placement.FootprintWidth, placement.FootprintHeight);
+                    var placement = new GrillPiecePlacement(ordered[i + (r * fits) + k], source.Position, source.Rotated);
+                    occupancy.MarkOccupied(placement.Position, placement.FootprintWidth, placement.FootprintHeight);
                     round.Add(placement);
                 }
 
@@ -85,7 +85,7 @@ public sealed class BatchPlanner : IGrillPlanner
                 var placement = occupancy.FindBestPosition(piece)
                     ?? throw new InvalidOperationException(
                         $"Piece '{piece.Name}' ({piece.Length}x{piece.Width}) does not fit an empty grill of {grill.Width}x{grill.Height}.");
-                occupancy.MarkOccupied(placement.X, placement.Y, placement.FootprintWidth, placement.FootprintHeight);
+                occupancy.MarkOccupied(placement.Position, placement.FootprintWidth, placement.FootprintHeight);
                 round.Add(placement);
                 rounds.Add(round);
                 occupancies.Add(occupancy);
@@ -93,7 +93,7 @@ public sealed class BatchPlanner : IGrillPlanner
             else
             {
                 var (roundIndex, placement) = target.Value;
-                occupancies[roundIndex].MarkOccupied(placement.X, placement.Y, placement.FootprintWidth, placement.FootprintHeight);
+                occupancies[roundIndex].MarkOccupied(placement.Position, placement.FootprintWidth, placement.FootprintHeight);
                 rounds[roundIndex].Add(placement);
             }
         }
@@ -107,7 +107,7 @@ public sealed class BatchPlanner : IGrillPlanner
         GrillPiece piece, GrillSize grill, IReadOnlyList<GrillRound> rounds, IReadOnlyList<RoundOccupancy> occupancies)
     {
         (int RoundIndex, GrillPiecePlacement Placement)? best = null;
-        var bestFreeAfter = int.MaxValue;
+        var bestFreeAfter = new SquareCentimeters(int.MaxValue);
 
         for (var i = 0; i < rounds.Count; i++)
         {

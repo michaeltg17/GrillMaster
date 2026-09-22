@@ -18,7 +18,7 @@ public static class GrillPlannerHelpers
     // "unknown" and the bound falls back to the (weaker) area-based estimate for that type.
     private const long OneRoundNodeBudget = 200_000;
 
-    private static readonly ConcurrentDictionary<(string Name, int Length, int Width, int GrillWidth, int GrillHeight, int Count), OneRoundResult> OneRoundCache = new();
+    private static readonly ConcurrentDictionary<(string Name, Centimeters Length, Centimeters Width, Centimeters GrillWidth, Centimeters GrillHeight, int Count), OneRoundResult> OneRoundCache = new();
 
     /// <summary>
     /// The theoretical minimum number of rounds: the maximum of the total-area floor and every
@@ -26,7 +26,7 @@ public static class GrillPlannerHelpers
     /// </summary>
     public static int ComputeLowerBound(IReadOnlyList<GrillPiece> pieces, GrillSize grill)
     {
-        var totalArea = pieces.Sum(p => p.Area);
+        var totalArea = pieces.Aggregate(SquareCentimeters.Zero, (sum, p) => sum + p.Area);
         var bound = (totalArea + grill.Area - 1) / grill.Area;
 
         foreach (var group in pieces.GroupBy(p => (p.Name, p.Length, p.Width)))
@@ -178,11 +178,11 @@ public static class GrillPlannerHelpers
                     continue;
                 }
 
-                occupancy.MarkOccupied(placement.X, placement.Y, placement.FootprintWidth, placement.FootprintHeight);
+                occupancy.MarkOccupied(placement.Position, placement.FootprintWidth, placement.FootprintHeight);
                 placements.Add(placement);
                 var result = Search(index + 1, slot);
                 placements.RemoveAt(placements.Count - 1);
-                occupancy.MarkFree(placement.X, placement.Y, placement.FootprintWidth, placement.FootprintHeight);
+                occupancy.MarkFree(placement.Position, placement.FootprintWidth, placement.FootprintHeight);
 
                 if (result.Fits != Fit.NotFits)
                 {
@@ -195,10 +195,11 @@ public static class GrillPlannerHelpers
     }
 
     // One total order over slots (y, then x, then rotation) for identical-piece symmetry breaking.
+    // 100 must stay greater than the largest possible grill width (x is the minor term of `row`).
     private static long SlotOrder(GrillPiecePlacement p)
     {
         var rotation = p.Rotated ? 1L : 0L;
-        var row = (p.Y * 100L) + p.X;
+        var row = (p.Position.Y.Value * 100L) + p.Position.X.Value;
         return (row * 2L) + rotation;
     }
 
@@ -206,7 +207,7 @@ public static class GrillPlannerHelpers
     private static IReadOnlyList<GrillPiecePlacement> SinglePattern(GrillPiece type, GrillSize grill)
     {
         var rotated = type.Length > grill.Width || type.Width > grill.Height;
-        return [new GrillPiecePlacement(type, 0, 0, rotated)];
+        return [new GrillPiecePlacement(type, Point.Zero, rotated)];
     }
 
     // Greedy shelf packing of the type on one empty grill (used only when the exact search is unknown).
@@ -222,7 +223,7 @@ public static class GrillPlannerHelpers
                 break;
             }
 
-            occupancy.MarkOccupied(placement.X, placement.Y, placement.FootprintWidth, placement.FootprintHeight);
+            occupancy.MarkOccupied(placement.Position, placement.FootprintWidth, placement.FootprintHeight);
             pattern.Add(placement);
         }
 

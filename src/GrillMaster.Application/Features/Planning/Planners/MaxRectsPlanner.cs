@@ -29,7 +29,7 @@ public sealed class MaxRectsPlanner : IGrillPlanner
             if (target is null)
             {
                 var round = new GrillRound();
-                var free = new List<MaxRect> { new(0, 0, grill.Width, grill.Height) };
+                var free = new List<MaxRect> { new(0, 0, grill.Width.Value, grill.Height.Value) };
                 var (placement, _) = ChoosePlacement(piece, free)
                     ?? throw new InvalidOperationException(
                         $"Piece '{piece.Name}' ({piece.Length}x{piece.Width}) does not fit an empty grill of {grill.Width}x{grill.Height}.");
@@ -84,15 +84,15 @@ public sealed class MaxRectsPlanner : IGrillPlanner
         {
             foreach (var rotated in new[] { false, true })
             {
-                var w = rotated ? piece.Width : piece.Length;
-                var h = rotated ? piece.Length : piece.Width;
+                var w = (rotated ? piece.Width : piece.Length).Value;
+                var h = (rotated ? piece.Length : piece.Width).Value;
                 if (w > rect.W || h > rect.H)
                 {
                     continue;
                 }
 
                 var score = Math.Min(rect.W - w, rect.H - h);
-                var placement = new GrillPiecePlacement(piece, rect.X, rect.Y, rotated);
+                var placement = new GrillPiecePlacement(piece, new Point(rect.X, rect.Y), rotated);
                 if (best is null || score < best.Value.Score)
                 {
                     best = (placement, score);
@@ -108,10 +108,10 @@ public sealed class MaxRectsPlanner : IGrillPlanner
     {
         round.Add(placement);
 
-        var x = placement.X;
-        var y = placement.Y;
-        var w = placement.FootprintWidth;
-        var h = placement.FootprintHeight;
+        var x = placement.Position.X.Value;
+        var y = placement.Position.Y.Value;
+        var w = placement.FootprintWidth.Value;
+        var h = placement.FootprintHeight.Value;
 
         var updated = new List<MaxRect>(freeRects.Count * 2);
         foreach (var rect in freeRects)
@@ -175,6 +175,10 @@ public sealed class MaxRectsPlanner : IGrillPlanner
         outer.X <= inner.X && outer.Y <= inner.Y &&
         outer.X + outer.W >= inner.X + inner.W && outer.Y + outer.H >= inner.Y + inner.H;
 
-    /// <summary>A maximal free (unoccupied) axis-aligned rectangle within the grill.</summary>
+    /// <summary>
+    /// A maximal free (unoccupied) axis-aligned rectangle within the grill. Coordinates and
+    /// extents are whole centimetres kept as raw ints: this struct lives in the planner's hot
+    /// loops, where the domain value types' operators would not be inlined.
+    /// </summary>
     private readonly record struct MaxRect(int X, int Y, int W, int H);
 }
