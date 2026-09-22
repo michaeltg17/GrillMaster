@@ -15,4 +15,8 @@
     <ProjectReference Include="..\GrillMaster.Domain\GrillMaster.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="GrillMaster.UnitTests" />
+  </ItemGroup>
+
 </Project>

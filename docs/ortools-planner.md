@@ -168,7 +168,7 @@ telling it to.
 ## 5. How the code does this
 
 The planner lives in
-`src/GrillMaster.Application/Features/Planning/Planners/OrToolsPlanner.cs`; the
+`src/GrillMaster.Application/Features/Plans/Planners/OrToolsPlanner.cs`; the
 package is `Google.OrTools` (the CP-SAT part of the OR-Tools suite):
 
 | Code | What it is in the story |

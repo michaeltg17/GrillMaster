@@ -97,7 +97,7 @@ price — and on menus like ours it's a couple of milliseconds.
 ## 4. How the code does this
 
 The planner lives in
-`src/GrillMaster.Application/Features/Planning/Planners/PortfolioPlanner.cs`:
+`src/GrillMaster.Application/Features/Plans/Planners/PortfolioPlanner.cs`:
 
 | Code | What it is in the story |
 |------|--------------------------|

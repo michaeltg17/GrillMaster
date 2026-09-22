@@ -137,7 +137,7 @@ FFFFFFGGGGHHHH....EEEEE.CCCCCC
 ## 4. How the code does this
 
 The planner lives in
-`src/GrillMaster.Application/Features/Planning/Planners/MaxRectsPlanner.cs`.
+`src/GrillMaster.Application/Features/Plans/Planners/MaxRectsPlanner.cs`.
 Note it does **not** use the shared `RoundOccupancy` grid — it keeps its own map:
 
 | Code | What it is in the story |

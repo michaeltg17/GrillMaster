@@ -44,13 +44,12 @@ public sealed class GrillMasterIntegrationTests(ITestOutputHelper output) : Gril
             .OrderBy(n => n, StringComparer.Ordinal)
             .ToArray();
 
-        // One menu message per menu (15 menus in the live dataset), all at Information level,
-        // one for each expected menu name.
+        // One menu message per menu, all at Information level, one for each expected menu name.
         app.Sink
             .Should()
             .HaveMessage(MenuMessageTemplate)
             .Appearing()
-            .Times(15)
+            .Times(expectedNames.Length)
             .WithLevel(LogEventLevel.Information)
             .WithProperty("MenuName")
             .WithValues(expectedNames);

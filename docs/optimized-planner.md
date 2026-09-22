@@ -130,7 +130,7 @@ small, and you stop the moment a bet can't be kept.
 ## 4. How the code does this
 
 The planner lives in
-`src/GrillMaster.Application/Features/Planning/Planners/OptimizedHeuristicPlanner.cs`.
+`src/GrillMaster.Application/Features/Plans/Planners/OptimizedHeuristicPlanner.cs`.
 Code, translated into the story:
 
 | Code | What it is in the story |

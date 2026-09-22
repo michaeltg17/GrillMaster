@@ -222,7 +222,7 @@ pieces in under 5 seconds).
 ## 5. How the code does this
 
 The planner lives in
-`src/GrillMaster.Application/Features/Planning/Planners/GuillotinePlanner.cs`. It does
+`src/GrillMaster.Application/Features/Plans/Planners/GuillotinePlanner.cs`. It does
 **not** use the shared `RoundOccupancy` grid — it keeps its own rectangle lists:
 
 | Code | What it is in the story |
