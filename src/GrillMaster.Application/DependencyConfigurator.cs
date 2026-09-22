@@ -1,6 +1,6 @@
 using GrillMaster.Application.Features.Menus;
-using GrillMaster.Application.Features.Planning;
-using GrillMaster.Application.Features.Planning.Planners;
+using GrillMaster.Application.Features.Plans;
+using GrillMaster.Application.Features.Plans.Planners;
 using GrillMaster.Application.Settings;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -21,7 +21,6 @@ public static class DependencyConfigurator
             .AddOptionsWithValidateOnStart<GrillMasterSettings>()
             .BindConfiguration(IGrillMasterSettings.Section);
         services.AddSingleton<IValidateOptions<GrillMasterSettings>, GrillMasterSettingsValidator>();
-        services.AddSingleton<IValidateOptions<GrillMasterSettings>, PlannerSettingsValidator>();
         services.AddSingleton<IGrillMasterSettings>(sp => sp.GetRequiredService<IOptions<GrillMasterSettings>>().Value);
 
         services.AddHttpClient<GrillMenuApiClient>((sp, client) =>

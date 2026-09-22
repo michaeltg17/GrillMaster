@@ -1,9 +1,9 @@
 using AwesomeAssertions;
-using GrillMaster.Application.Features.Planning;
-using GrillMaster.Application.Features.Planning.Planners;
+using GrillMaster.Application.Features.Plans;
+using GrillMaster.Application.Features.Plans.Planners;
 using Xunit;
 
-namespace GrillMaster.UnitTests.Application.Features.Planning.Planners;
+namespace GrillMaster.UnitTests.Application.Features.Plans.Planners;
 
 /// <summary>
 /// Planner-specific tests for <see cref="OrToolsPlanner"/>; the common planner contract is

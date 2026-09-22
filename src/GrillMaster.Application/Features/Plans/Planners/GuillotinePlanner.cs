@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using GrillMaster.Domain;
 
-namespace GrillMaster.Application.Features.Planning.Planners;
+namespace GrillMaster.Application.Features.Plans.Planners;
 
 /// <summary>
 /// Greedy guillotine-constrained placement: pieces are biggest first, each placed in a corner of a

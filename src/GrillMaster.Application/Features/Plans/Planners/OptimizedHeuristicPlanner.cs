@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using GrillMaster.Domain;
 
-namespace GrillMaster.Application.Features.Planning.Planners;
+namespace GrillMaster.Application.Features.Plans.Planners;
 
 /// <summary>
 /// Greedy seed followed by a deterministic consolidation loop that re-plans all pieces into one

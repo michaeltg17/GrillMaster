@@ -1,4 +1,4 @@
-namespace GrillMaster.Application.Features.Planning;
+namespace GrillMaster.Application.Features.Plans;
 
 /// <summary>
 /// The well-known planner names. The single source of truth for <see cref="IGrillPlanner.Name"/>;

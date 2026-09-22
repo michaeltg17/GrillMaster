@@ -1,85 +1,97 @@
 using AwesomeAssertions;
-using GrillMaster.Application.Features.Planning;
-using GrillMaster.Application.Settings;
+using GrillMaster.Application.Features.Plans;
+using Serilog.Events;
+using Serilog.Sinks.InMemory.Assertions;
 using Xunit;
 
 namespace GrillMaster.IntegrationTests.Tests.Application.Settings;
 
 /// <summary>
-/// Validates the two <see cref="Microsoft.Extensions.Options.IValidateOptions{GrillMasterSettings}"/>
-/// validators directly: each failure mode (invalid URL, unknown planner) produces its own message, and
-/// both can fail at the same time.
+/// Validates the settings validators end-to-end: a misconfigured app fails fast when the host starts
+/// and reports it the way a real user sees it — an error line on the console (the in-memory sink) and
+/// a non-zero exit code.
 /// </summary>
-public sealed class GrillMasterSettingsValidatorTests
+public sealed class GrillMasterSettingsValidatorTests(ITestOutputHelper output) : GrillMasterTestBase(output)
 {
+    private const string ErrorMessageTemplate = "{Message}";
     private const string UrlErrorMessage = "The 'GrillMenuApiUrl' setting is required and must be an absolute URI";
     private const string PlannerRequiredErrorMessage = "The 'Planner' setting is required";
+    private static readonly string PlannerKnownErrorMessage =
+        $"The 'Planner' setting must be one of: {string.Join(", ", PlannerNames.All)}";
 
     private static readonly Uri AbsoluteUrl = new("https://grill-menus.local/menus");
     private static readonly Uri RelativeUrl = new("menus", UriKind.Relative);
 
-    private static readonly string PlannerKnownErrorMessage =
-        $"The 'Planner' setting must be one of: {string.Join(", ", PlannerNames.All)}";
-
-    private static GrillMasterSettings Settings(Uri? grillMenuApiUrl, string planner) =>
-        new() { GrillMenuApiUrl = grillMenuApiUrl!, Planner = planner };
-
     [Fact]
-    public void SucceedsWhenUrlIsAbsoluteAndPlannerIsKnown()
+    public async Task SucceedsWhenUrlIsAbsoluteAndPlannerIsKnown()
     {
-        var settings = Settings(AbsoluteUrl, PlannerNames.Greedy);
+        Api.SetGetMenus();
 
-        new GrillMasterSettingsValidator().Validate(IGrillMasterSettings.Section, settings).Succeeded.Should().BeTrue();
-        new PlannerSettingsValidator().Validate(IGrillMasterSettings.Section, settings).Succeeded.Should().BeTrue();
+        using var app = await RunGrillMaster(PlannerNames.Greedy, Api.Url);
+
+        app.ExitCode.Should().Be(0);
+        app.Sink.Should().NotHaveMessage(ErrorMessageTemplate);
     }
 
     [Fact]
-    public void FailsWhenUrlIsMissing()
+    public async Task FailsFastWhenUrlIsNotAbsolute()
     {
-        var result = new GrillMasterSettingsValidator().Validate(IGrillMasterSettings.Section, Settings(null, PlannerNames.Greedy));
+        using var app = await RunGrillMaster(PlannerNames.Greedy, RelativeUrl);
 
-        result.Succeeded.Should().BeFalse();
-        result.Failures.Should().ContainSingle().Which.Should().Be(UrlErrorMessage);
+        app.ExitCode.Should().Be(1);
+        app.Sink.Should()
+            .HaveMessage(ErrorMessageTemplate)
+            .Appearing()
+            .Once()
+            .WithLevel(LogEventLevel.Error)
+            .WithProperty("Message")
+            .WithValue(UrlErrorMessage);
     }
 
     [Fact]
-    public void FailsWhenUrlIsNotAbsolute()
+    public async Task FailsFastWhenPlannerIsMissing()
     {
-        var result = new GrillMasterSettingsValidator().Validate(IGrillMasterSettings.Section, Settings(RelativeUrl, PlannerNames.Greedy));
+        using var app = await RunGrillMaster(string.Empty, AbsoluteUrl);
 
-        result.Succeeded.Should().BeFalse();
-        result.Failures.Should().ContainSingle().Which.Should().Be(UrlErrorMessage);
+        app.ExitCode.Should().Be(1);
+        app.Sink.Should()
+            .HaveMessage(ErrorMessageTemplate)
+            .Appearing()
+            .Once()
+            .WithLevel(LogEventLevel.Error)
+            .WithProperty("Message")
+            .WithValue(PlannerRequiredErrorMessage);
     }
 
     [Fact]
-    public void FailsWhenPlannerIsMissing()
+    public async Task FailsFastWhenPlannerIsUnknown()
     {
-        var result = new GrillMasterSettingsValidator().Validate(IGrillMasterSettings.Section, Settings(AbsoluteUrl, string.Empty));
+        Api.SetGetMenus();
 
-        result.Succeeded.Should().BeFalse();
-        result.Failures.Should().ContainSingle().Which.Should().Be(PlannerRequiredErrorMessage);
+        using var app = await RunGrillMaster("not-a-planner", AbsoluteUrl);
+
+        app.ExitCode.Should().Be(1);
+        app.Sink.Should()
+            .HaveMessage(ErrorMessageTemplate)
+            .Appearing()
+            .Once()
+            .WithLevel(LogEventLevel.Error)
+            .WithProperty("Message")
+            .WithValue(PlannerKnownErrorMessage);
     }
 
     [Fact]
-    public void FailsWhenPlannerIsUnknown()
+    public async Task FailsWithBothMessagesWhenUrlAndPlannerAreInvalid()
     {
-        var result = new PlannerSettingsValidator().Validate(IGrillMasterSettings.Section, Settings(AbsoluteUrl, "not-a-planner"));
+        using var app = await RunGrillMaster("not-a-planner", RelativeUrl);
 
-        result.Succeeded.Should().BeFalse();
-        result.Failures.Should().ContainSingle().Which.Should().Be(PlannerKnownErrorMessage);
-    }
-
-    [Fact]
-    public void FailsWithBothMessagesWhenUrlAndPlannerAreInvalid()
-    {
-        var settings = Settings(null, "not-a-planner");
-
-        var urlResult = new GrillMasterSettingsValidator().Validate(IGrillMasterSettings.Section, settings);
-        var plannerResult = new PlannerSettingsValidator().Validate(IGrillMasterSettings.Section, settings);
-
-        urlResult.Succeeded.Should().BeFalse();
-        urlResult.Failures.Should().Contain(UrlErrorMessage);
-        plannerResult.Succeeded.Should().BeFalse();
-        plannerResult.Failures.Should().ContainSingle().Which.Should().Be(PlannerKnownErrorMessage);
+        app.ExitCode.Should().Be(1);
+        app.Sink.Should()
+            .HaveMessage(ErrorMessageTemplate)
+            .Appearing()
+            .Times(2)
+            .WithLevel(LogEventLevel.Error)
+            .WithProperty("Message")
+            .WithValues(UrlErrorMessage, PlannerKnownErrorMessage);
     }
 }

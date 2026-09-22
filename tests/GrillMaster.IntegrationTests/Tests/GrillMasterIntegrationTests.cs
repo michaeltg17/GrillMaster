@@ -1,9 +1,7 @@
 using AwesomeAssertions;
-using GrillMaster.Application.Features.Planning;
+using GrillMaster.Application.Features.Plans;
 using GrillMaster.Core.Testing;
-using GrillMaster.Core.Testing.Infra;
 using GrillMaster.IntegrationTests.Fixtures;
-using Microsoft.Extensions.Options;
 using Serilog.Events;
 using Serilog.Sinks.InMemory.Assertions;
 using System.Net.Http;
@@ -17,17 +15,10 @@ namespace GrillMaster.IntegrationTests.Tests;
 /// application (the same host as <c>Program</c>) and validates the console log response — what a real
 /// user would see — via the in-memory sink, instead of asserting on the HTTP client.
 /// </summary>
-public sealed class GrillMasterIntegrationTests(ITestOutputHelper output) : IDisposable
+public sealed class GrillMasterIntegrationTests(ITestOutputHelper output) : GrillMasterTestBase(output)
 {
     private const string MenuMessageTemplate = "{MenuName}: {RoundCount} rounds";
     private const string TotalMessageTemplate = "Total: {TotalRounds} rounds";
-
-    private readonly GrillMenuApiMock _api = new();
-
-    public void Dispose()
-    {
-        _api.Dispose();
-    }
 
     [Theory]
     [InlineData(PlannerNames.Greedy)]
@@ -41,12 +32,11 @@ public sealed class GrillMasterIntegrationTests(ITestOutputHelper output) : IDis
     [InlineData(PlannerNames.Portfolio)]
     public async Task LogsPerMenuRoundsAndTotal(string plannerName)
     {
-        _api.SetGetMenus();
+        Api.SetGetMenus();
 
-        using var app = GrillMasterFactory.Create(plannerName, _api.Url, output);
-        var exitCode = await app.RunAsync(TestContext.Current.CancellationToken);
+        using var app = await RunGrillMaster(plannerName, Api.Url);
 
-        exitCode.Should().Be(0);
+        app.ExitCode.Should().Be(0);
 
         var expectedNames = TestData
             .ParseMenus(TestData.GrillMenusJson)
@@ -69,7 +59,7 @@ public sealed class GrillMasterIntegrationTests(ITestOutputHelper output) : IDis
         var perMenuRounds = app.Sink
             .LogEvents
             .Where(e => e.MessageTemplate.Text == MenuMessageTemplate)
-            .Select(e => GetScalar<int>(e, "RoundCount"))
+            .Select(e => e.GetScalarValue<int>("RoundCount"))
             .ToList();
 
         app.Sink
@@ -85,12 +75,11 @@ public sealed class GrillMasterIntegrationTests(ITestOutputHelper output) : IDis
     [Fact]
     public async Task LogsNoRoundsWhenApiReturnsEmpty()
     {
-        _api.SetGetMenus(body: "[]");
+        Api.SetGetMenus(body: "[]");
 
-        using var app = GrillMasterFactory.Create(PlannerNames.Greedy, _api.Url, output);
-        var exitCode = await app.RunAsync(TestContext.Current.CancellationToken);
+        using var app = await RunGrillMaster(PlannerNames.Greedy, Api.Url);
 
-        exitCode.Should().Be(0);
+        app.ExitCode.Should().Be(0);
 
         app.Sink
             .Should()
@@ -109,10 +98,10 @@ public sealed class GrillMasterIntegrationTests(ITestOutputHelper output) : IDis
     [Fact]
     public async Task ReturnsServerError()
     {
-        _api.SetGetMenus(body: "boom", statusCode: 500);
+        Api.SetGetMenus(body: "boom", statusCode: 500);
 
-        using var app = GrillMasterFactory.Create(PlannerNames.Greedy, _api.Url, output);
-        var act = async () => await app.RunAsync(TestContext.Current.CancellationToken);
+        using var app = CreateApp(PlannerNames.Greedy, Api.Url);
+        var act = () => app.RunAsync(TestContext.Current.CancellationToken);
 
         // API failures surface as the raw .NET exception and reach the top (unhandled -> non-zero exit).
         await act.Should().ThrowAsync<HttpRequestException>();
@@ -121,25 +110,11 @@ public sealed class GrillMasterIntegrationTests(ITestOutputHelper output) : IDis
     [Fact]
     public async Task ReturnsMalformedJson()
     {
-        _api.SetGetMenus(body: "this is not json");
+        Api.SetGetMenus(body: "this is not json");
 
-        using var app = GrillMasterFactory.Create(PlannerNames.Greedy, _api.Url, output);
-        var act = async () => await app.RunAsync(TestContext.Current.CancellationToken);
+        using var app = CreateApp(PlannerNames.Greedy, Api.Url);
+        var act = () => app.RunAsync(TestContext.Current.CancellationToken);
 
         await act.Should().ThrowAsync<JsonException>();
     }
-
-    [Fact]
-    public async Task FailsFastWhenPlannerIsUnknown()
-    {
-        _api.SetGetMenus();
-
-        using var app = GrillMasterFactory.Create("not-a-planner", _api.Url, output);
-        var act = async () => await app.RunAsync(TestContext.Current.CancellationToken);
-
-        await act.Should().ThrowAsync<OptionsValidationException>();
-    }
-
-    private static T GetScalar<T>(LogEvent logEvent, string propertyName) =>
-        (T)((ScalarValue)logEvent.Properties[propertyName]).Value!;
 }

@@ -3,7 +3,7 @@ using System.Globalization;
 using Google.OrTools.Sat;
 using GrillMaster.Domain;
 
-namespace GrillMaster.Application.Features.Planning.Planners;
+namespace GrillMaster.Application.Features.Plans.Planners;
 
 /// <summary>
 /// Integer programming via Google OR-Tools' CP-SAT solver: the whole menu is one constraint model.

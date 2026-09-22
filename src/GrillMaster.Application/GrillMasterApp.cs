@@ -1,5 +1,5 @@
 using GrillMaster.Application.Features.Menus;
-using GrillMaster.Application.Features.Planning;
+using GrillMaster.Application.Features.Plans;
 using GrillMaster.Application.Settings;
 using GrillMaster.Domain;
 using Microsoft.Extensions.Logging;

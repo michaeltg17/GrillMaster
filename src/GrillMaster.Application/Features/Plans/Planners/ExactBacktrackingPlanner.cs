@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using GrillMaster.Domain;
 
-namespace GrillMaster.Application.Features.Planning.Planners;
+namespace GrillMaster.Application.Features.Plans.Planners;
 
 /// <summary>
 /// Exact branch-and-bound search for the minimum number of rounds; proven optimal whenever the

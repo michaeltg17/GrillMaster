@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using GrillMaster.PerformanceTests.Base.Models;
@@ -56,11 +57,34 @@ public static class PerformanceResultStore
             : null;
 
     /// <summary>
-    /// Serialises the results to the source-tree file (the git-committed copy). The build output copy
-    /// is refreshed on the next build via <c>CopyToOutputDirectory</c>.
+    /// Captures the results (with the current UTC timestamp and git commit) and serialises them to the
+    /// source-tree file (the git-committed copy). The build output copy is refreshed on the next build
+    /// via <c>CopyToOutputDirectory</c>.
     /// </summary>
-    public static void Save(PerformanceResult results)
+    public static void Save(IReadOnlyList<PerformancePlannerResult> planners)
     {
+        var results = new PerformanceResult(DateTime.UtcNow.ToString("o"), GitCommit(), planners);
         File.WriteAllText(SourcePath, JsonSerializer.Serialize(results, JsonOptions));
+    }
+
+    /// <summary>The short git commit the results are captured at.</summary>
+    private static string GitCommit()
+    {
+        var repoRoot = new DirectoryInfo(SourcePath);
+        while (!Directory.Exists(Path.Combine(repoRoot.FullName, ".git")))
+        {
+            repoRoot = repoRoot.Parent!;
+        }
+
+        var psi = new ProcessStartInfo("git", $"-C \"{repoRoot.FullName}\" rev-parse --short HEAD")
+        {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+        };
+        using var process = Process.Start(psi)!;
+        var stdout = process.StandardOutput.ReadToEnd();
+        process.WaitForExit();
+        return stdout.Trim();
     }
 }
