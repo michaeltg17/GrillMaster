@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using GrillMaster.Domain;
 
-namespace GrillMaster.Application.Features.Planning.Planners;
+namespace GrillMaster.Application.Features.Plans.Planners;
 
 /// <summary>
 /// Batch tiling: each piece type is packed on its own first. As many full grills of a type as the

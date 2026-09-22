@@ -1,19 +1,18 @@
 using AwesomeAssertions;
-using GrillMaster.Application.Features.Planning;
-using GrillMaster.Application.Features.Planning.Planners;
+using GrillMaster.Application.Features.Plans;
+using GrillMaster.Application.Features.Plans.Planners;
 using GrillMaster.Core.Testing;
 using GrillMaster.Domain;
 using GrillMaster.PerformanceTests.Base;
 using GrillMaster.PerformanceTests.Base.Models;
-using System.ComponentModel;
 using Xunit;
 
 namespace GrillMaster.PerformanceTests;
 
 /// <summary>
-/// Benchmarks every grill planner over the full 15-menu fixture and compares the result against the
-/// git-committed performance results (<c>performanceResults.json</c>). Quality (total rounds) is a
-/// hard failure if it regresses; speed is a hard failure only on a significant relative regression
+/// Benchmarks every grilling planner over the full 15-menu fixture and compares the result against
+/// the git-committed performance results (<c>performanceResults.json</c>). Quality (total rounds) is
+/// a hard failure if it regresses; speed is a hard failure only on a significant relative regression
 /// (default +50%) so that machine-to-machine variance does not cause flaky failures. Regenerate the
 /// results with <c>UPDATE_PERF_RESULTS=1</c>.
 /// </summary>
@@ -24,6 +23,8 @@ public sealed class GrillMasterPerformanceTests(ITestOutputHelper output)
 
     private static readonly GrillSize Grill = GrillSize.Standard;
 
+    private readonly ITestOutputHelper _output = output;
+
     private static double SpeedThreshold =>
         double.TryParse(Environment.GetEnvironmentVariable("PERF_SPEED_THRESHOLD"), out var t)
             ? t
@@ -32,84 +33,36 @@ public sealed class GrillMasterPerformanceTests(ITestOutputHelper output)
     [Fact]
     public void Planners_MatchCommittedResults()
     {
-        var menus = LoadMenus();
-        var measured = new List<PerformancePlannerResult>();
-
-        var planners = new IGrillPlanner[]
-        {
-            new GreedyShelfPlanner(),
-            new ExactBacktrackingPlanner(),
-            new OptimizedHeuristicPlanner(),
-            new MaxRectsPlanner(),
-            new GuillotinePlanner(),
-            new BatchPlanner(),
-            // OrToolsPlanner is deliberately not benchmarked: its 30 s CP-SAT time cap per menu
-            // would make this suite take ~35 minutes and the committed results would only record the cap.
-            new PortfolioPlanner(),
-        };
-
-        foreach (var planner in planners)
-        {
-            var result = Benchmark(planner, menus);
-            measured.Add(new PerformancePlannerResult(
-                planner.Name,
-                result.TotalRounds,
-                result.LowerBound,
-                result.SearchNodes,
-                result.MedianMs));
-        }
+        var measured = MeasurePlanners();
 
         if (PerformanceResultStore.UpdateMode)
         {
-            PerformanceResultStore.Save(new PerformanceResult(DateTime.UtcNow.ToString("o"), GitCommit(), measured));
-            output.WriteLine($"Performance results written to {PerformanceResultStore.SourcePath}");
-            foreach (var m in measured)
-            {
-                output.WriteLine(ReportLine(m, committed: null));
-            }
-
+            WriteResults(measured);
             return;
         }
 
-        var committed = PerformanceResultStore.Load()
-            ?? throw new InvalidOperationException(
-                "Performance results not found. Run with UPDATE_PERF_RESULTS=1 to generate them.");
-
-        var threshold = SpeedThreshold;
-        var failures = new List<string>();
-        var report = new List<string>();
-
-        foreach (var m in measured)
-        {
-            var b = committed.Planners.FirstOrDefault(s => s.Planner == m.Planner)
-                ?? throw new InvalidOperationException(
-                    $"Planner '{m.Planner}' is missing from the committed results. " +
-                    "Run with UPDATE_PERF_RESULTS=1 to add it.");
-
-            report.Add(ReportLine(m, b));
-
-            if (m.TotalRounds > b.TotalRounds)
-            {
-                failures.Add($"{m.Planner}: rounds regressed {b.TotalRounds} -> {m.TotalRounds}");
-            }
-
-            var maxAllowedMs = b.MedianMs * (1 + threshold);
-            if (m.MedianMs > maxAllowedMs)
-            {
-                failures.Add(
-                    $"{m.Planner}: slower than committed {b.MedianMs:F1} ms " +
-                    $"({((m.MedianMs / b.MedianMs) - 1) * 100:F1}% > +{threshold * 100:F0}%)");
-            }
-        }
-
-        output.WriteLine($"Performance vs committed results {committed.GitCommit} (speed threshold +{threshold * 100:F0}%):");
-        foreach (var line in report)
-        {
-            output.WriteLine("  " + line);
-        }
-
-        failures.Should().BeEmpty(string.Join(Environment.NewLine, failures));
+        CompareWithCommitted(measured);
     }
+
+    /// <summary>Benchmarks every planner over the full 15-menu fixture.</summary>
+    private static IReadOnlyList<PerformancePlannerResult> MeasurePlanners()
+    {
+        var menus = LoadMenus();
+        return Planners().Select(planner => Benchmark(planner, menus)).ToList();
+    }
+
+    private static IReadOnlyList<IGrillPlanner> Planners() => new IGrillPlanner[]
+    {
+        new GreedyShelfPlanner(),
+        new ExactBacktrackingPlanner(),
+        new OptimizedHeuristicPlanner(),
+        new MaxRectsPlanner(),
+        new GuillotinePlanner(),
+        new BatchPlanner(),
+        // OrToolsPlanner is deliberately not benchmarked: its 30 s CP-SAT time cap per menu
+        // would make this suite take ~35 minutes and the committed results would only record the cap.
+        new PortfolioPlanner(),
+    };
 
     /// <summary>
     /// Runs the planner over every menu <see cref="Runs"/> times and returns the deterministic
@@ -117,7 +70,7 @@ public sealed class GrillMasterPerformanceTests(ITestOutputHelper output)
     /// median elapsed milliseconds over all runs. The planners are deterministic, so every run
     /// produces identical totals.
     /// </summary>
-    private static BenchmarkResult Benchmark(IGrillPlanner planner, IReadOnlyList<GrillMenu> menus)
+    private static PerformancePlannerResult Benchmark(IGrillPlanner planner, IReadOnlyList<GrillMenu> menus)
     {
         var elapsed = new List<double>(Runs * menus.Count);
         var totalRounds = 0;
@@ -140,16 +93,65 @@ public sealed class GrillMasterPerformanceTests(ITestOutputHelper output)
             }
         }
 
-        return new BenchmarkResult(totalRounds, lowerBound, searchNodes, Median(elapsed));
+        return new PerformancePlannerResult(planner.Name, totalRounds, lowerBound, searchNodes, Median(elapsed));
     }
 
-    private static string ReportLine(PerformancePlannerResult m, PerformancePlannerResult? committed)
+    private void WriteResults(IReadOnlyList<PerformancePlannerResult> measured)
     {
-        var delta = committed is { MedianMs: > 0 }
-            ? $" (committed {committed.MedianMs:F1} ms, {((m.MedianMs / committed.MedianMs) - 1) * 100:+0.0;-0.0}%)"
-            : string.Empty;
-        return $"{m.Planner}: {m.TotalRounds} rounds (lb {m.LowerBound}, nodes {m.SearchNodes}), {m.MedianMs:F1} ms{delta}";
+        PerformanceResultStore.Save(measured);
+        _output.WriteLine(Summary(measured, $"Performance results written to {PerformanceResultStore.SourcePath}"));
     }
+
+    private void CompareWithCommitted(IReadOnlyList<PerformancePlannerResult> measured)
+    {
+        var committed = PerformanceResultStore.Load()
+            ?? throw new InvalidOperationException(
+                "Performance results not found. Run with UPDATE_PERF_RESULTS=1 to generate them.");
+
+        var threshold = SpeedThreshold;
+        var failures = measured
+            .SelectMany(m =>
+            {
+                var baseline = committed.Planners.FirstOrDefault(s => s.Planner == m.Planner)
+                    ?? throw new InvalidOperationException(
+                        $"Planner '{m.Planner}' is missing from the committed results. " +
+                        "Run with UPDATE_PERF_RESULTS=1 to add it.");
+
+                return Compare(m, baseline, threshold);
+            })
+            .ToList();
+
+        _output.WriteLine(Summary(measured, $"Performance vs committed {committed.GitCommit} (speed threshold +{threshold * 100:F0}%)"));
+
+        failures.Should().BeEmpty(string.Join(Environment.NewLine, failures));
+    }
+
+    /// <summary>
+    /// The regressions of one planner against its committed baseline: the rounds (quality) regression
+    /// and the significant speed regression, if any.
+    /// </summary>
+    private static List<string> Compare(PerformancePlannerResult measured, PerformancePlannerResult committed, double threshold)
+    {
+        var failures = new List<string>();
+
+        if (measured.TotalRounds > committed.TotalRounds)
+        {
+            failures.Add($"{measured.Planner}: rounds regressed {committed.TotalRounds} -> {measured.TotalRounds}");
+        }
+
+        if (measured.MedianMs > committed.MedianMs * (1 + threshold))
+        {
+            failures.Add(
+                $"{measured.Planner}: slower than committed {committed.MedianMs:F1} ms " +
+                $"({((measured.MedianMs / committed.MedianMs) - 1) * 100:F1}% > +{threshold * 100:F0}%)");
+        }
+
+        return failures;
+    }
+
+    /// <summary>The one-line report: how many planners were measured and their combined totals.</summary>
+    private static string Summary(IReadOnlyList<PerformancePlannerResult> measured, string heading) =>
+        $"{heading}: {measured.Count} planners, {measured.Sum(m => m.TotalRounds)} rounds, {measured.Sum(m => m.MedianMs):F1} ms";
 
     private static IReadOnlyList<GrillMenu> LoadMenus()
     {
@@ -170,49 +172,5 @@ public sealed class GrillMasterPerformanceTests(ITestOutputHelper output)
         return sorted.Length % 2 == 1
             ? sorted[mid]
             : (sorted[mid - 1] + sorted[mid]) / 2;
-    }
-
-    private static string GitCommit()
-    {
-        try
-        {
-            var dir = new DirectoryInfo(PerformanceResultStore.SourcePath);
-            while (dir is not null && !Directory.Exists(Path.Combine(dir.FullName, ".git")))
-            {
-                dir = dir.Parent;
-            }
-
-            if (dir is null)
-            {
-                return "unknown";
-            }
-
-            var psi = new System.Diagnostics.ProcessStartInfo("git", $"-C \"{dir.FullName}\" rev-parse --short HEAD")
-            {
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-            };
-            using var process = System.Diagnostics.Process.Start(psi)!;
-            var stdout = process.StandardOutput.ReadToEnd();
-            process.WaitForExit();
-            return process.ExitCode == 0 ? stdout.Trim() : "unknown";
-        }
-        catch (Win32Exception)
-        {
-            return "unknown";
-        }
-        catch (IOException)
-        {
-            return "unknown";
-        }
-        catch (InvalidOperationException)
-        {
-            return "unknown";
-        }
-        catch (ArgumentException)
-        {
-            return "unknown";
-        }
     }
 }

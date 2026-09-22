@@ -1,7 +1,7 @@
 using System.Collections.Concurrent;
 using GrillMaster.Domain;
 
-namespace GrillMaster.Application.Features.Planning;
+namespace GrillMaster.Application.Features.Plans;
 
 /// <summary>
 /// Shared helpers used by every grilling planner: canonical piece ordering and the lower bound on

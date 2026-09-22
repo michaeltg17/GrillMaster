@@ -1,6 +1,6 @@
 using GrillMaster.Domain;
 
-namespace GrillMaster.Application.Features.Planning;
+namespace GrillMaster.Application.Features.Plans;
 
 /// <summary>
 /// Tracks which centimetre cells of a single grill round are occupied, and finds free

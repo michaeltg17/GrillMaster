@@ -2,6 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace GrillMaster;
 
@@ -24,6 +25,15 @@ internal static partial class Program
         catch (GrillMasterException grillMasterException)
         {
             LogGrillMasterError(logger, grillMasterException.Message, grillMasterException);
+            return 1;
+        }
+        catch (OptionsValidationException optionsValidationException)
+        {
+            foreach (var failure in optionsValidationException.Failures)
+            {
+                LogGrillMasterError(logger, failure, optionsValidationException);
+            }
+
             return 1;
         }
     }

@@ -62,11 +62,6 @@ dotnet_diagnostic.CA1720.severity = none
 # last namespace segment intentionally matches the class name.
 dotnet_diagnostic.CA1724.severity = none
 
-# IDE0130: Namespace does not match folder structure - our layout uses
-# GrillMaster.* namespaces rooted at the project (src/), not the
-# solution-relative folder path the rule expects.
-dotnet_diagnostic.IDE0130.severity = none
-
 # CA1062: Validate externally visible method parameters - redundant with nullable
 # reference types, which already model and enforce non-nullability.
 dotnet_diagnostic.CA1062.severity = none
@@ -125,7 +120,7 @@ dotnet_diagnostic.IDE0090.severity = none
 # (hidden by default; promoted to a warning so TreatWarningsAsErrors enforces it)
 dotnet_diagnostic.SYSLIB1045.severity = warning
 
-[src/{GrillMaster.CrossCutting,GrillMaster.Application,GrillMaster.Console}/**.cs]
+[src/{GrillMaster.Application,GrillMaster.Console}/**.cs]
 # CA1812: internal types instantiated only via DI registrations (e.g. the options validators) are
 # invisible to the CA1812 analysis, so "never instantiated" is a false positive here.
 dotnet_diagnostic.CA1812.severity = none
