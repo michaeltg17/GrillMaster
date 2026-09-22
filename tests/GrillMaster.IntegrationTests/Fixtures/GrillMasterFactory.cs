@@ -1,5 +1,5 @@
 using GrillMaster;
-using GrillMaster.CrossCutting.Settings;
+using GrillMaster.Application.Settings;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog.Sinks.InMemory;

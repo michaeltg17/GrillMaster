@@ -6,16 +6,18 @@ using GrillMaster.IntegrationTests.Fixtures;
 using Microsoft.Extensions.Options;
 using Serilog.Events;
 using Serilog.Sinks.InMemory.Assertions;
+using System.Net.Http;
+using System.Text.Json;
 using Xunit;
 
-namespace GrillMaster.IntegrationTests;
+namespace GrillMaster.IntegrationTests.Tests;
 
 /// <summary>
 /// Runs the whole flow (WireMock API -> client -> grilling -> logging) in-process through the hosted
 /// application (the same host as <c>Program</c>) and validates the console log response — what a real
 /// user would see — via the in-memory sink, instead of asserting on the HTTP client.
 /// </summary>
-public sealed class PipelineTests(ITestOutputHelper output) : IDisposable
+public sealed class GrillMasterIntegrationTests(ITestOutputHelper output) : IDisposable
 {
     private const string MenuMessageTemplate = "{MenuName}: {RoundCount} rounds";
     private const string TotalMessageTemplate = "Total: {TotalRounds} rounds";
@@ -37,7 +39,7 @@ public sealed class PipelineTests(ITestOutputHelper output) : IDisposable
     // "ortools" is deliberately not pipeline-tested here: its 30 s CP-SAT time cap per menu would
     // make this suite take ~8 minutes; the planner itself is covered by OrToolsPlannerTests.
     [InlineData(PlannerNames.Portfolio)]
-    public async Task Pipeline_LogsPerMenuRoundsAndTotal(string plannerName)
+    public async Task LogsPerMenuRoundsAndTotal(string plannerName)
     {
         _api.SetGetMenus();
 
@@ -46,28 +48,22 @@ public sealed class PipelineTests(ITestOutputHelper output) : IDisposable
 
         exitCode.Should().Be(0);
 
-        // One menu message per menu (15 menus in the live dataset), all at Information level.
+        var expectedNames = TestData
+            .ParseMenus(TestData.GrillMenusJson)
+            .Select(m => m.Menu)
+            .OrderBy(n => n, StringComparer.Ordinal)
+            .ToArray();
+
+        // One menu message per menu (15 menus in the live dataset), all at Information level,
+        // one for each expected menu name.
         app.Sink
             .Should()
             .HaveMessage(MenuMessageTemplate)
             .Appearing()
             .Times(15)
-            .WithLevel(LogEventLevel.Information);
-
-        // Menus are logged in name order: Menu 01, Menu 02, ...
-        var expectedNames = TestData
-            .ParseMenus(TestData.GrillMenusJson)
-            .Select(m => m.Menu)
-            .OrderBy(n => n, StringComparer.Ordinal)
-            .ToList();
-
-        var loggedNames = app.Sink
-            .LogEvents
-            .Where(e => e.MessageTemplate.Text == MenuMessageTemplate)
-            .Select(e => GetScalar<string>(e, "MenuName"))
-            .ToList();
-
-        loggedNames.Should().Equal(expectedNames);
+            .WithLevel(LogEventLevel.Information)
+            .WithProperty("MenuName")
+            .WithValues(expectedNames);
 
         // The total is the sum of the per-menu round counts.
         var perMenuRounds = app.Sink
@@ -87,7 +83,7 @@ public sealed class PipelineTests(ITestOutputHelper output) : IDisposable
     }
 
     [Fact]
-    public async Task Pipeline_LogsNoRoundsWhenApiReturnsEmpty()
+    public async Task LogsNoRoundsWhenApiReturnsEmpty()
     {
         _api.SetGetMenus(body: "[]");
 
@@ -111,29 +107,30 @@ public sealed class PipelineTests(ITestOutputHelper output) : IDisposable
     }
 
     [Fact]
-    public async Task Pipeline_ApiReturnsServerError()
+    public async Task ReturnsServerError()
     {
         _api.SetGetMenus(body: "boom", statusCode: 500);
 
         using var app = GrillMasterFactory.Create(PlannerNames.Greedy, _api.Url, output);
+        var act = async () => await app.RunAsync(TestContext.Current.CancellationToken);
 
-        // TODO: validate the console log response (what a real user would see)
-        await app.RunAsync(TestContext.Current.CancellationToken);
+        // API failures surface as the raw .NET exception and reach the top (unhandled -> non-zero exit).
+        await act.Should().ThrowAsync<HttpRequestException>();
     }
 
     [Fact]
-    public async Task Pipeline_ApiReturnsMalformedJson()
+    public async Task ReturnsMalformedJson()
     {
         _api.SetGetMenus(body: "this is not json");
 
         using var app = GrillMasterFactory.Create(PlannerNames.Greedy, _api.Url, output);
+        var act = async () => await app.RunAsync(TestContext.Current.CancellationToken);
 
-        // TODO: validate the console log response (what a real user would see)
-        await app.RunAsync(TestContext.Current.CancellationToken);
+        await act.Should().ThrowAsync<JsonException>();
     }
 
     [Fact]
-    public async Task Host_FailsFastWhenPlannerIsUnknown()
+    public async Task FailsFastWhenPlannerIsUnknown()
     {
         _api.SetGetMenus();
 

@@ -1,9 +1,9 @@
 using Microsoft.Extensions.Options;
 
-namespace GrillMaster.CrossCutting.Settings;
+namespace GrillMaster.Application.Settings;
 
-/// <summary>Validates the <c>GrillMaster</c> configuration section on first use.</summary>
-internal sealed class GrillMasterSettingsValidator : IValidateOptions<GrillMasterSettings>
+/// <summary>Validates the <see cref="GrillMasterSettings"/> URL and planner shape.</summary>
+public sealed class GrillMasterSettingsValidator : IValidateOptions<GrillMasterSettings>
 {
     public ValidateOptionsResult Validate(string? name, GrillMasterSettings grillMasterSettings)
     {

@@ -48,7 +48,7 @@ public sealed class BatchPlanner : IGrillPlanner
                 j++;
             }
 
-            var (fits, pattern) = GrillPlannerHelpers.MaxPattern(ordered[i], grill, j - i);
+            var (fits, pattern) = MaxPattern(ordered[i], grill, j - i);
             var full = (j - i) / fits;
             for (var r = 0; r < full; r++)
             {
@@ -130,4 +130,89 @@ public sealed class BatchPlanner : IGrillPlanner
 
     private static bool IsIdentical(GrillPiece a, GrillPiece b) =>
         a.Length == b.Length && a.Width == b.Width && a.Name == b.Name;
+
+    /// <summary>
+    /// A proven one-grill packing of as many pieces of <paramref name="type"/> as the search can
+    /// show fit (at most <paramref name="count"/>), with the count. The count is the exact
+    /// per-grill capacity when the search proves it; otherwise it is a smaller proven value.
+    /// </summary>
+    private static (int Count, IReadOnlyList<GrillPiecePlacement> Pattern) MaxPattern(GrillPiece type, GrillSize grill, int count)
+    {
+        if (count == 0)
+        {
+            return (0, []);
+        }
+
+        if (!GrillPlannerHelpers.FitsOnEmptyGrill(type, grill))
+        {
+            throw new InvalidOperationException(
+                $"Piece '{type.Name}' ({type.Length}x{type.Width}) cannot fit on a {grill.Width}x{grill.Height} grill.");
+        }
+
+        var areaCap = grill.Area / type.Area;
+        var k = Math.Min(count, areaCap);
+        var top = GrillPlannerHelpers.OneRound(type, grill, k);
+        if (top.Fits == GrillPlannerHelpers.Fit.Fits)
+        {
+            return (k, top.Pattern);
+        }
+
+        if (top.Fits == GrillPlannerHelpers.Fit.Unknown)
+        {
+            // The top of the range is unknown: fall back to a greedy shelf packing of this type.
+            return GreedyPattern(type, grill, count);
+        }
+
+        // k is proven not to fit: binary search the largest proven-fits count in [1, k-1].
+        var lo = 1;
+        var hi = k - 1;
+        var pattern = SinglePattern(type, grill);
+        while (lo < hi)
+        {
+            var mid = (lo + hi + 1) / 2;
+            var midResult = GrillPlannerHelpers.OneRound(type, grill, mid);
+            if (midResult.Fits == GrillPlannerHelpers.Fit.Fits)
+            {
+                lo = mid;
+                pattern = midResult.Pattern;
+            }
+            else if (midResult.Fits == GrillPlannerHelpers.Fit.NotFits)
+            {
+                hi = mid - 1;
+            }
+            else
+            {
+                break; // unknown mid: keep the current proven range
+            }
+        }
+
+        return (lo, pattern);
+    }
+
+    // The one piece at the top-left corner in an orientation that fits.
+    private static IReadOnlyList<GrillPiecePlacement> SinglePattern(GrillPiece type, GrillSize grill)
+    {
+        var rotated = type.Length > grill.Width || type.Width > grill.Height;
+        return [new GrillPiecePlacement(type, Point.Zero, rotated)];
+    }
+
+    // Greedy shelf packing of the type on one empty grill (used only when the exact search is unknown).
+    private static (int Count, IReadOnlyList<GrillPiecePlacement> Pattern) GreedyPattern(GrillPiece type, GrillSize grill, int count)
+    {
+        var occupancy = new RoundOccupancy(grill);
+        var pattern = new List<GrillPiecePlacement>(Math.Min(count, grill.Area / type.Area));
+        for (var i = 0; i < count; i++)
+        {
+            var placement = occupancy.FindBestPosition(type);
+            if (placement is null)
+            {
+                break;
+            }
+
+            occupancy.MarkOccupied(placement.Position, placement.FootprintWidth, placement.FootprintHeight);
+            pattern.Add(placement);
+        }
+
+        return (pattern.Count, pattern);
+    }
 }

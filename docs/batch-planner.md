@@ -109,22 +109,22 @@ ZZZZZZ[[[[[[\\\\\\]]]]]]^^^^^^
 
 ## 4. How the code does this
 
-The planner lives in
+The planner (including `MaxPattern`) lives in
 `src/GrillMaster.Application/Features/Planning/Planners/BatchPlanner.cs`; the
-capacity search lives in
+one-round capacity search it builds on lives in
 `src/GrillMaster.Application/Features/Planning/GrillPlannerHelpers.cs`:
 
 | Code | What it is in the story |
 |------|--------------------------|
 | `Plan(menu, grill)` | The cook taking the order, one meat at a time. |
-| `GrillPlannerHelpers.MaxPattern(type, grill, count)` | The question of §1: returns the proven count **and** the witness pattern. Exact search; if the top of the range is proven not to fit it binary-searches down; if the budget runs out it falls back to a greedy shelf answer. |
+| `MaxPattern(type, grill, count)` | The question of §1: returns the proven count **and** the witness pattern. Exact search; if the top of the range is proven not to fit it binary-searches down; if the budget runs out it falls back to a greedy shelf answer. |
 | `var full = (j - i) / fits;` | How many full grills this type needs. |
 | the `for (var r = 0; r < full; r++)` loop | Stamping the pattern into one round at a time. |
 | `remainder.Add(...)` | The leftovers pile (`count mod capacity` per type). |
 | `FindBestRound(piece, ...)` | The leftovers' placement: the existing round that ends up fullest after the piece is added. |
 | `IsProvenOptimal: false` | The honest disclaimer: the *patterns* are proven, the whole plan is not. |
 
-The same `MaxPattern` machinery is what computes the **per-type part of the lower
+The same one-round capacity search is what computes the **per-type part of the lower
 bound** for every planner: *"this menu has 40 sausages and 30 is the most a grill
 holds, so you need at least ⌈40/30⌉ = 2 rounds — sausages alone."*
 

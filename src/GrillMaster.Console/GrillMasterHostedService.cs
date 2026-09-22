@@ -3,7 +3,7 @@ using Microsoft.Extensions.Hosting;
 
 namespace GrillMaster;
 
-internal sealed class GrillMasterAppHostedService(
+internal sealed class GrillMasterHostedService(
     GrillMasterApp grillMasterApp,
     IHostApplicationLifetime applicationLifetime) : IHostedService
 {

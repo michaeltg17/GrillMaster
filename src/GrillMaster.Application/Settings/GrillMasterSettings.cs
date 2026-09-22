@@ -1,6 +1,5 @@
-namespace GrillMaster.CrossCutting.Settings;
+namespace GrillMaster.Application.Settings;
 
-/// <summary>Bindable representation of the <c>GrillMaster</c> configuration section.</summary>
 public record GrillMasterSettings : IGrillMasterSettings
 {
     public required Uri GrillMenuApiUrl { get; set; }

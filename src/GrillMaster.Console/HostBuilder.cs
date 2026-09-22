@@ -1,5 +1,4 @@
 using GrillMaster.Application;
-using GrillMaster.CrossCutting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -38,9 +37,8 @@ public static class HostBuilder
 
     private static void AddAppServices(HostApplicationBuilder builder)
     {
-        builder.Services.AddCrossCuttingDependencies();
         builder.Services.AddApplicationDependencies();
-        builder.Services.AddHostedService<GrillMasterAppHostedService>();
+        builder.Services.AddHostedService<GrillMasterHostedService>();
     }
 
     internal static void ConfigureConsoleLogging(LoggerConfiguration configuration)
