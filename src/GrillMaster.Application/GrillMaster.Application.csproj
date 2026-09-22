@@ -8,10 +8,10 @@
     <PackageReference Include="Google.OrTools" />
     <PackageReference Include="Microsoft.Extensions.Http" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\GrillMaster.CrossCutting\GrillMaster.CrossCutting.csproj" />
     <ProjectReference Include="..\GrillMaster.Domain\GrillMaster.Domain.csproj" />
   </ItemGroup>
 

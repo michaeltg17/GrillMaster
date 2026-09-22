@@ -6,6 +6,8 @@ using GrillMaster.IntegrationTests.Fixtures;
 using Microsoft.Extensions.Options;
 using Serilog.Events;
 using Serilog.Sinks.InMemory.Assertions;
+using System.Net.Http;
+using System.Text.Json;
 using Xunit;
 
 namespace GrillMaster.IntegrationTests;
@@ -46,28 +48,22 @@ public sealed class GrillMasterIntegrationTests(ITestOutputHelper output) : IDis
 
         exitCode.Should().Be(0);
 
-        // One menu message per menu (15 menus in the live dataset), all at Information level.
+        var expectedNames = TestData
+            .ParseMenus(TestData.GrillMenusJson)
+            .Select(m => m.Menu)
+            .OrderBy(n => n, StringComparer.Ordinal)
+            .ToArray();
+
+        // One menu message per menu (15 menus in the live dataset), all at Information level,
+        // one for each expected menu name.
         app.Sink
             .Should()
             .HaveMessage(MenuMessageTemplate)
             .Appearing()
             .Times(15)
-            .WithLevel(LogEventLevel.Information);
-
-        // Menus are logged in name order: Menu 01, Menu 02, ...
-        var expectedNames = TestData
-            .ParseMenus(TestData.GrillMenusJson)
-            .Select(m => m.Menu)
-            .OrderBy(n => n, StringComparer.Ordinal)
-            .ToList();
-
-        var loggedNames = app.Sink
-            .LogEvents
-            .Where(e => e.MessageTemplate.Text == MenuMessageTemplate)
-            .Select(e => GetScalar<string>(e, "MenuName"))
-            .ToList();
-
-        loggedNames.Should().Equal(expectedNames);
+            .WithLevel(LogEventLevel.Information)
+            .WithProperty("MenuName")
+            .WithValues(expectedNames);
 
         // The total is the sum of the per-menu round counts.
         var perMenuRounds = app.Sink
@@ -116,9 +112,10 @@ public sealed class GrillMasterIntegrationTests(ITestOutputHelper output) : IDis
         _api.SetGetMenus(body: "boom", statusCode: 500);
 
         using var app = GrillMasterFactory.Create(PlannerNames.Greedy, _api.Url, output);
+        var act = async () => await app.RunAsync(TestContext.Current.CancellationToken);
 
-        // TODO: validate the console log response (what a real user would see)
-        await app.RunAsync(TestContext.Current.CancellationToken);
+        // API failures surface as the raw .NET exception and reach the top (unhandled -> non-zero exit).
+        await act.Should().ThrowAsync<HttpRequestException>();
     }
 
     [Fact]
@@ -127,9 +124,9 @@ public sealed class GrillMasterIntegrationTests(ITestOutputHelper output) : IDis
         _api.SetGetMenus(body: "this is not json");
 
         using var app = GrillMasterFactory.Create(PlannerNames.Greedy, _api.Url, output);
+        var act = async () => await app.RunAsync(TestContext.Current.CancellationToken);
 
-        // TODO: validate the console log response (what a real user would see)
-        await app.RunAsync(TestContext.Current.CancellationToken);
+        await act.Should().ThrowAsync<JsonException>();
     }
 
     [Fact]

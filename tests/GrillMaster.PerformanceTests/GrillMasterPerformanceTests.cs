@@ -3,6 +3,7 @@ using GrillMaster.Application.Features.Planning;
 using GrillMaster.Application.Features.Planning.Planners;
 using GrillMaster.Core.Testing;
 using GrillMaster.Domain;
+using GrillMaster.PerformanceTests.Models;
 using System.ComponentModel;
 using Xunit;
 
@@ -10,10 +11,10 @@ namespace GrillMaster.PerformanceTests;
 
 /// <summary>
 /// Benchmarks every grill planner over the full 15-menu fixture and compares the result against the
-/// git-committed baseline (<c>baseline.json</c>). Quality (total rounds) is a hard failure if
-/// it regresses; speed is a hard failure only on a significant relative regression (default +50%) so that
-/// machine-to-machine variance does not cause flaky failures. Regenerate the baseline with
-/// <c>UPDATE_PERF_BASELINE=1</c>.
+/// git-committed performance results (<c>performanceResults.json</c>). Quality (total rounds) is a
+/// hard failure if it regresses; speed is a hard failure only on a significant relative regression
+/// (default +50%) so that machine-to-machine variance does not cause flaky failures. Regenerate the
+/// results with <c>UPDATE_PERF_RESULTS=1</c>.
 /// </summary>
 public sealed class GrillMasterPerformanceTests(ITestOutputHelper output)
 {
@@ -28,10 +29,10 @@ public sealed class GrillMasterPerformanceTests(ITestOutputHelper output)
             : DefaultSpeedThreshold;
 
     [Fact]
-    public void Planners_MatchCommittedBaseline()
+    public void Planners_MatchCommittedResults()
     {
         var menus = LoadMenus();
-        var measured = new List<PlannerPerf>();
+        var measured = new List<PerformancePlannerResult>();
 
         var planners = new IGrillPlanner[]
         {
@@ -42,31 +43,36 @@ public sealed class GrillMasterPerformanceTests(ITestOutputHelper output)
             new GuillotinePlanner(),
             new BatchPlanner(),
             // OrToolsPlanner is deliberately not benchmarked: its 30 s CP-SAT time cap per menu
-            // would make this suite take ~35 minutes and the baseline would only record the cap.
+            // would make this suite take ~35 minutes and the committed results would only record the cap.
             new PortfolioPlanner(),
         };
 
         foreach (var planner in planners)
         {
-            var (totalRounds, lowerBound, searchNodes, medianMs) = Benchmark(planner, menus);
-            measured.Add(new PlannerPerf(planner.Name, totalRounds, lowerBound, searchNodes, medianMs));
+            var result = Benchmark(planner, menus);
+            measured.Add(new PerformancePlannerResult(
+                planner.Name,
+                result.TotalRounds,
+                result.LowerBound,
+                result.SearchNodes,
+                result.MedianMs));
         }
 
-        if (PerfBaselineStore.UpdateMode)
+        if (PerformanceResultStore.UpdateMode)
         {
-            PerfBaselineStore.Save(new PerfBaseline(DateTime.UtcNow.ToString("o"), GitCommit(), measured));
-            output.WriteLine($"Performance baseline written to {PerfBaselineStore.SourcePath}");
+            PerformanceResultStore.Save(new PerformanceResult(DateTime.UtcNow.ToString("o"), GitCommit(), measured));
+            output.WriteLine($"Performance results written to {PerformanceResultStore.SourcePath}");
             foreach (var m in measured)
             {
-                output.WriteLine(ReportLine(m, baseline: null));
+                output.WriteLine(ReportLine(m, committed: null));
             }
 
             return;
         }
 
-        var baseline = PerfBaselineStore.Load()
+        var committed = PerformanceResultStore.Load()
             ?? throw new InvalidOperationException(
-                "Performance baseline not found. Run with UPDATE_PERF_BASELINE=1 to generate it.");
+                "Performance results not found. Run with UPDATE_PERF_RESULTS=1 to generate them.");
 
         var threshold = SpeedThreshold;
         var failures = new List<string>();
@@ -74,10 +80,10 @@ public sealed class GrillMasterPerformanceTests(ITestOutputHelper output)
 
         foreach (var m in measured)
         {
-            var b = baseline.Planners.FirstOrDefault(s => s.Planner == m.Planner)
+            var b = committed.Planners.FirstOrDefault(s => s.Planner == m.Planner)
                 ?? throw new InvalidOperationException(
-                    $"Planner '{m.Planner}' is missing from the baseline. " +
-                    "Run with UPDATE_PERF_BASELINE=1 to add it.");
+                    $"Planner '{m.Planner}' is missing from the committed results. " +
+                    "Run with UPDATE_PERF_RESULTS=1 to add it.");
 
             report.Add(ReportLine(m, b));
 
@@ -90,12 +96,12 @@ public sealed class GrillMasterPerformanceTests(ITestOutputHelper output)
             if (m.MedianMs > maxAllowedMs)
             {
                 failures.Add(
-                    $"{m.Planner}: slower than baseline {b.MedianMs:F1} ms " +
+                    $"{m.Planner}: slower than committed {b.MedianMs:F1} ms " +
                     $"({((m.MedianMs / b.MedianMs) - 1) * 100:F1}% > +{threshold * 100:F0}%)");
             }
         }
 
-        output.WriteLine($"Performance vs baseline {baseline.GitCommit} (speed threshold +{threshold * 100:F0}%):");
+        output.WriteLine($"Performance vs committed results {committed.GitCommit} (speed threshold +{threshold * 100:F0}%):");
         foreach (var line in report)
         {
             output.WriteLine("  " + line);
@@ -110,8 +116,7 @@ public sealed class GrillMasterPerformanceTests(ITestOutputHelper output)
     /// median elapsed milliseconds over all runs. The planners are deterministic, so every run
     /// produces identical totals.
     /// </summary>
-    private static (int TotalRounds, int LowerBound, long SearchNodes, double MedianMs)
-        Benchmark(IGrillPlanner planner, IReadOnlyList<GrillMenu> menus)
+    private static BenchmarkResult Benchmark(IGrillPlanner planner, IReadOnlyList<GrillMenu> menus)
     {
         var elapsed = new List<double>(Runs * menus.Count);
         var totalRounds = 0;
@@ -134,13 +139,13 @@ public sealed class GrillMasterPerformanceTests(ITestOutputHelper output)
             }
         }
 
-        return (totalRounds, lowerBound, searchNodes, Median(elapsed));
+        return new BenchmarkResult(totalRounds, lowerBound, searchNodes, Median(elapsed));
     }
 
-    private static string ReportLine(PlannerPerf m, PlannerPerf? baseline)
+    private static string ReportLine(PerformancePlannerResult m, PerformancePlannerResult? committed)
     {
-        var delta = baseline is { MedianMs: > 0 }
-            ? $" (baseline {baseline.MedianMs:F1} ms, {((m.MedianMs / baseline.MedianMs) - 1) * 100:+0.0;-0.0}%)"
+        var delta = committed is { MedianMs: > 0 }
+            ? $" (committed {committed.MedianMs:F1} ms, {((m.MedianMs / committed.MedianMs) - 1) * 100:+0.0;-0.0}%)"
             : string.Empty;
         return $"{m.Planner}: {m.TotalRounds} rounds (lb {m.LowerBound}, nodes {m.SearchNodes}), {m.MedianMs:F1} ms{delta}";
     }
@@ -170,7 +175,7 @@ public sealed class GrillMasterPerformanceTests(ITestOutputHelper output)
     {
         try
         {
-            var dir = new DirectoryInfo(PerfBaselineStore.SourcePath);
+            var dir = new DirectoryInfo(PerformanceResultStore.SourcePath);
             while (dir is not null && !Directory.Exists(Path.Combine(dir.FullName, ".git")))
             {
                 dir = dir.Parent;

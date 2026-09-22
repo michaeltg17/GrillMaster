@@ -1,11 +1,10 @@
 using GrillMaster.Application.Features.Planning;
-using GrillMaster.CrossCutting.Settings;
 using Microsoft.Extensions.Options;
 
-namespace GrillMaster.Application;
+namespace GrillMaster.Application.Settings;
 
 /// <summary>Validates that the configured planner name is one of the known <see cref="PlannerNames"/>.</summary>
-internal sealed class PlannerSettingsValidator : IValidateOptions<GrillMasterSettings>
+public sealed class PlannerSettingsValidator : IValidateOptions<GrillMasterSettings>
 {
     public ValidateOptionsResult Validate(string? name, GrillMasterSettings grillMasterSettings)
     {

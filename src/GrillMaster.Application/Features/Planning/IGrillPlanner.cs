@@ -9,7 +9,6 @@ namespace GrillMaster.Application.Features.Planning;
 /// </summary>
 public interface IGrillPlanner
 {
-    /// <summary>Stable, human readable name of the planner (used in output and tests).</summary>
     string Name { get; }
 
     /// <summary>
