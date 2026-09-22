@@ -20,10 +20,8 @@ public static class DependencyConfigurator
         services
             .AddOptionsWithValidateOnStart<GrillMasterSettings>()
             .BindConfiguration(IGrillMasterSettings.Section);
-
         services.AddSingleton<IValidateOptions<GrillMasterSettings>, GrillMasterSettingsValidator>();
         services.AddSingleton<IValidateOptions<GrillMasterSettings>, PlannerSettingsValidator>();
-
         services.AddSingleton<IGrillMasterSettings>(sp => sp.GetRequiredService<IOptions<GrillMasterSettings>>().Value);
 
         services.AddHttpClient<GrillMenuApiClient>((sp, client) =>
@@ -31,7 +29,6 @@ public static class DependencyConfigurator
             client.BaseAddress = sp.GetRequiredService<IGrillMasterSettings>().GrillMenuApiUrl;
             client.Timeout = TimeSpan.FromSeconds(30);
         });
-
         services.AddSingleton<GrillMenuService>();
 
         services.AddSingleton<IGrillPlanner, GreedyShelfPlanner>();
