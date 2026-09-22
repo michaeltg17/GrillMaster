@@ -11,15 +11,18 @@ namespace GrillMaster.EndToEndTests;
 /// runs it — no mocks, configuration comes from the app's own <c>appsettings.json</c> (the live API) —
 /// captures its console output and validates the report the user would see.
 /// </summary>
-public sealed class EndToEndTests
+public sealed partial class EndToEndTests
 {
-    private static readonly Regex MenuLine = new(@"^(?!Total:)(?<menu>.+): (?<rounds>\d+) rounds$");
-    private static readonly Regex TotalLine = new(@"^Total: (?<rounds>\d+) rounds$");
+    [GeneratedRegex(@"^(?!Total:)(?<menu>.+): (?<rounds>\d+) rounds$")]
+    private static partial Regex MenuLine();
+
+    [GeneratedRegex(@"^Total: (?<rounds>\d+) rounds$")]
+    private static partial Regex TotalLine();
 
     [Fact]
-    public async Task ConsoleApp_PrintsTheGrillReport()
+    public async Task GrillMasterPrintsTheExpectedGrillReport()
     {
-        var (exitCode, stdout, stderr) = await RunConsoleAppAsync();
+        var (exitCode, stdout, stderr) = await RunGrillMaster();
 
         exitCode.Should().Be(0);
         stderr.Should().BeEmpty();
@@ -33,10 +36,10 @@ public sealed class EndToEndTests
         // The user sees only the report: one "{menu}: {rounds} rounds" line per menu,
         // ending with a single "Total: {rounds} rounds" line.
         lines.Should().NotBeEmpty();
-        lines.Should().OnlyContain(line => MenuLine.IsMatch(line) || TotalLine.IsMatch(line));
-        TotalLine.IsMatch(lines[^1]).Should().BeTrue();
+        lines.Should().OnlyContain(line => MenuLine().IsMatch(line) || TotalLine().IsMatch(line));
+        TotalLine().IsMatch(lines[^1]).Should().BeTrue();
 
-        var menuMatches = lines.Where(line => MenuLine.IsMatch(line)).Select(line => MenuLine.Match(line)).ToList();
+        var menuMatches = lines.Where(line => MenuLine().IsMatch(line)).Select(line => MenuLine().Match(line)).ToList();
         menuMatches.Should().NotBeEmpty();
 
         // Menus are reported in name order.
@@ -44,11 +47,11 @@ public sealed class EndToEndTests
         menuNames.Should().BeInAscendingOrder(StringComparer.Ordinal);
 
         // The total is the sum of the per-menu round counts.
-        var total = int.Parse(TotalLine.Match(lines[^1]).Groups["rounds"].Value);
+        var total = int.Parse(TotalLine().Match(lines[^1]).Groups["rounds"].Value);
         total.Should().Be(menuMatches.Sum(match => int.Parse(match.Groups["rounds"].Value)));
     }
 
-    private static async Task<(int ExitCode, string StdOut, string StdErr)> RunConsoleAppAsync()
+    private static async Task<(int ExitCode, string StdOut, string StdErr)> RunGrillMaster()
     {
         var fileName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "GrillMaster.Console.exe" : "GrillMaster.Console";
 
