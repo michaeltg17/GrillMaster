@@ -77,11 +77,40 @@ placement, the leftover space is *always* a set of rectangles — no L-shapes ev
 appear. The free space of a round is kept as exactly that: a **disjoint guillotine
 partition**.
 
-Concretely, a `15×7` piece in the top-left corner of the `30×20` grill replaces the
-whole grill with two free rectangles: a `15×20` strip on the right and a `15×13`
-strip under the piece. And because the planner tries **both orientations** of every
-piece at **all four corners** of every free rectangle, a `6×3` sausage may go down as
-`6×3` or `3×6`, wherever a corner cut fits it best.
+Concretely, a `15×7` piece (call it A) in the top-left of the `30×20` grill:
+
+```
+             30
+┌───────────────┬───────────────┐
+│      A        │               │
+│    15×7       │               │
+├───────────────┘               │
+│                               │
+│                               │
+│                               │
+└───────────────────────────────┘
+             20
+```
+
+The remaining space is represented as:
+
+```
+┌───────────────┬───────────────┐
+│       A       │   right       │
+│               │   15×20       │
+├───────────────┘               │
+│                               │
+│       bottom 15×13            │
+│                               │
+└───────────────────────────────┘
+```
+
+So the original `30×20` rectangle is replaced by **two free rectangles**: `15×20`
+on the right, and `15×13` underneath A. That is why the code can maintain a list of
+non-overlapping rectangles instead of tracking the grill's 600 individual cells (the
+bookkeeping is §2). And because the planner tries **both orientations** of every
+piece at **all four corners** of every free rectangle, a `6×3` sausage may go down
+as `6×3` or `3×6`, wherever a corner cut fits it best.
 
 ## 2. The bookkeeping: rectangles that only split
 
