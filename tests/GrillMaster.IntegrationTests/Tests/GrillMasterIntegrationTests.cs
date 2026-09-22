@@ -10,7 +10,7 @@ using System.Net.Http;
 using System.Text.Json;
 using Xunit;
 
-namespace GrillMaster.IntegrationTests;
+namespace GrillMaster.IntegrationTests.Tests;
 
 /// <summary>
 /// Runs the whole flow (WireMock API -> client -> grilling -> logging) in-process through the hosted

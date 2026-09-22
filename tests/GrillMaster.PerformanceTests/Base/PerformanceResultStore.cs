@@ -1,8 +1,8 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using GrillMaster.PerformanceTests.Models;
+using GrillMaster.PerformanceTests.Base.Models;
 
-namespace GrillMaster.PerformanceTests;
+namespace GrillMaster.PerformanceTests.Base;
 
 /// <summary>
 /// Loads and saves the git-committed performance results. The source file lives next to this code in

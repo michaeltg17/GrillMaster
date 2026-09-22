@@ -1,4 +1,4 @@
-namespace GrillMaster.PerformanceTests.Models;
+namespace GrillMaster.PerformanceTests.Base.Models;
 
 /// <summary>
 /// The committed performance results. Stored in git at

@@ -38,7 +38,7 @@ public static class HostBuilder
     private static void AddAppServices(HostApplicationBuilder builder)
     {
         builder.Services.AddApplicationDependencies();
-        builder.Services.AddHostedService<GrillMasterAppHostedService>();
+        builder.Services.AddHostedService<GrillMasterHostedService>();
     }
 
     internal static void ConfigureConsoleLogging(LoggerConfiguration configuration)

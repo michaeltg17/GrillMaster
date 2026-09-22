@@ -1,4 +1,4 @@
-namespace GrillMaster.PerformanceTests.Models;
+namespace GrillMaster.PerformanceTests.Base.Models;
 
 /// <summary>
 /// The result of benchmarking a single planner: the deterministic totals for one pass over all menus

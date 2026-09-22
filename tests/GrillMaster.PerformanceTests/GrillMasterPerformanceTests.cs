@@ -3,7 +3,8 @@ using GrillMaster.Application.Features.Planning;
 using GrillMaster.Application.Features.Planning.Planners;
 using GrillMaster.Core.Testing;
 using GrillMaster.Domain;
-using GrillMaster.PerformanceTests.Models;
+using GrillMaster.PerformanceTests.Base;
+using GrillMaster.PerformanceTests.Base.Models;
 using System.ComponentModel;
 using Xunit;
 

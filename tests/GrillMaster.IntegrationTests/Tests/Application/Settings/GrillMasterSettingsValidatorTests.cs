@@ -3,7 +3,7 @@ using GrillMaster.Application.Features.Planning;
 using GrillMaster.Application.Settings;
 using Xunit;
 
-namespace GrillMaster.IntegrationTests.Application.Settings;
+namespace GrillMaster.IntegrationTests.Tests.Application.Settings;
 
 /// <summary>
 /// Validates the two <see cref="Microsoft.Extensions.Options.IValidateOptions{GrillMasterSettings}"/>

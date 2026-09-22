@@ -1,7 +1,7 @@
-namespace GrillMaster.PerformanceTests.Models;
+namespace GrillMaster.PerformanceTests.Base.Models;
 
 /// <summary>
-/// The measured performance of a single grilling planner across the full 15-menu fixture.
+/// The measured performance of a single grill planner across the full 15-menu fixture.
 /// <see cref="TotalRounds"/>, <see cref="LowerBound"/> and <see cref="SearchNodes"/> are deterministic
 /// quality/search figures; <see cref="MedianMs"/> is the median wall-clock time over repeated runs.
 /// </summary>
