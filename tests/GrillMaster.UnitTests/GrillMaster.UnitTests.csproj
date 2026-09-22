@@ -15,4 +15,8 @@
     <PackageReference Include="xunit.v3" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\GrillMaster.Application\GrillMaster.Application.csproj" />
+  </ItemGroup>
+
 </Project>

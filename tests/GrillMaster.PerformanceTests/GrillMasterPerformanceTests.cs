@@ -1,9 +1,9 @@
 using AwesomeAssertions;
 using GrillMaster.Application.Features.Plans;
 using GrillMaster.Application.Features.Plans.Planners;
-using GrillMaster.Core.Testing.Data;
 using GrillMaster.Domain;
 using GrillMaster.PerformanceTests.Base;
+using GrillMaster.PerformanceTests.Data;
 using GrillMaster.PerformanceTests.Base.Models;
 using Xunit;
 
@@ -11,7 +11,7 @@ namespace GrillMaster.PerformanceTests;
 
 /// <summary>
 /// Benchmarks every grilling planner over the full 15-menu fixture and compares the result against
-/// the git-committed performance results (<c>performanceResults.json</c>). Quality (total rounds) is
+/// the git-committed performance results (<c>results.json</c>). Quality (total rounds) is
 /// a hard failure if it regresses; speed is a hard failure only on a significant relative regression
 /// (default +50%) so that machine-to-machine variance does not cause flaky failures. Regenerate the
 /// results with <c>UPDATE_PERF_RESULTS=1</c>.
@@ -47,7 +47,7 @@ public sealed class GrillMasterPerformanceTests(ITestOutputHelper output)
     /// <summary>Benchmarks every planner over the full 15-menu fixture.</summary>
     private static IReadOnlyList<PerformancePlannerResult> MeasurePlanners()
     {
-        var menus = LoadMenus();
+        var menus = GrillMenuBuilder.BuildAll();
         return Planners().Select(planner => Benchmark(planner, menus)).ToList();
     }
 
@@ -152,18 +152,6 @@ public sealed class GrillMasterPerformanceTests(ITestOutputHelper output)
     /// <summary>The one-line report: how many planners were measured and their combined totals.</summary>
     private static string Summary(IReadOnlyList<PerformancePlannerResult> measured, string heading) =>
         $"{heading}: {measured.Count} planners, {measured.Sum(m => m.TotalRounds)} rounds, {measured.Sum(m => m.MedianMs):F1} ms";
-
-    private static IReadOnlyList<GrillMenu> LoadMenus()
-    {
-        var dtos = GrillMenusProvider.ParseMenus(GrillMenusProvider.GrillMenusJson);
-        return dtos
-            .OrderBy(d => d.Menu, StringComparer.Ordinal)
-            .Select(d => new GrillMenu(
-                d.Id,
-                d.Menu,
-                d.Items.Select(i => new GrillMenuItem(i.Id, i.Name, i.Length, i.Width, i.Duration, i.Quantity)).ToList()))
-            .ToList();
-    }
 
     private static double Median(List<double> values)
     {

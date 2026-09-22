@@ -1,7 +1,7 @@
 using AwesomeAssertions;
 using GrillMaster.Application.Features.Plans;
 using GrillMaster.Application.Features.Plans.Planners;
-using GrillMaster.Core.Testing.Serializers;
+using GrillMaster.UnitTests.Serializers;
 using GrillMaster.Domain;
 using Xunit;
 using Xunit.Sdk;

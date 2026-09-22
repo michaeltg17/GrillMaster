@@ -2,7 +2,7 @@ namespace GrillMaster.PerformanceTests.Base.Models;
 
 /// <summary>
 /// The committed performance results. Stored in git at
-/// <c>tests/GrillMaster.PerformanceTests/performanceResults.json</c> and compared against on every run
+/// <c>tests/GrillMaster.PerformanceTests/results.json</c> and compared against on every run
 /// so that quality (rounds) regressions and significant speed regressions are caught.
 /// </summary>
 /// <param name="GeneratedAt">UTC timestamp the results were captured.</param>

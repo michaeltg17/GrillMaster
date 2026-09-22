@@ -12,6 +12,7 @@
     <PackageReference Include="Serilog.Sinks.InMemory" />
     <PackageReference Include="Serilog.Sinks.InMemory.Assertions" />
     <PackageReference Include="Serilog.Sinks.XUnit.Injectable" />
+    <PackageReference Include="WireMock.Net" />
     <PackageReference Include="xunit.runner.visualstudio">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
