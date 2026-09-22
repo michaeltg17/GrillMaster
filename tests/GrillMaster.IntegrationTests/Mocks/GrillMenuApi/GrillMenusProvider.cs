@@ -3,7 +3,6 @@ using GrillMaster.Application.Features.Menus.Models;
 
 namespace GrillMaster.IntegrationTests.Mocks.GrillMenuApi;
 
-/// <summary>Loads the JSON fixture used to drive the WireMock-based tests.</summary>
 public static class GrillMenusProvider
 {
     private static readonly JsonSerializerOptions SerializerOptions = new()
@@ -12,11 +11,10 @@ public static class GrillMenusProvider
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
-    public static string GrillMenusJson => File.ReadAllText(
+    public static string GetGrillMenusJson => File.ReadAllText(
         Path.Combine(AppContext.BaseDirectory, "grill-menus.json"));
 
-    /// <summary>Deserialises the menu fixture into the API format responses.</summary>
-    public static IReadOnlyList<GrillMenuResponse> ParseMenus(string json) =>
-        JsonSerializer.Deserialize<List<GrillMenuResponse>>(json, SerializerOptions)
+    public static IReadOnlyList<GrillMenuResponse> GetGrillMenusTyped =>
+        JsonSerializer.Deserialize<List<GrillMenuResponse>>(GetGrillMenusJson, SerializerOptions)
         ?? throw new InvalidOperationException("The grill menus fixture deserialised to null.");
 }
