@@ -1,5 +1,4 @@
 using GrillMaster.Application.Settings;
-using GrillMaster.IntegrationTests.Fixtures;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog.Sinks.InMemory;
 using Serilog.Sinks.XUnit.Injectable;

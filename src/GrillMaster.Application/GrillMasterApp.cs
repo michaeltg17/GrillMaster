@@ -21,17 +21,12 @@ public sealed partial class GrillMasterApp(
         var menus = await menuService.GetMenusAsync(cancellationToken).ConfigureAwait(false);
 
         var grillSize = GrillSize.Standard;
-
-        var results = new List<GrillPlan>();
-        foreach (var menu in menus.OrderBy(m => m.Name, StringComparer.Ordinal))
-        {
-            var planner = planners.Single(p => string.Equals(p.Name, settings.Planner, StringComparison.OrdinalIgnoreCase));
-            results.Add(planner.Plan(menu, grillSize));
-        }
+        var planner = planners.Single(p => string.Equals(p.Name, settings.Planner, StringComparison.OrdinalIgnoreCase));
 
         var total = 0;
-        foreach (var result in results)
+        foreach (var menu in menus.OrderBy(m => m.Name, StringComparer.Ordinal))
         {
+            var result = planner.Plan(menu, grillSize);
             total += result.Rounds.Count;
             LogMenuRounds(logger, result.Menu.Name, result.Rounds.Count);
         }

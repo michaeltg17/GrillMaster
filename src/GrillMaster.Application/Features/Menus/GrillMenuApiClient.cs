@@ -14,7 +14,7 @@ public sealed class GrillMenuApiClient(HttpClient http)
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
-    public async ValueTask<IReadOnlyList<GrillMenuResponse>> GetMenusAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<GrillMenuResponse>> GetMenusAsync(CancellationToken cancellationToken = default)
     {
         var response = await http.GetAsync(MenusEndpoint, cancellationToken).ConfigureAwait(false);
         response.EnsureSuccessStatusCode();

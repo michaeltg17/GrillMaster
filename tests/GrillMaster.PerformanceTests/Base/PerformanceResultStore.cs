@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -42,10 +43,22 @@ public static class PerformanceResultStore
 
     /// <summary>
     /// The path to the results file in the source tree (the file that is committed to git and that
-    /// update mode writes back to).
+    /// update mode writes back to). Located by walking up from the build output to the directory
+    /// that contains the project file, so the layout does not depend on the output directory depth.
     /// </summary>
-    public static string SourcePath =>
-        Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", ResultsFileName));
+    public static string SourcePath
+    {
+        get
+        {
+            var dir = new DirectoryInfo(AppContext.BaseDirectory);
+            while (dir is not null && !File.Exists(Path.Combine(dir.FullName, "GrillMaster.PerformanceTests.csproj")))
+            {
+                dir = dir.Parent;
+            }
+
+            return Path.Combine(dir?.FullName ?? AppContext.BaseDirectory, ResultsFileName);
+        }
+    }
 
     /// <summary>
     /// Loads the results from the build output. Returns null when the file is absent so the caller can
@@ -67,24 +80,38 @@ public static class PerformanceResultStore
         File.WriteAllText(SourcePath, JsonSerializer.Serialize(results, JsonOptions));
     }
 
-    /// <summary>The short git commit the results are captured at.</summary>
+    /// <summary>The short git commit the results are captured at, or "unknown" outside a git checkout.</summary>
     private static string GitCommit()
     {
-        var repoRoot = new DirectoryInfo(SourcePath);
-        while (!Directory.Exists(Path.Combine(repoRoot.FullName, ".git")))
+        try
         {
-            repoRoot = repoRoot.Parent!;
-        }
+            var repoRoot = new DirectoryInfo(SourcePath);
+            while (repoRoot is not null && !Directory.Exists(Path.Combine(repoRoot.FullName, ".git")))
+            {
+                repoRoot = repoRoot.Parent;
+            }
 
-        var psi = new ProcessStartInfo("git", $"-C \"{repoRoot.FullName}\" rev-parse --short HEAD")
+            if (repoRoot is null)
+            {
+                return "unknown";
+            }
+
+            var psi = new ProcessStartInfo("git", $"-C \"{repoRoot.FullName}\" rev-parse --short HEAD")
+            {
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+            };
+            using var process = Process.Start(psi)!;
+            var stdout = process.StandardOutput.ReadToEnd();
+            process.WaitForExit();
+            return process.ExitCode == 0 ? stdout.Trim() : "unknown";
+        }
+        catch (Exception exception)
+            when (exception is Win32Exception or FileNotFoundException or IOException or UnauthorizedAccessException)
         {
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-        };
-        using var process = Process.Start(psi)!;
-        var stdout = process.StandardOutput.ReadToEnd();
-        process.WaitForExit();
-        return stdout.Trim();
+            // No git available (or no readable checkout): the commit is decorative, not load-bearing.
+            return "unknown";
+        }
     }
 }

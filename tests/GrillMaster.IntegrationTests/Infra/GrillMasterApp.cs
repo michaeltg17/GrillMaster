@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 using Serilog.Sinks.InMemory;
 using Serilog.Sinks.XUnit.Injectable;
 
-namespace GrillMaster.IntegrationTests.Fixtures;
+namespace GrillMaster.IntegrationTests.Infra;
 
 /// <summary>
 /// The application under test: hosted exactly the way <c>Program</c> does (the same

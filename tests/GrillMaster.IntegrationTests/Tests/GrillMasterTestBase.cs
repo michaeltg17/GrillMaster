@@ -1,4 +1,3 @@
-using GrillMaster.IntegrationTests.Fixtures;
 using GrillMaster.IntegrationTests.Infra;
 using GrillMaster.IntegrationTests.Mocks.GrillMenuApi;
 using Xunit;

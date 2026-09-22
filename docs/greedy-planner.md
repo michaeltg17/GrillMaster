@@ -210,7 +210,7 @@ occasionally it is a round or two off.
 ## 5. How the code does this
 
 The whole planner lives in
-`src/GrillMaster.Application/Features/Planning/Planners/GreedyShelfPlanner.cs`.
+`src/GrillMaster.Application/Features/Plans/Planners/GreedyShelfPlanner.cs`.
 Here is each piece of code translated back into the story:
 
 | Code | What it is in the story |
@@ -228,7 +228,7 @@ Here is each piece of code translated back into the story:
 | `IsProvenOptimal: false` | The honest disclaimer: greedy can't prove its answer is the best possible. |
 
 The grill's map itself is `RoundOccupancy`
-(`src/GrillMaster.Application/Features/Planning/RoundOccupancy.cs`): a 30×20 grid of
+(`src/GrillMaster.Application/Features/Plans/RoundOccupancy.cs`): a 30×20 grid of
 "taken / free" squares shared by `greedy`, `optimized` and `exact`.
 
 ## 6. The numbers

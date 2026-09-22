@@ -163,7 +163,7 @@ never lies: `IsProvenOptimal` is true only when it can *prove* the floor was rea
 ## 6. How the code does this
 
 The planner lives in
-`src/GrillMaster.Application/Features/Planning/Planners/ExactBacktrackingPlanner.cs`.
+`src/GrillMaster.Application/Features/Plans/Planners/ExactBacktrackingPlanner.cs`.
 Code, translated into the story:
 
 | Code | What it is in the story |

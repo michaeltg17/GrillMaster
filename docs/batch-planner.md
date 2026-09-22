@@ -110,9 +110,9 @@ ZZZZZZ[[[[[[\\\\\\]]]]]]^^^^^^
 ## 4. How the code does this
 
 The planner (including `MaxPattern`) lives in
-`src/GrillMaster.Application/Features/Planning/Planners/BatchPlanner.cs`; the
+`src/GrillMaster.Application/Features/Plans/Planners/BatchPlanner.cs`; the
 one-round capacity search it builds on lives in
-`src/GrillMaster.Application/Features/Planning/GrillPlannerHelpers.cs`:
+`src/GrillMaster.Application/Features/Plans/GrillPlannerHelpers.cs`:
 
 | Code | What it is in the story |
 |------|--------------------------|

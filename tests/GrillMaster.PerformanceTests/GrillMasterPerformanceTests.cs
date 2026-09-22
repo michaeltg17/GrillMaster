@@ -109,17 +109,19 @@ public sealed class GrillMasterPerformanceTests(ITestOutputHelper output)
                 "Performance results not found. Run with UPDATE_PERF_RESULTS=1 to generate them.");
 
         var threshold = SpeedThreshold;
-        var failures = measured
-            .SelectMany(m =>
-            {
-                var baseline = committed.Planners.FirstOrDefault(s => s.Planner == m.Planner)
-                    ?? throw new InvalidOperationException(
-                        $"Planner '{m.Planner}' is missing from the committed results. " +
-                        "Run with UPDATE_PERF_RESULTS=1 to add it.");
+        var failures = new List<string>();
+        foreach (var m in measured)
+        {
+            var baseline = committed.Planners.FirstOrDefault(s => s.Planner == m.Planner)
+                ?? throw new InvalidOperationException(
+                    $"Planner '{m.Planner}' is missing from the committed results. " +
+                    "Run with UPDATE_PERF_RESULTS=1 to add it.");
 
-                return Compare(m, baseline, threshold);
-            })
-            .ToList();
+            failures.AddRange(Compare(m, baseline, threshold));
+            _output.WriteLine(
+                $"{m.Planner}: {m.TotalRounds} rounds, {m.MedianMs:F1} ms " +
+                $"(committed {baseline.TotalRounds} rounds, {baseline.MedianMs:F1} ms)");
+        }
 
         _output.WriteLine(Summary(measured, $"Performance vs committed {committed.GitCommit} (speed threshold +{threshold * 100:F0}%)"));
 
