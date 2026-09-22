@@ -26,6 +26,7 @@
 
   <ItemGroup>
     <None Update="Mocks\GrillMenuApi\grill-menus.json">
+      <Link>grill-menus.json</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
