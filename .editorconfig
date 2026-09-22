@@ -121,6 +121,10 @@ dotnet_diagnostic.IDE0032.severity = none
 dotnet_diagnostic.IDE0005.severity = none
 dotnet_diagnostic.IDE0090.severity = none
 
+# SYSLIB1045: use GeneratedRegexAttribute to generate the regex implementation at compile time
+# (hidden by default; promoted to a warning so TreatWarningsAsErrors enforces it)
+dotnet_diagnostic.SYSLIB1045.severity = warning
+
 [src/{GrillMaster.CrossCutting,GrillMaster.Application,GrillMaster.Console}/**.cs]
 # CA1812: internal types instantiated only via DI registrations (e.g. the options validators) are
 # invisible to the CA1812 analysis, so "never instantiated" is a false positive here.

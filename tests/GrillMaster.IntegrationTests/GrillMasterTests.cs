@@ -15,7 +15,7 @@ namespace GrillMaster.IntegrationTests;
 /// application (the same host as <c>Program</c>) and validates the console log response — what a real
 /// user would see — via the in-memory sink, instead of asserting on the HTTP client.
 /// </summary>
-public sealed class PipelineTests(ITestOutputHelper output) : IDisposable
+public sealed class GrillMasterTests(ITestOutputHelper output) : IDisposable
 {
     private const string MenuMessageTemplate = "{MenuName}: {RoundCount} rounds";
     private const string TotalMessageTemplate = "Total: {TotalRounds} rounds";
@@ -37,7 +37,7 @@ public sealed class PipelineTests(ITestOutputHelper output) : IDisposable
     // "ortools" is deliberately not pipeline-tested here: its 30 s CP-SAT time cap per menu would
     // make this suite take ~8 minutes; the planner itself is covered by OrToolsPlannerTests.
     [InlineData(PlannerNames.Portfolio)]
-    public async Task Pipeline_LogsPerMenuRoundsAndTotal(string plannerName)
+    public async Task LogsPerMenuRoundsAndTotal(string plannerName)
     {
         _api.SetGetMenus();
 
@@ -87,7 +87,7 @@ public sealed class PipelineTests(ITestOutputHelper output) : IDisposable
     }
 
     [Fact]
-    public async Task Pipeline_LogsNoRoundsWhenApiReturnsEmpty()
+    public async Task LogsNoRoundsWhenApiReturnsEmpty()
     {
         _api.SetGetMenus(body: "[]");
 
@@ -111,7 +111,7 @@ public sealed class PipelineTests(ITestOutputHelper output) : IDisposable
     }
 
     [Fact]
-    public async Task Pipeline_ApiReturnsServerError()
+    public async Task ReturnsServerError()
     {
         _api.SetGetMenus(body: "boom", statusCode: 500);
 
@@ -122,7 +122,7 @@ public sealed class PipelineTests(ITestOutputHelper output) : IDisposable
     }
 
     [Fact]
-    public async Task Pipeline_ApiReturnsMalformedJson()
+    public async Task ReturnsMalformedJson()
     {
         _api.SetGetMenus(body: "this is not json");
 
@@ -133,7 +133,7 @@ public sealed class PipelineTests(ITestOutputHelper output) : IDisposable
     }
 
     [Fact]
-    public async Task Host_FailsFastWhenPlannerIsUnknown()
+    public async Task FailsFastWhenPlannerIsUnknown()
     {
         _api.SetGetMenus();
 
