@@ -12,6 +12,7 @@
     <PackageReference Include="Serilog.Sinks.InMemory" />
     <PackageReference Include="Serilog.Sinks.InMemory.Assertions" />
     <PackageReference Include="Serilog.Sinks.XUnit.Injectable" />
+    <PackageReference Include="WireMock.Net" />
     <PackageReference Include="xunit.runner.visualstudio">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
@@ -21,7 +22,13 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\GrillMaster.Console\GrillMaster.Console.csproj" />
-    <ProjectReference Include="..\GrillMaster.Core.Testing\GrillMaster.Core.Testing.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Mocks\GrillMenuApi\grill-menus.json">
+      <Link>grill-menus.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

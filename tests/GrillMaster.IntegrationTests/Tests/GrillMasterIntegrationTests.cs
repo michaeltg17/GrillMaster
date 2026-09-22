@@ -1,7 +1,7 @@
 using AwesomeAssertions;
 using GrillMaster.Application.Features.Plans;
-using GrillMaster.Core.Testing;
-using GrillMaster.IntegrationTests.Fixtures;
+using GrillMaster.IntegrationTests.Mocks.GrillMenuApi;
+using GrillMaster.IntegrationTests.Extensions;
 using Serilog.Events;
 using Serilog.Sinks.InMemory.Assertions;
 using System.Net.Http;
@@ -32,14 +32,14 @@ public sealed class GrillMasterIntegrationTests(ITestOutputHelper output) : Gril
     [InlineData(PlannerNames.Portfolio)]
     public async Task LogsPerMenuRoundsAndTotal(string plannerName)
     {
-        Api.SetGetMenus();
+        GrillMenuApiMock.SetGetMenus();
 
-        using var app = await RunGrillMaster(plannerName, Api.Url);
+        using var app = await RunGrillMaster(plannerName, GrillMenuApiMock.Url);
 
         app.ExitCode.Should().Be(0);
 
-        var expectedNames = TestData
-            .ParseMenus(TestData.GrillMenusJson)
+        var expectedNames = GrillMenusProvider
+            .GetGrillMenusTyped
             .Select(m => m.Menu)
             .OrderBy(n => n, StringComparer.Ordinal)
             .ToArray();
@@ -75,9 +75,9 @@ public sealed class GrillMasterIntegrationTests(ITestOutputHelper output) : Gril
     [Fact]
     public async Task LogsNoRoundsWhenApiReturnsEmpty()
     {
-        Api.SetGetMenus(body: "[]");
+        GrillMenuApiMock.SetGetMenus(body: "[]");
 
-        using var app = await RunGrillMaster(PlannerNames.Greedy, Api.Url);
+        using var app = await RunGrillMaster(PlannerNames.Greedy, GrillMenuApiMock.Url);
 
         app.ExitCode.Should().Be(0);
 
@@ -98,9 +98,9 @@ public sealed class GrillMasterIntegrationTests(ITestOutputHelper output) : Gril
     [Fact]
     public async Task ReturnsServerError()
     {
-        Api.SetGetMenus(body: "boom", statusCode: 500);
+        GrillMenuApiMock.SetGetMenus(body: "boom", statusCode: 500);
 
-        using var app = CreateApp(PlannerNames.Greedy, Api.Url);
+        using var app = CreateApp(PlannerNames.Greedy, GrillMenuApiMock.Url);
         var act = () => app.RunAsync(TestContext.Current.CancellationToken);
 
         // API failures surface as the raw .NET exception and reach the top (unhandled -> non-zero exit).
@@ -110,9 +110,9 @@ public sealed class GrillMasterIntegrationTests(ITestOutputHelper output) : Gril
     [Fact]
     public async Task ReturnsMalformedJson()
     {
-        Api.SetGetMenus(body: "this is not json");
+        GrillMenuApiMock.SetGetMenus(body: "this is not json");
 
-        using var app = CreateApp(PlannerNames.Greedy, Api.Url);
+        using var app = CreateApp(PlannerNames.Greedy, GrillMenuApiMock.Url);
         var act = () => app.RunAsync(TestContext.Current.CancellationToken);
 
         await act.Should().ThrowAsync<JsonException>();

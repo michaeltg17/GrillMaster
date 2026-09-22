@@ -1,10 +1,10 @@
 using AwesomeAssertions;
 using GrillMaster.Application.Features.Plans.Planners;
 using GrillMaster.Domain;
-using GrillMaster.UnitTests.Application.Features.Plans.Planners;
+using GrillMaster.UnitTests.Tests.Application.Features.Plans.Planners;
 using Xunit;
 
-namespace GrillMaster.UnitTests.Application.Features.Plans;
+namespace GrillMaster.UnitTests.Tests.Application.Features.Plans;
 
 /// <summary>
 /// Cross-planner quality checks: the exact search is never worse than the heuristics, and the

@@ -1,7 +1,7 @@
 using AwesomeAssertions;
 using GrillMaster.Application.Features.Plans;
 using GrillMaster.Application.Features.Plans.Planners;
-using GrillMaster.Core.Testing.Core;
+using GrillMaster.UnitTests.Serializers;
 using GrillMaster.Domain;
 using Xunit;
 using Xunit.Sdk;
@@ -11,7 +11,7 @@ using Xunit.Sdk;
     typeof(MaxRectsPlanner), typeof(GuillotinePlanner), typeof(BatchPlanner), typeof(OrToolsPlanner),
     typeof(PortfolioPlanner))]
 
-namespace GrillMaster.UnitTests.Application.Features.Plans.Planners;
+namespace GrillMaster.UnitTests.Tests.Application.Features.Plans.Planners;
 
 /// <summary>
 /// The common contract every grilling planner must satisfy, run once per concrete planner test

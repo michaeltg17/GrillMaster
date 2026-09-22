@@ -25,9 +25,9 @@ public sealed class GrillMasterSettingsValidatorTests(ITestOutputHelper output) 
     [Fact]
     public async Task SucceedsWhenUrlIsAbsoluteAndPlannerIsKnown()
     {
-        Api.SetGetMenus();
+        GrillMenuApiMock.SetGetMenus();
 
-        using var app = await RunGrillMaster(PlannerNames.Greedy, Api.Url);
+        using var app = await RunGrillMaster(PlannerNames.Greedy, GrillMenuApiMock.Url);
 
         app.ExitCode.Should().Be(0);
         app.Sink.Should().NotHaveMessage(ErrorMessageTemplate);
@@ -66,7 +66,7 @@ public sealed class GrillMasterSettingsValidatorTests(ITestOutputHelper output) 
     [Fact]
     public async Task FailsFastWhenPlannerIsUnknown()
     {
-        Api.SetGetMenus();
+        GrillMenuApiMock.SetGetMenus();
 
         using var app = await RunGrillMaster("not-a-planner", AbsoluteUrl);
 

@@ -17,7 +17,6 @@
     <Project Path="src/GrillMaster.Console/GrillMaster.Console.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/GrillMaster.Core.Testing/GrillMaster.Core.Testing.csproj" />
     <Project Path="tests/GrillMaster.UnitTests/GrillMaster.UnitTests.csproj" />
     <Project Path="tests/GrillMaster.IntegrationTests/GrillMaster.IntegrationTests.csproj" />
     <Project Path="tests/GrillMaster.EndToEndTests/GrillMaster.EndToEndTests.csproj" />

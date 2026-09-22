@@ -20,7 +20,7 @@ public static class PerformanceResultStore
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
-    private const string ResultsFileName = "performanceResults.json";
+    private const string ResultsFileName = "results.json";
 
     /// <summary>
     /// True when the run should (re)write the results file instead of asserting against it. Enabled by

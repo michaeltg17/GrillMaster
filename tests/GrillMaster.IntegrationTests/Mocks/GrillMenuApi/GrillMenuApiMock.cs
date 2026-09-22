@@ -1,8 +1,9 @@
 using AwesomeAssertions;
+using GrillMaster.IntegrationTests.Infra;
 using WireMock.RequestBuilders;
 using WireMock.ResponseBuilders;
 
-namespace GrillMaster.Core.Testing.Infra;
+namespace GrillMaster.IntegrationTests.Mocks.GrillMenuApi;
 
 public sealed class GrillMenuApiMock : ApiMock
 {
@@ -16,11 +17,11 @@ public sealed class GrillMenuApiMock : ApiMock
         Server.Given(Request.Create().UsingGet().WithPath(GrillMenuPath))
             .RespondWith(Response.Create()
                 .WithStatusCode(statusCode)
-                .WithBody(body ?? TestData.GrillMenusJson)
+                .WithBody(body ?? GrillMenusProvider.GetGrillMenusJson)
                 .WithHeader("Content-Type", "application/json"));
     }
 
-    /// <summary>Asserts one GET request was received for the grill menu endpoint.</summary>
+    /// <summary>Asserts just one GET request was received for the grill menu endpoint.</summary>
     public void AssertGetMenusRequest()
     {
         var entries = Server.LogEntries

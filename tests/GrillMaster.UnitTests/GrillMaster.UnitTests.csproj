@@ -16,7 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\GrillMaster.Core.Testing\GrillMaster.Core.Testing.csproj" />
+    <ProjectReference Include="..\..\src\GrillMaster.Application\GrillMaster.Application.csproj" />
   </ItemGroup>
 
 </Project>

@@ -1,5 +1,6 @@
-using GrillMaster.Core.Testing.Infra;
 using GrillMaster.IntegrationTests.Fixtures;
+using GrillMaster.IntegrationTests.Infra;
+using GrillMaster.IntegrationTests.Mocks.GrillMenuApi;
 using Xunit;
 
 namespace GrillMaster.IntegrationTests.Tests;
@@ -13,21 +14,7 @@ public abstract class GrillMasterTestBase(ITestOutputHelper output) : IDisposabl
     private readonly ITestOutputHelper _output = output;
 
     /// <summary>The mock grill-menu API. Configure the endpoint before running the app.</summary>
-    protected GrillMenuApiMock Api { get; } = new();
-
-    protected virtual void Dispose(bool disposing)
-    {
-        if (disposing)
-        {
-            Api.Dispose();
-        }
-    }
-
-    public void Dispose()
-    {
-        Dispose(true);
-        GC.SuppressFinalize(this);
-    }
+    protected GrillMenuApiMock GrillMenuApiMock { get; } = new();
 
     protected GrillMasterApp CreateApp(string planner, Uri apiUrl) =>
         GrillMasterFactory.Create(planner, apiUrl, _output);
@@ -42,5 +29,19 @@ public abstract class GrillMasterTestBase(ITestOutputHelper output) : IDisposabl
         var app = CreateApp(planner, apiUrl);
         await app.RunAsync(TestContext.Current.CancellationToken);
         return app;
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            GrillMenuApiMock.Dispose();
+        }
+    }
+
+    public void Dispose()
+    {
+        Dispose(true);
+        GC.SuppressFinalize(this);
     }
 }

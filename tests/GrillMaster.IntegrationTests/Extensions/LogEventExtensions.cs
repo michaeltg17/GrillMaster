@@ -1,6 +1,6 @@
 using Serilog.Events;
 
-namespace GrillMaster.IntegrationTests.Fixtures;
+namespace GrillMaster.IntegrationTests.Extensions;
 
 /// <summary>Reads scalar property values off log events captured by the in-memory sink.</summary>
 internal static class LogEventExtensions
