@@ -3,6 +3,7 @@ using GrillMaster.Application.Features.Planning;
 using GrillMaster.Application.Features.Planning.Planners;
 using GrillMaster.Core.Testing;
 using GrillMaster.Domain;
+using System.ComponentModel;
 using Xunit;
 
 namespace GrillMaster.PerformanceTests;
@@ -14,7 +15,7 @@ namespace GrillMaster.PerformanceTests;
 /// machine-to-machine variance does not cause flaky failures. Regenerate the baseline with
 /// <c>UPDATE_PERF_BASELINE=1</c>.
 /// </summary>
-public sealed class GrillingBenchmarkTests(ITestOutputHelper output)
+public sealed class GrillMasterPerformanceTests(ITestOutputHelper output)
 {
     private const int Runs = 5;
     private const double DefaultSpeedThreshold = 0.5;
@@ -191,19 +192,19 @@ public sealed class GrillingBenchmarkTests(ITestOutputHelper output)
             process.WaitForExit();
             return process.ExitCode == 0 ? stdout.Trim() : "unknown";
         }
-        catch (System.ComponentModel.Win32Exception)
+        catch (Win32Exception)
         {
             return "unknown";
         }
-        catch (System.IO.IOException)
+        catch (IOException)
         {
             return "unknown";
         }
-        catch (System.InvalidOperationException)
+        catch (InvalidOperationException)
         {
             return "unknown";
         }
-        catch (System.ArgumentException)
+        catch (ArgumentException)
         {
             return "unknown";
         }

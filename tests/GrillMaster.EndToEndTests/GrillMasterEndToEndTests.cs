@@ -11,7 +11,7 @@ namespace GrillMaster.EndToEndTests;
 /// runs it — no mocks, configuration comes from the app's own <c>appsettings.json</c> (the live API) —
 /// captures its console output and validates the report the user would see.
 /// </summary>
-public sealed partial class GrillMasterTests
+public sealed partial class GrillMasterEndToEndTests
 {
     [GeneratedRegex(@"^(?!Total:)(?<menu>.+): (?<rounds>\d+) rounds$")]
     private static partial Regex MenuLine();

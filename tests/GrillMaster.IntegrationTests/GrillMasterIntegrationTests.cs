@@ -15,7 +15,7 @@ namespace GrillMaster.IntegrationTests;
 /// application (the same host as <c>Program</c>) and validates the console log response — what a real
 /// user would see — via the in-memory sink, instead of asserting on the HTTP client.
 /// </summary>
-public sealed class GrillMasterTests(ITestOutputHelper output) : IDisposable
+public sealed class GrillMasterIntegrationTests(ITestOutputHelper output) : IDisposable
 {
     private const string MenuMessageTemplate = "{MenuName}: {RoundCount} rounds";
     private const string TotalMessageTemplate = "Total: {TotalRounds} rounds";

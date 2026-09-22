@@ -6,7 +6,7 @@ namespace GrillMaster.IntegrationTests.Fixtures;
 
 /// <summary>
 /// The application under test: hosted exactly the way <c>Program</c> does (the same
-/// <see cref="GrillMaster.HostBuilder.CreateHost"/>), with the API pointed at a mock and logging routed to an
+/// <see cref="HostBuilder.CreateHost"/>), with the API pointed at a mock and logging routed to an
 /// in-memory sink plus the xUnit test output. Tests run the pipeline via
 /// <see cref="RunAsync"/> and assert on the events captured in <see cref="Sink"/>.
 /// </summary>
