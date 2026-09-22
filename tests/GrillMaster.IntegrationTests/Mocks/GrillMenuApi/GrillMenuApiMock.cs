@@ -1,9 +1,10 @@
 using AwesomeAssertions;
 using GrillMaster.Core.Testing.Data;
+using GrillMaster.IntegrationTests.Infra;
 using WireMock.RequestBuilders;
 using WireMock.ResponseBuilders;
 
-namespace GrillMaster.IntegrationTests.Infra;
+namespace GrillMaster.IntegrationTests.Mocks.GrillMenuApi;
 
 public sealed class GrillMenuApiMock : ApiMock
 {

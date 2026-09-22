@@ -3,7 +3,7 @@ using GrillMaster.Application.Features.Plans;
 using GrillMaster.Application.Features.Plans.Planners;
 using Xunit;
 
-namespace GrillMaster.UnitTests.Application.Features.Plans.Planners;
+namespace GrillMaster.UnitTests.Tests.Application.Features.Plans.Planners;
 
 /// <summary>
 /// Planner-specific tests for <see cref="OptimizedHeuristicPlanner"/>; the common planner contract

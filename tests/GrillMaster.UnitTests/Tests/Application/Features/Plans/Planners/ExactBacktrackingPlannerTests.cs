@@ -4,7 +4,7 @@ using GrillMaster.Application.Features.Plans.Planners;
 using GrillMaster.Domain;
 using Xunit;
 
-namespace GrillMaster.UnitTests.Application.Features.Plans.Planners;
+namespace GrillMaster.UnitTests.Tests.Application.Features.Plans.Planners;
 
 /// <summary>
 /// Planner-specific tests for <see cref="ExactBacktrackingPlanner"/> (known optima); the common

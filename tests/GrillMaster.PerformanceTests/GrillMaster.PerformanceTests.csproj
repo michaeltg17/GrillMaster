@@ -16,11 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\GrillMaster.Core.Testing\GrillMaster.Core.Testing.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Update="performanceResults.json">
+    <None Update="results.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>

@@ -21,7 +21,12 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\GrillMaster.Console\GrillMaster.Console.csproj" />
-    <ProjectReference Include="..\GrillMaster.Core.Testing\GrillMaster.Core.Testing.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Mocks\GrillMenuApi\grill-menus.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>
