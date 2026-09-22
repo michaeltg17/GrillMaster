@@ -1,46 +1,87 @@
 # The Guillotine Planner (`guillotine`)
 
-> "Only cut a rectangle in a straight line, corner to corner — and always take a piece
-> from a corner of what's left."
+> "Only cut a rectangle in one straight line at a time — and always take a piece from
+> a corner of what's left."
 
 This planner packs with a restriction borrowed from paper cutting: every piece must sit
-in a **corner of a free rectangle**, so that one straight cut can always slice it off
-from the remaining space. The restriction sounds limiting, but it is what keeps the
-planner's bookkeeping tiny: the free space of a round is always a set of *disjoint*
-rectangles that only ever split, never merge, never overlap.
+in a **corner of a free rectangle**, so that straight cuts — one vertical and one
+horizontal — can always slice it off from the remaining space. The restriction sounds
+limiting, but it is what keeps the planner's bookkeeping tiny: every placement splits
+one free rectangle into at most two, so the free space of a round is always a set of
+*disjoint* rectangles that only ever split, never merge, never overlap.
 
 ---
 
 ## 1. The straight-cut rule
 
 Imagine a sheet of paper and a guillotine (the kind of paper cutter that slices a full
-straight line in one stroke). You can only ever cut a rectangle into two smaller
-rectangles — no L-shaped scraps, no jigsaw.
+straight line in one stroke). Every cut is a **straight line across the whole current
+rectangle**, edge to edge — and both directions are allowed: vertical and horizontal.
+("Straight" means "one unbroken line," not "horizontal only.") The only shape a
+rectangle can ever be cut into is two smaller rectangles — no L-shaped scraps, no
+jigsaw.
 
 Now imagine the grill as the paper and the meat pieces as the shapes you want to cut
 out. The rule is: **a piece may only be placed in a corner of one of the free
-rectangles**. Why? A piece in a corner of a rectangle is exactly the shape that one
-straight cut separates from the rest:
+rectangles**, in either orientation of the piece.
+
+Why a corner? Because a corner piece is exactly the shape that straight cuts can
+isolate. One cut alone is not generally enough — it would just split the rectangle
+into two, and the piece would still touch both halves. What *does* work is a pair of
+perpendicular cuts: one vertical, one horizontal. A piece sitting in the top-left
+corner:
 
 ```
-before cutting                after one straight cut
-┌──────────────────┐          ┌────────────┬──────────┐
-│            ┌───┐ │          │            │ leftover │
-│            │ P │ │          │            │ strip    │
-│            └───┘ │          │            │          │
-│                  │   ──►    ├────────────┼──────────┤
-│                  │          │ leftover   │          │
-│                  │          │ strip      │ (under   │
-│                  │          │            │  the     │
-└──────────────────┘          │            │  piece's │
-P = piece in the corner       │            │  columns)│
-                              └────────────┴──────────┘
+the piece, top-left of the free rectangle
+
+┌────────────────────────┐
+│████████                │
+│████████  free          │
+│████████                │
+│                        │
+│                        │
+└────────────────────────┘
+
+one vertical and one horizontal cut isolate it:
+
+┌────────┬───────────────┐
+│ PIECE  │               │  ← vertical cut
+│        │               │
+├────────┤               │  ← horizontal cut
+│        │               │
+│        │               │
+└────────┴───────────────┘
+
+and the cuts leave at most two rectangular pieces of free space:
+
+┌────────┬───────────────┐
+│ PIECE  │ right strip   │
+│        │               │
+├────────┤               │
+│ bottom strip            │
+│                        │
+└────────────────────────┘
 ```
 
-Because every placement is a corner placement, the leftover space is *always* a set of
-rectangles — and a piece placed in a corner splits its rectangle into **at most two**
-new rectangles (a full-height strip and a strip under the piece's own columns). The
-free space of a round is kept as exactly that: a **disjoint guillotine partition**.
+- the **vertical cut** leaves the strip beside the piece;
+- the **horizontal cut** leaves the strip below it;
+- which side the strips land on depends on the corner: a top-left piece leaves a
+  strip to its right and one below it, a top-right piece leaves a strip to its left
+  and one below, and the bottom corners mirror that.
+
+So the property that matters — the one the algorithm exploits — is: **every placement
+splits one free rectangle into at most two free rectangles** (a full-height strip
+beside the piece, plus a strip under it; fewer if the piece exactly fills a side).
+That is all a "guillotine placement" means here. Because every placement is a corner
+placement, the leftover space is *always* a set of rectangles — no L-shapes ever
+appear. The free space of a round is kept as exactly that: a **disjoint guillotine
+partition**.
+
+Concretely, a `15×7` piece in the top-left corner of the `30×20` grill replaces the
+whole grill with two free rectangles: a `15×20` strip on the right and a `15×13`
+strip under the piece. And because the planner tries **both orientations** of every
+piece at **all four corners** of every free rectangle, a `6×3` sausage may go down as
+`6×3` or `3×6`, wherever a corner cut fits it best.
 
 ## 2. The bookkeeping: rectangles that only split
 
