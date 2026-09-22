@@ -11,7 +11,7 @@ namespace GrillMaster.EndToEndTests;
 /// runs it — no mocks, configuration comes from the app's own <c>appsettings.json</c> (the live API) —
 /// captures its console output and validates the report the user would see.
 /// </summary>
-public sealed partial class EndToEndTests
+public sealed partial class GrillMasterTests
 {
     [GeneratedRegex(@"^(?!Total:)(?<menu>.+): (?<rounds>\d+) rounds$")]
     private static partial Regex MenuLine();
@@ -20,7 +20,7 @@ public sealed partial class EndToEndTests
     private static partial Regex TotalLine();
 
     [Fact]
-    public async Task GrillMasterPrintsTheExpectedGrillReport()
+    public async Task PrintsTheExpectedGrillReport()
     {
         var (exitCode, stdout, stderr) = await RunGrillMaster();
 
