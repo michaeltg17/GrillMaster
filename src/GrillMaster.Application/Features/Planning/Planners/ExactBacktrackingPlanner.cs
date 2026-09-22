@@ -14,14 +14,17 @@ public sealed class ExactBacktrackingPlanner : IGrillPlanner
     /// <summary>Node budget before falling back to the best incumbent found so far.</summary>
     public long MaxNodes { get; init; } = 20_000_000;
 
-    private GrillSize _grill;
     private IReadOnlyList<GrillPiece> _pieces = [];
     private RoundOccupancy[] _roundOccupancies = [];
     private List<GrillPiecePlacement>[] _roundPlacements = [];
     private int[] _placementRound = [];
     private GrillPiecePlacement[] _placementPos = [];
     private int[] _pieceType = [];
+    // Whole-square-centimetre areas as raw ints: the search loop touches these per node, where the
+    // domain value types' operators would not be inlined.
+    private int[] _pieceArea = [];
     private int[] _remainingArea = [];
+    private int _grillArea;
     private int _maxRounds;
     private int _nonEmptyRounds;
     private int _totalUsedArea;
@@ -58,19 +61,24 @@ public sealed class ExactBacktrackingPlanner : IGrillPlanner
         _best = greedy.Rounds.Count;
         _bestRounds = greedy.Rounds.Select(r => new GrillRound(r.Placements)).ToList();
 
-        _grill = grill;
+        _grillArea = grill.Area.Value;
         _pieces = ordered;
         _maxRounds = _best;
         _lowerBound = lowerBound;
         _placementRound = new int[n];
         _placementPos = new GrillPiecePlacement[n];
         _pieceType = BuildPieceTypes(ordered);
+        _pieceArea = new int[n];
+        for (var i = 0; i < n; i++)
+        {
+            _pieceArea[i] = ordered[i].Area.Value;
+        }
 
         // Suffix sums: _remainingArea[i] = total area of pieces i..n-1, so the area bound is O(1) per node.
         _remainingArea = new int[n + 1];
         for (var i = n - 1; i >= 0; i--)
         {
-            _remainingArea[i] = _remainingArea[i + 1] + ordered[i].Area;
+            _remainingArea[i] = _remainingArea[i + 1] + _pieceArea[i];
         }
 
         _nodes = 0;
@@ -175,15 +183,15 @@ public sealed class ExactBacktrackingPlanner : IGrillPlanner
                     _nonEmptyRounds++;
                 }
 
-                occupancy.MarkOccupied(placement.X, placement.Y, placement.FootprintWidth, placement.FootprintHeight);
-                _totalUsedArea += piece.Area;
+                occupancy.MarkOccupied(placement.Position, placement.FootprintWidth, placement.FootprintHeight);
+                _totalUsedArea += _pieceArea[index];
                 _roundPlacements[round].Add(placement);
                 _placementRound[index] = round;
                 _placementPos[index] = placement;
 
                 Search(index + 1);
 
-                Undo(round, placement, piece.Area);
+                Undo(round, placement, _pieceArea[index]);
 
                 if (_budgetExceeded || _best == _lowerBound)
                 {
@@ -200,7 +208,7 @@ public sealed class ExactBacktrackingPlanner : IGrillPlanner
             _nonEmptyRounds--;
         }
 
-        _roundOccupancies[round].MarkFree(placement.X, placement.Y, placement.FootprintWidth, placement.FootprintHeight);
+        _roundOccupancies[round].MarkFree(placement.Position, placement.FootprintWidth, placement.FootprintHeight);
         _totalUsedArea -= area;
         _roundPlacements[round].RemoveAt(_roundPlacements[round].Count - 1);
     }
@@ -228,15 +236,16 @@ public sealed class ExactBacktrackingPlanner : IGrillPlanner
         a.Length == b.Length && a.Width == b.Width && a.Name == b.Name;
 
     // Total order over slots (y, then x, then rotation) used for identical-piece symmetry breaking.
+    // 100 must stay greater than the largest possible grill width (x is the minor term of `row`).
     private static long SlotOrder(GrillPiecePlacement p)
     {
         var rotation = p.Rotated ? 1L : 0L;
-        var row = (p.Y * 100L) + p.X;
+        var row = (p.Position.Y.Value * 100L) + p.Position.X.Value;
         return (row * 2L) + rotation;
     }
 
     // We can only use at most (_best - 1) rounds to improve, so that caps the usable capacity.
-    private int TotalFreeCapacity() => (_grill.Area * (_best - 1)) - _totalUsedArea;
+    private int TotalFreeCapacity() => (_grillArea * (_best - 1)) - _totalUsedArea;
 
     private List<GrillRound> SnapshotRounds()
     {

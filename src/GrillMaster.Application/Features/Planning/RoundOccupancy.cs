@@ -16,16 +16,19 @@ public sealed class RoundOccupancy
 
     public RoundOccupancy(GrillSize grill)
     {
-        _width = grill.Width;
-        _height = grill.Height;
+        _width = grill.Width.Value;
+        _height = grill.Height.Value;
         _occupied = new bool[_width * _height];
     }
 
-    public int Width => _width;
-    public int Height => _height;
+    public Centimeters Width => _width;
+    public Centimeters Height => _height;
 
     /// <summary>True when the axis-aligned rectangle <c>[x, x+w) × [y, y+h)</c> is fully inside the grill and unoccupied.</summary>
-    public bool IsFree(int x, int y, int w, int h)
+    public bool IsFree(Point position, Centimeters w, Centimeters h) =>
+        IsFreeCells(position.X.Value, position.Y.Value, w.Value, h.Value);
+
+    private bool IsFreeCells(int x, int y, int w, int h)
     {
         if (x < 0 || y < 0 || x + w > _width || y + h > _height)
         {
@@ -49,12 +52,15 @@ public sealed class RoundOccupancy
         return true;
     }
 
-    public void MarkOccupied(int x, int y, int w, int h)
+    public void MarkOccupied(Point position, Centimeters w, Centimeters h)
     {
+        var x = position.X.Value;
+        var y = position.Y.Value;
+
         var start = (y * _width) + x;
-        for (var cy = y; cy < y + h; cy++)
+        for (var cy = y; cy < y + h.Value; cy++)
         {
-            for (var cx = x; cx < x + w; cx++)
+            for (var cx = x; cx < x + w.Value; cx++)
             {
                 _occupied[start + (cx - x)] = true;
             }
@@ -63,12 +69,15 @@ public sealed class RoundOccupancy
         }
     }
 
-    public void MarkFree(int x, int y, int w, int h)
+    public void MarkFree(Point position, Centimeters w, Centimeters h)
     {
+        var x = position.X.Value;
+        var y = position.Y.Value;
+
         var start = (y * _width) + x;
-        for (var cy = y; cy < y + h; cy++)
+        for (var cy = y; cy < y + h.Value; cy++)
         {
-            for (var cx = x; cx < x + w; cx++)
+            for (var cx = x; cx < x + w.Value; cx++)
             {
                 _occupied[start + (cx - x)] = false;
             }
@@ -85,7 +94,7 @@ public sealed class RoundOccupancy
         Clear();
         foreach (var p in placements)
         {
-            MarkOccupied(p.X, p.Y, p.FootprintWidth, p.FootprintHeight);
+            MarkOccupied(p.Position, p.FootprintWidth, p.FootprintHeight);
         }
     }
 
@@ -102,14 +111,14 @@ public sealed class RoundOccupancy
 
         foreach (var orientation in new[] { false, true })
         {
-            var w = orientation ? piece.Width : piece.Length;
-            var h = orientation ? piece.Length : piece.Width;
+            var w = (orientation ? piece.Width : piece.Length).Value;
+            var h = (orientation ? piece.Length : piece.Width).Value;
 
             for (var y = 0; y + h <= _height; y++)
             {
                 for (var x = 0; x + w <= _width; x++)
                 {
-                    if (!IsFree(x, y, w, h))
+                    if (!IsFreeCells(x, y, w, h))
                     {
                         continue;
                     }
@@ -118,7 +127,7 @@ public sealed class RoundOccupancy
                     if (score < bestScore)
                     {
                         bestScore = score;
-                        best = new GrillPiecePlacement(piece, x, y, orientation);
+                        best = new GrillPiecePlacement(piece, new Point(x, y), orientation);
                     }
                 }
             }
@@ -179,8 +188,8 @@ public sealed class RoundOccupancy
     {
         foreach (var orientation in new[] { false, true })
         {
-            var w = orientation ? piece.Width : piece.Length;
-            var h = orientation ? piece.Length : piece.Width;
+            var w = (orientation ? piece.Width : piece.Length).Value;
+            var h = (orientation ? piece.Length : piece.Width).Value;
 
             for (var x = 0; x + w <= _width; x++)
             {
@@ -191,7 +200,7 @@ public sealed class RoundOccupancy
                     // Canonical only if it rests on the floor or on an occupied cell.
                     if (y == 0 || HasOccupiedAbove(x, w, y))
                     {
-                        yield return new GrillPiecePlacement(piece, x, y, orientation);
+                        yield return new GrillPiecePlacement(piece, new Point(x, y), orientation);
                     }
 
                     // Next skyline level in this column: just above the highest occupied cell.
@@ -212,7 +221,7 @@ public sealed class RoundOccupancy
     {
         for (var y = 0; y + h <= _height; y++)
         {
-            if (IsFree(x, y, w, h))
+            if (IsFreeCells(x, y, w, h))
             {
                 return y;
             }

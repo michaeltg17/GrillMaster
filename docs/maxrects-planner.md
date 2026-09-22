@@ -145,7 +145,7 @@ Note it does **not** use the shared `RoundOccupancy` grid — it keeps its own m
 | `Plan(menu, grill)` | The attendant taking over the lot. |
 | `GrillPlannerHelpers.OrderPieces(pieces)` | The usual biggest-first queue. |
 | `freeRects` | The notepad: one list of open patches per grill in use. |
-| `new List<MaxRect> { new(0, 0, grill.Width, grill.Height) }` | A fresh grill: one open patch, the whole grill. |
+| `new List<MaxRect> { new(0, 0, grill.Width.Value, grill.Height.Value) }` | A fresh grill: one open patch, the whole grill. |
 | `FindBestTarget(piece, ...)` | "Which grill has the best spot for this piece?" Checks every grill's notepad, keeps the best score. |
 | `ChoosePlacement(piece, ...)` | "Where exactly?" Every open patch, both orientations; scores by the leftover short side; returns the best. |
 | `Math.Min(rect.W - w, rect.H - h)` | The score: the shorter side of the leftover space. |

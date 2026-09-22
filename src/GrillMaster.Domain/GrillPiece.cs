@@ -11,14 +11,14 @@ namespace GrillMaster.Domain;
 /// <param name="Name">Human readable name (e.g. "Rumpsteak").</param>
 /// <param name="Length">Length in centimetres.</param>
 /// <param name="Width">Width in centimetres.</param>
-public sealed record GrillPiece(string Name, int Length, int Width)
+public sealed record GrillPiece(string Name, Centimeters Length, Centimeters Width)
 {
     /// <summary>Surface area in square centimetres.</summary>
-    public int Area => Length * Width;
+    public SquareCentimeters Area => Length * Width;
 
     /// <summary>The longer of the two sides.</summary>
-    public int LongSide => Math.Max(Length, Width);
+    public Centimeters LongSide => Length >= Width ? Length : Width;
 
     /// <summary>The shorter of the two sides.</summary>
-    public int ShortSide => Math.Min(Length, Width);
+    public Centimeters ShortSide => Length <= Width ? Length : Width;
 }

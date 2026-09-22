@@ -25,7 +25,7 @@ public sealed class GrillRound
     public int Count => _placements.Count;
 
     /// <summary>Total surface area covered by the pieces in this round.</summary>
-    public int UsedArea => _placements.Sum(p => p.Area);
+    public SquareCentimeters UsedArea => _placements.Aggregate(SquareCentimeters.Zero, (total, p) => total + p.Area);
 
     /// <summary>Appends a placement to this round.</summary>
     public void Add(GrillPiecePlacement placement) => _placements.Add(placement);

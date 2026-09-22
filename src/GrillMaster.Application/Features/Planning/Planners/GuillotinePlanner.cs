@@ -33,7 +33,7 @@ public sealed class GuillotinePlanner : IGrillPlanner
             if (target is null)
             {
                 var round = new GrillRound();
-                var free = new List<GRect> { new(0, 0, grill.Width, grill.Height) };
+                var free = new List<GRect> { new(0, 0, grill.Width.Value, grill.Height.Value) };
                 var chosen = ChoosePlacement(piece, free)
                     ?? throw new InvalidOperationException(
                         $"Piece '{piece.Name}' ({piece.Length}x{piece.Width}) does not fit an empty grill of {grill.Width}x{grill.Height}.");
@@ -87,8 +87,8 @@ public sealed class GuillotinePlanner : IGrillPlanner
             var rect = freeRects[i];
             foreach (var rotated in new[] { false, true })
             {
-                var w = rotated ? piece.Width : piece.Length;
-                var h = rotated ? piece.Length : piece.Width;
+                var w = (rotated ? piece.Width : piece.Length).Value;
+                var h = (rotated ? piece.Length : piece.Width).Value;
                 if (w > rect.W || h > rect.H)
                 {
                     continue;
@@ -102,7 +102,7 @@ public sealed class GuillotinePlanner : IGrillPlanner
                         continue;
                     }
 
-                    var placement = new GrillPiecePlacement(piece, rect.X + dx, rect.Y + dy, rotated);
+                    var placement = new GrillPiecePlacement(piece, new Point(rect.X + dx, rect.Y + dy), rotated);
                     best = (placement, i, score);
                 }
             }
@@ -149,10 +149,10 @@ public sealed class GuillotinePlanner : IGrillPlanner
     {
         round.Add(placement);
 
-        var x = placement.X;
-        var y = placement.Y;
-        var w = placement.FootprintWidth;
-        var h = placement.FootprintHeight;
+        var x = placement.Position.X.Value;
+        var y = placement.Position.Y.Value;
+        var w = placement.FootprintWidth.Value;
+        var h = placement.FootprintHeight.Value;
 
         var rect = freeRects[rectIndex];
         freeRects.RemoveAt(rectIndex);
@@ -175,6 +175,10 @@ public sealed class GuillotinePlanner : IGrillPlanner
         }
     }
 
-    /// <summary>A free (unoccupied) axis-aligned rectangle; the per-round rectangles are disjoint.</summary>
+    /// <summary>
+    /// A free (unoccupied) axis-aligned rectangle; the per-round rectangles are disjoint.
+    /// Coordinates and extents are whole centimetres kept as raw ints: this struct lives in the
+    /// planner's hot loops, where the domain value types' operators would not be inlined.
+    /// </summary>
     private readonly record struct GRect(int X, int Y, int W, int H);
 }

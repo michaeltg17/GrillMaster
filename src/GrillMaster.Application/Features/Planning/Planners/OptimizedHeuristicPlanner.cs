@@ -67,7 +67,8 @@ public sealed class OptimizedHeuristicPlanner : IGrillPlanner
             .ToList();
 
         // Area feasibility: all pieces must fit into targetRounds by area.
-        if (allPieces.Sum(p => p.Area) > targetRounds * grill.Area)
+        var totalArea = allPieces.Aggregate(SquareCentimeters.Zero, (sum, p) => sum + p.Area);
+        if (totalArea > targetRounds * grill.Area)
         {
             return false;
         }
@@ -147,7 +148,7 @@ public sealed class OptimizedHeuristicPlanner : IGrillPlanner
 
             foreach (var placement in occupancy.EnumerateSkylinePositions(piece))
             {
-                occupancy.MarkOccupied(placement.X, placement.Y, placement.FootprintWidth, placement.FootprintHeight);
+                occupancy.MarkOccupied(placement.Position, placement.FootprintWidth, placement.FootprintHeight);
                 placements[round].Add(placement);
 
                 if (DfsReplan(pieces, index + 1, roundCount, rounds, placements, budget))
@@ -156,7 +157,7 @@ public sealed class OptimizedHeuristicPlanner : IGrillPlanner
                 }
 
                 placements[round].RemoveAt(placements[round].Count - 1);
-                occupancy.MarkFree(placement.X, placement.Y, placement.FootprintWidth, placement.FootprintHeight);
+                occupancy.MarkFree(placement.Position, placement.FootprintWidth, placement.FootprintHeight);
             }
         }
 

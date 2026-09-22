@@ -120,23 +120,23 @@ public abstract class PlannerTestsBase
         // 2) Bounds, orientation, and no overlap per round.
         foreach (var round in result.Rounds)
         {
-            var occupied = new bool[Grill.Width, Grill.Height];
+            var occupied = new bool[Grill.Width.Value, Grill.Height.Value];
 
             foreach (var p in round.Placements)
             {
-                p.X.Should().BeInRange(0, Grill.Width - 1);
-                p.Y.Should().BeInRange(0, Grill.Height - 1);
-                (p.X + p.FootprintWidth).Should().BeLessThanOrEqualTo(Grill.Width, "piece exceeds grill width");
-                (p.Y + p.FootprintHeight).Should().BeLessThanOrEqualTo(Grill.Height, "piece exceeds grill height");
+                p.Position.X.Should().BeInRange(0, Grill.Width - 1);
+                p.Position.Y.Should().BeInRange(0, Grill.Height - 1);
+                p.Right.Should().BeLessThanOrEqualTo(Grill.Width, "piece exceeds grill width");
+                p.Bottom.Should().BeLessThanOrEqualTo(Grill.Height, "piece exceeds grill height");
 
                 var footprintMatches =
                     (p.FootprintWidth == p.Piece.Length && p.FootprintHeight == p.Piece.Width) ||
                     (p.FootprintWidth == p.Piece.Width && p.FootprintHeight == p.Piece.Length);
                 footprintMatches.Should().BeTrue("footprint does not match piece dimensions");
 
-                for (var y = p.Y; y < p.Bottom; y++)
+                for (var y = p.Position.Y.Value; y < p.Bottom.Value; y++)
                 {
-                    for (var x = p.X; x < p.Right; x++)
+                    for (var x = p.Position.X.Value; x < p.Right.Value; x++)
                     {
                         occupied[x, y].Should().BeFalse($"overlap at ({x},{y}) in a round");
                         occupied[x, y] = true;

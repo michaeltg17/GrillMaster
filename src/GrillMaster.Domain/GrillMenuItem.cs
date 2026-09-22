@@ -10,7 +10,7 @@ namespace GrillMaster.Domain;
 /// <param name="Width">Width of one piece in centimetres.</param>
 /// <param name="Duration">Cooking duration string as returned by the API (uniform across items).</param>
 /// <param name="Quantity">Number of identical pieces of this item that must be grilled.</param>
-public sealed record GrillMenuItem(Guid Id, string Name, int Length, int Width, string Duration, int Quantity)
+public sealed record GrillMenuItem(Guid Id, string Name, Centimeters Length, Centimeters Width, string Duration, int Quantity)
 {
     /// <summary>
     /// Expands this item into <see cref="Quantity"/> individual <see cref="GrillPiece"/> values,

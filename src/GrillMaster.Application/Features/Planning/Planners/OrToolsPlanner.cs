@@ -63,21 +63,21 @@ public sealed class OrToolsPlanner : IGrillPlanner
         for (var i = 0; i < n; i++)
         {
             var piece = ordered[i];
-            var minSide = Math.Min(piece.Length, piece.Width);
-            var maxSide = Math.Max(piece.Length, piece.Width);
-            x[i] = model.NewIntVar(0, grill.Width, $"x{i}");
-            y[i] = model.NewIntVar(0, grill.Height, $"y{i}");
+            var minSide = (piece.Length <= piece.Width ? piece.Length : piece.Width).Value;
+            var maxSide = (piece.Length >= piece.Width ? piece.Length : piece.Width).Value;
+            x[i] = model.NewIntVar(0, grill.Width.Value, $"x{i}");
+            y[i] = model.NewIntVar(0, grill.Height.Value, $"y{i}");
             orientation[i] = model.NewBoolVar($"o{i}");
             width[i] = model.NewIntVar(minSide, maxSide, $"w{i}");
             height[i] = model.NewIntVar(minSide, maxSide, $"h{i}");
-            model.Add(width[i] == piece.Length + ((piece.Width - piece.Length) * orientation[i]));
-            model.Add(height[i] == piece.Width + ((piece.Length - piece.Width) * orientation[i]));
-            endX[i] = model.NewIntVar(0, grill.Width, $"endx{i}");
-            endY[i] = model.NewIntVar(0, grill.Height, $"endy{i}");
+            model.Add(width[i] == piece.Length.Value + ((piece.Width.Value - piece.Length.Value) * orientation[i]));
+            model.Add(height[i] == piece.Width.Value + ((piece.Length.Value - piece.Width.Value) * orientation[i]));
+            endX[i] = model.NewIntVar(0, grill.Width.Value, $"endx{i}");
+            endY[i] = model.NewIntVar(0, grill.Height.Value, $"endy{i}");
             model.Add(endX[i] == x[i] + width[i]);
             model.Add(endY[i] == y[i] + height[i]);
-            model.Add(endX[i] <= grill.Width);
-            model.Add(endY[i] <= grill.Height);
+            model.Add(endX[i] <= grill.Width.Value);
+            model.Add(endY[i] <= grill.Height.Value);
             presence[i] = new BoolVar[maxRounds];
         }
 
@@ -131,8 +131,7 @@ public sealed class OrToolsPlanner : IGrillPlanner
         {
             var placement = new GrillPiecePlacement(
                 ordered[i],
-                (int)solver.Value(x[i]),
-                (int)solver.Value(y[i]),
+                new Point((int)solver.Value(x[i]), (int)solver.Value(y[i])),
                 solver.BooleanValue(orientation[i]));
 
             var roundIndex = -1;
