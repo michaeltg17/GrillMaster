@@ -56,16 +56,17 @@ public sealed class PlannerFullFixtureQualityTests
     /// <summary>
     /// Committed per-planner quality snapshot: (total rounds, area lower bound, search nodes) over
     /// the full fixture. The exact planner is run with a bounded search budget
-    /// (<see cref="TestPlanners"/>): on this fixture the production default exhausts the exact
-    /// solver's 20 000 000-node budget on Menu 01 (~30 s in Release, several minutes in Debug),
-    /// and the bounded budget returns the same plans, so the pinned quality is unchanged.
+    /// (<see cref="TestPlanners"/>): at the production 20 000 000-node budget Menu 01 takes
+    /// ~6.1M nodes (~5 s in Release, much longer in Debug), and the bounded budget returns the
+    /// same plans, so the pinned quality is unchanged — only Menu 01's search-node count is cut
+    /// at the cap.
     /// </summary>
     public static TheoryData<string, IGrillPlanner, int, int, long?> PlannerSnapshots()
     {
         var snapshots = new TheoryData<string, IGrillPlanner, int, int, long?>
         {
             { "greedy", new GreedyShelfPlanner(), 39, 37, 0 },
-            { "exact", TestPlanners.CreateExact(), 38, 37, 1_809_581 },
+            { "exact", TestPlanners.CreateExact(), 38, 37, 1_000_619 },
         };
         return snapshots;
     }

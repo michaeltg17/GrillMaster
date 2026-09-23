@@ -53,8 +53,8 @@ environment variable (e.g. `GRILLMASTER__GRILLMENUAPIURL`, `GRILLMASTER__PLANNER
 can try a planner without touching the file.
 
 - `exact` is the default: it proves the answer is the best possible within its node budget —
-  on this data it proves 14 of 15 menus in well under a second, but Menu 01 spends the whole
-  budget (about 30 s) and comes back unproven.
+  on this data it proves all 15 menus: 14 in well under a second, and Menu 01 in about 5 s
+  (6.1M of its 20M-node budget).
 - `greedy` is the fast option: very good answers in about 2 ms per menu, but without the
   proof.
 
@@ -63,22 +63,22 @@ can try a planner without touching the file.
 | Planner  | Total rounds | Notes                                                    |
 |----------|--------------|----------------------------------------------------------|
 | `greedy` | 39           | fast baseline                                            |
-| `exact`  | **38**       | floor on 14 menus; Menu 01 hits the node budget, unproven |
+| `exact`  | **38**       | proven on all 15 menus: floor on 14, Menu 01 by full search |
 
 `37` is the sum of the per-menu lower bounds — the maximum of the area bound
 (`ceil(totalArea / 600)`) and the per-type bound — so no solution can use fewer rounds; on
 this dataset the area bound is the binding one. Both planners reach it on most menus;
-Menu 01 (nine square centimetres of slack across three full rounds) defeats the floor,
-and the best found is 38 — `exact` finds that 4-round plan, though it can not yet prove
-three is impossible.
+Menu 01 (nine square centimetres of slack across three full rounds) defeats the floor —
+`exact` finds the 4-round plan and proves three rounds is impossible by exploring the
+whole search space within its budget.
 
 ## Honest corners
 
 - **Axis-aligned placement only.** Pieces may be turned 90°, but not at an arbitrary angle.
 - **`exact` has a node budget** (default 20 000 000). On this data it proves the optimum on
-  14 of 15 menus in well under a second, but Menu 01 exhausts the whole budget (about
-  30 s) and comes back flagged as *not* proven (`GrillPlan.IsProvenOptimal == false`). A
-  much larger or adversarial menu would do the same.
+  all 15 menus: 14 in well under a second, Menu 01 in about 5 s (6.1M nodes). A much
+  larger or adversarial menu could still exhaust the budget and come back flagged as
+  *not* proven (`GrillPlan.IsProvenOptimal == false`).
 - **Assumes every piece fits the grill.** The largest piece in this data is 22 cm, which fits
   the 30 cm side. A piece that cannot fit the grill in either orientation makes the planner
   throw an error instead of guessing.

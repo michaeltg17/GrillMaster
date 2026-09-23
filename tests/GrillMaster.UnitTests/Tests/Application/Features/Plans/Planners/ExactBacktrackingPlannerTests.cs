@@ -7,7 +7,7 @@ using Xunit;
 namespace GrillMaster.UnitTests.Tests.Application.Features.Plans.Planners;
 
 /// <summary>
-/// Planner-specific tests for <see cref="ExactBacktrackingPlanner"/> (known optima); the common
+/// Planner-specific tests for <see cref="ExactBacktrackingPlanner"/>; the common
 /// planner contract is inherited from <see cref="PlannerTestsBase"/>.
 /// </summary>
 public sealed class ExactBacktrackingPlannerTests : PlannerTestsBase

@@ -6,40 +6,26 @@ namespace GrillMaster.Application.Features.Plans.Planners;
 /// <summary>
 /// Exact branch-and-bound search for the minimum number of rounds; proven optimal whenever the
 /// node budget is not exceeded. See <c>docs/exact-planner.md</c> for a full walkthrough.
+/// The planner itself is stateless: every call to <see cref="Plan"/> builds its own
+/// <see cref="SearchState"/>, so one instance can plan concurrently from several threads.
 /// </summary>
 public sealed class ExactBacktrackingPlanner : IGrillPlanner
 {
     public string Name { get; } = PlannerNames.Exact;
 
-    /// <summary>Node budget before falling back to the best incumbent found so far.</summary>
+    /// <summary>
+    /// Hard node budget: at most this many search nodes are explored before the search stops
+    /// and falls back to the best incumbent found so far. Values &lt;= 0 disable the search and
+    /// return the greedy incumbent directly.
+    /// </summary>
     public long MaxNodes { get; init; } = 20_000_000;
-
-    private IReadOnlyList<GrillPiece> _pieces = [];
-    private RoundOccupancy[] _roundOccupancies = [];
-    private List<GrillPiecePlacement>[] _roundPlacements = [];
-    private int[] _placementRound = [];
-    private GrillPiecePlacement[] _placementPos = [];
-    private int[] _pieceType = [];
-    // Whole-square-centimetre areas as raw ints: the search loop touches these per node, where the
-    // domain value types' operators would not be inlined.
-    private int[] _pieceArea = [];
-    private int[] _remainingArea = [];
-    private int _grillArea;
-    private int _maxRounds;
-    private int _nonEmptyRounds;
-    private int _totalUsedArea;
-    private int _lowerBound;
-    private int _best;
-    private List<GrillRound>? _bestRounds;
-    private long _nodes;
-    private bool _budgetExceeded;
 
     public GrillPlan Plan(GrillMenu menu, GrillSize grill)
     {
         var stopwatch = Stopwatch.StartNew();
         var pieces = menu.ExpandPieces();
         var lowerBound = GrillPlannerHelpers.ComputeLowerBound(pieces, grill);
-        var ordered = GrillPlannerHelpers.OrderPieces(pieces);
+        var ordered = OrderForSearch(pieces);
         var n = ordered.Count;
 
         if (n == 0)
@@ -49,222 +35,397 @@ public sealed class ExactBacktrackingPlanner : IGrillPlanner
 
         foreach (var p in ordered)
         {
-            if (!FitsOnEmptyGrill(p, grill))
+            if (!GrillPlannerHelpers.FitsOnEmptyGrill(p, grill))
             {
                 throw new InvalidOperationException(
                     $"Piece '{p.Name}' ({p.Length}x{p.Width}) cannot fit on a {grill.Width}x{grill.Height} grill.");
             }
         }
 
-        // Upper bound from the greedy heuristic.
+        // Upper bound from the greedy heuristic; the search only has to beat it.
         var greedy = new GreedyShelfPlanner().Plan(menu, grill);
-        _best = greedy.Rounds.Count;
-        _bestRounds = greedy.Rounds.Select(r => new GrillRound(r.Placements)).ToList();
 
-        _grillArea = grill.Area.Value;
-        _pieces = ordered;
-        _maxRounds = _best;
-        _lowerBound = lowerBound;
-        _placementRound = new int[n];
-        _placementPos = new GrillPiecePlacement[n];
-        _pieceType = BuildPieceTypes(ordered);
-        _pieceArea = new int[n];
-        for (var i = 0; i < n; i++)
+        if (greedy.Rounds.Count == lowerBound)
         {
-            _pieceArea[i] = ordered[i].Area.Value;
+            // The champion is standing on the floor: no plan can do better, so it is proven
+            // optimal without searching at all.
+            stopwatch.Stop();
+            return new GrillPlan(menu, greedy.Rounds, Name, lowerBound, IsProvenOptimal: true, SearchNodes: 0, stopwatch.Elapsed);
         }
 
-        // Suffix sums: _remainingArea[i] = total area of pieces i..n-1, so the area bound is O(1) per node.
-        _remainingArea = new int[n + 1];
-        for (var i = n - 1; i >= 0; i--)
-        {
-            _remainingArea[i] = _remainingArea[i + 1] + _pieceArea[i];
-        }
-
-        _nodes = 0;
-        _budgetExceeded = false;
-
-        _roundOccupancies = new RoundOccupancy[_maxRounds];
-        _roundPlacements = new List<GrillPiecePlacement>[_maxRounds];
-        for (var i = 0; i < _maxRounds; i++)
-        {
-            _roundOccupancies[i] = new RoundOccupancy(grill);
-            _roundPlacements[i] = [];
-        }
-
-        _nonEmptyRounds = 0;
-        _totalUsedArea = 0;
-        Search(0);
+        var state = new SearchState(grill, ordered, lowerBound, greedy, MaxNodes);
+        state.Search(0);
 
         stopwatch.Stop();
-        var proven = _best == lowerBound && !_budgetExceeded;
-        return new GrillPlan(menu, _bestRounds!, Name, lowerBound, proven, SearchNodes: _nodes, stopwatch.Elapsed);
+        return state.BuildPlan(menu, Name, stopwatch.Elapsed);
     }
 
-    private void Search(int index)
+    // Fail-first ordering for the exact search: largest area first (big pieces have the fewest
+    // legal placements), then the fattest piece (largest short side) of the remaining area, then
+    // the longest side, then name for determinism. Identical pieces end up adjacent, which the
+    // identical-piece symmetry breaking relies on.
+    private static IReadOnlyList<GrillPiece> OrderForSearch(IReadOnlyList<GrillPiece> pieces)
     {
-        if (_budgetExceeded)
-        {
-            return;
-        }
+        return pieces
+            .OrderByDescending(p => p.Area)
+            .ThenByDescending(p => p.ShortSide)
+            .ThenByDescending(p => p.LongSide)
+            .ThenBy(p => p.Name, StringComparer.Ordinal)
+            .ToList();
+    }
 
-        if (++_nodes > MaxNodes)
-        {
-            _budgetExceeded = true;
-            return;
-        }
+    /// <summary>
+    /// All mutable search state, created per <see cref="Plan"/> call. The search places the
+    /// pieces in <see cref="_pieces"/> order; at depth <c>index</c> the pieces <c>index..n-1</c>
+    /// are still to place, so the per-type suffix counts and the area suffix sum precompute the
+    /// inputs of the dynamic lower bound for every node.
+    /// </summary>
+    private sealed class SearchState
+    {
+        // Input, fixed for the whole search.
+        private readonly IReadOnlyList<GrillPiece> _pieces;
+        private readonly int _grillWidth;
+        private readonly int _grillArea;
+        private readonly int _lowerBound;
+        private readonly long _maxNodes;
 
-        if (_best == _lowerBound)
-        {
-            // Cannot do better than the lower bound; stop early.
-            return;
-        }
+        // Per-piece precomputation (raw ints: the domain value types' operators are not inlined,
+        // and the search loop touches these per node).
+        private readonly int[] _pieceArea;
+        private readonly int[] _pieceLength;
+        private readonly int[] _pieceWidth;
+        private readonly int[] _pieceType;
+        private readonly int[] _placementRound;
+        private readonly long[] _placementSlot;
 
-        if (index == _pieces.Count)
+        // Suffix sums over the pieces-to-place: _remainingArea[i] = total area of pieces i..n-1;
+        // _remainingTypeCount[i * _typeCount + t] = how many pieces of type t are in i..n-1.
+        private readonly int[] _remainingArea;
+        private readonly int[] _remainingTypeCount;
+        private readonly int _typeCount;
+        private readonly int[] _typeArea;
+        private readonly int[] _typeCapacity;
+
+        // The rounds under construction. _maxRounds is the greedy incumbent's round count: the
+        // search only ever opens rounds while that many (or fewer) can still beat the incumbent.
+        // Placements are kept as raw value types on per-round stacks (no record allocation per
+        // candidate); they are materialized into GrillPiecePlacement only when a round set is
+        // snapshotted as the new champion.
+        private readonly RoundOccupancy[] _roundOccupancies;
+        private readonly RawPlacement[][] _roundStacks;
+        private readonly int[] _roundStackDepth;
+        private readonly int[] _roundUsedArea;
+        private readonly int _maxRounds;
+
+        // Mutable search state.
+        private int _nonEmptyRounds;
+        private int _totalUsedArea;
+        private int _best;
+        private List<GrillRound>? _bestRounds;
+        private long _nodes;
+        private bool _budgetExceeded;
+
+        public SearchState(GrillSize grill, IReadOnlyList<GrillPiece> ordered, int lowerBound, GrillPlan greedy, long maxNodes)
         {
-            if (_nonEmptyRounds < _best)
+            _pieces = ordered;
+            _grillWidth = grill.Width.Value;
+            _grillArea = grill.Area.Value;
+            _lowerBound = lowerBound;
+            _maxNodes = maxNodes;
+
+            // The greedy incumbent seeds the champion; the search only has to beat it.
+            _best = greedy.Rounds.Count;
+            _bestRounds = greedy.Rounds.Select(r => new GrillRound(r.Placements)).ToList();
+            _maxRounds = _best;
+
+            var n = ordered.Count;
+            _pieceArea = new int[n];
+            _pieceLength = new int[n];
+            _pieceWidth = new int[n];
+            for (var i = 0; i < n; i++)
             {
-                _best = _nonEmptyRounds;
-                _bestRounds = SnapshotRounds();
+                _pieceArea[i] = ordered[i].Area.Value;
+                _pieceLength[i] = ordered[i].Length.Value;
+                _pieceWidth[i] = ordered[i].Width.Value;
             }
 
-            return;
+            // One integer per search-equivalence class; identical pieces are adjacent in the
+            // ordered list, which the symmetry breaking relies on.
+            _pieceType = new int[n];
+            var types = new List<GrillPiece> { ordered[0] };
+            for (var i = 1; i < n; i++)
+            {
+                if (!AreSearchEquivalent(ordered[i], ordered[i - 1]))
+                {
+                    types.Add(ordered[i]);
+                }
+
+                _pieceType[i] = types.Count - 1;
+            }
+
+            _typeCount = types.Count;
+            _typeArea = types.Select(t => t.Area.Value).ToArray();
+            _typeCapacity = types.Select(t => GrillPlannerHelpers.SingleRoundCapacity(t, grill)).ToArray();
+
+            _placementRound = new int[n];
+            _placementSlot = new long[n];
+
+            _remainingArea = new int[n + 1];
+            _remainingTypeCount = new int[(n + 1) * _typeCount];
+            for (var i = n - 1; i >= 0; i--)
+            {
+                _remainingArea[i] = _remainingArea[i + 1] + _pieceArea[i];
+                var src = (i + 1) * _typeCount;
+                var dst = i * _typeCount;
+                Array.Copy(_remainingTypeCount, src, _remainingTypeCount, dst, _typeCount);
+                _remainingTypeCount[dst + _pieceType[i]]++;
+            }
+
+            _roundOccupancies = new RoundOccupancy[_maxRounds];
+            _roundStacks = new RawPlacement[_maxRounds][];
+            _roundStackDepth = new int[_maxRounds];
+            _roundUsedArea = new int[_maxRounds];
+            for (var i = 0; i < _maxRounds; i++)
+            {
+                _roundOccupancies[i] = new RoundOccupancy(grill);
+                _roundStacks[i] = new RawPlacement[n];
+            }
         }
 
-        var piece = _pieces[index];
-
-        if (_remainingArea[index] > TotalFreeCapacity())
+        public void Search(int index)
         {
-            return;
-        }
-
-        // Identical-piece symmetry breaking: if the previous piece is identical, record the round and
-        // slot it was placed in so this copy is constrained to a later round, or the same round at a
-        // slot that is not earlier than the previous slot.
-        var hasPrevSame = index > 0 && _pieceType[index] == _pieceType[index - 1];
-        var prevRound = hasPrevSame ? _placementRound[index - 1] : 0;
-        var prevSlot = hasPrevSame ? SlotOrder(_placementPos[index - 1]) : 0;
-
-        for (var round = 0; round < _maxRounds; round++)
-        {
-            // Symmetry breaking: never open a later empty round while an earlier one is still empty.
-            if (round > _nonEmptyRounds)
+            if (_budgetExceeded)
             {
-                break;
+                return;
             }
 
-            // Prune: opening this round would not beat the current best.
-            var roundsAfter = round == _nonEmptyRounds ? _nonEmptyRounds + 1 : _nonEmptyRounds;
-            if (roundsAfter >= _best)
+            // Hard budget: no node beyond _maxNodes is explored.
+            if (_nodes >= _maxNodes)
             {
-                break;
+                _budgetExceeded = true;
+                return;
             }
 
-            if (hasPrevSame && round < prevRound)
+            _nodes++;
+
+            if (_best == _lowerBound)
             {
-                continue;
+                // Cannot do better than the lower bound; stop early.
+                return;
             }
 
-            var occupancy = _roundOccupancies[round];
-            if (!occupancy.CanFit(piece))
+            if (index == _pieces.Count)
             {
-                continue;
+                if (_nonEmptyRounds < _best)
+                {
+                    _best = _nonEmptyRounds;
+                    _bestRounds = SnapshotRounds();
+                }
+
+                return;
             }
 
-            foreach (var placement in occupancy.EnumerateSkylinePositions(piece))
+            if (RoundsLowerBound(index) >= _best)
             {
-                if (hasPrevSame && round == prevRound && SlotOrder(placement) <= prevSlot)
+                return;
+            }
+
+            var pieceArea = _pieceArea[index];
+            var w0 = _pieceLength[index];
+            var h0 = _pieceWidth[index];
+
+            // Identical-piece symmetry breaking: if the previous piece is search-equivalent, record
+            // the round and slot it was placed in so this copy is constrained to a later round, or
+            // the same round at a slot that is not earlier than the previous slot.
+            var hasPrevSame = index > 0 && _pieceType[index] == _pieceType[index - 1];
+            var prevRound = hasPrevSame ? _placementRound[index - 1] : 0;
+            var prevSlot = hasPrevSame ? _placementSlot[index - 1] : 0;
+
+            for (var round = 0; round <= _nonEmptyRounds; round++)
+            {
+                var opensNewRound = round == _nonEmptyRounds;
+
+                // Prune: opening this round would not beat the current best.
+                if (opensNewRound && _nonEmptyRounds + 1 >= _best)
+                {
+                    break;
+                }
+
+                if (hasPrevSame && round < prevRound)
                 {
                     continue;
                 }
 
-                if (round == _nonEmptyRounds)
+                var occupancy = _roundOccupancies[round];
+
+                // Both orientations, unrotated first: the exact same candidate order
+                // EnumerateSkylinePositions produces, walked without allocation.
+                for (var orientation = 0; orientation < 2; orientation++)
                 {
-                    _nonEmptyRounds++;
+                    var rotated = orientation == 1;
+                    var w = rotated ? _pieceWidth[index] : w0;
+                    var h = rotated ? w0 : h0;
+
+                    var scan = occupancy.CreateSkylineScan(w, h);
+                    while (scan.MoveNext())
+                    {
+                        var x = scan.X;
+                        var y = scan.Y;
+                        var slot = SlotOrder(y, x, rotated);
+
+                        if (hasPrevSame && round == prevRound && slot <= prevSlot)
+                        {
+                            continue;
+                        }
+
+                        if (opensNewRound)
+                        {
+                            _nonEmptyRounds++;
+                        }
+
+                        occupancy.MarkOccupiedCells(x, y, w, h);
+                        _roundUsedArea[round] += pieceArea;
+                        _totalUsedArea += pieceArea;
+                        _roundStacks[round][_roundStackDepth[round]++] = new RawPlacement(x, y, index, rotated);
+                        _placementRound[index] = round;
+                        _placementSlot[index] = slot;
+
+                        Search(index + 1);
+
+                        Undo(round, x, y, w, h, pieceArea);
+
+                        if (_budgetExceeded || _best == _lowerBound)
+                        {
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+
+        private void Undo(int round, int x, int y, int w, int h, int area)
+        {
+            if (_roundStackDepth[round] == 1)
+            {
+                _nonEmptyRounds--;
+            }
+
+            _roundStackDepth[round]--;
+            _roundOccupancies[round].MarkFreeCells(x, y, w, h);
+            _roundUsedArea[round] -= area;
+            _totalUsedArea -= area;
+        }
+
+        // Lower bound on the total number of rounds any completion of this node uses, from the
+        // pieces still to place (index..n-1):
+        //  - area: the remaining area must fit into the free space of the open rounds plus new
+        //    rounds of full grill area;
+        //  - per type: the remaining pieces of each type beyond what the open rounds can still
+        //    hold (relaxed to free area only) must go into new rounds, each holding at most the
+        //    type's single-round capacity.
+        // Both floors are area relaxations, so they hold regardless of the geometry.
+        private int RoundsLowerBound(int index)
+        {
+            var openFree = (_nonEmptyRounds * _grillArea) - _totalUsedArea;
+            var bound = _nonEmptyRounds;
+
+            var extraArea = _remainingArea[index] - openFree;
+            if (extraArea > 0)
+            {
+                bound += (extraArea + _grillArea - 1) / _grillArea;
+            }
+
+            var offset = index * _typeCount;
+            for (var t = 0; t < _typeCount; t++)
+            {
+                var remaining = _remainingTypeCount[offset + t];
+                if (remaining == 0)
+                {
+                    continue;
                 }
 
-                occupancy.MarkOccupied(placement.Position, placement.FootprintWidth, placement.FootprintHeight);
-                _totalUsedArea += _pieceArea[index];
-                _roundPlacements[round].Add(placement);
-                _placementRound[index] = round;
-                _placementPos[index] = placement;
-
-                Search(index + 1);
-
-                Undo(round, placement, _pieceArea[index]);
-
-                if (_budgetExceeded || _best == _lowerBound)
+                var openCapacity = 0;
+                for (var r = 0; r < _nonEmptyRounds; r++)
                 {
-                    return;
+                    openCapacity += (_grillArea - _roundUsedArea[r]) / _typeArea[t];
+                }
+
+                var deficit = remaining - openCapacity;
+                if (deficit > 0)
+                {
+                    var newRounds = CeilDiv(deficit, _typeCapacity[t]);
+                    var needed = _nonEmptyRounds + newRounds;
+                    if (needed > bound)
+                    {
+                        bound = needed;
+                    }
                 }
             }
-        }
-    }
 
-    private void Undo(int round, GrillPiecePlacement placement, int area)
-    {
-        if (_roundPlacements[round].Count == 1)
-        {
-            _nonEmptyRounds--;
+            return bound;
         }
 
-        _roundOccupancies[round].MarkFree(placement.Position, placement.FootprintWidth, placement.FootprintHeight);
-        _totalUsedArea -= area;
-        _roundPlacements[round].RemoveAt(_roundPlacements[round].Count - 1);
-    }
-
-    // One integer per distinct (name, length, width) group, so identical-piece detection is an int compare.
-    // Identical pieces are adjacent in the ordered list, which the symmetry breaking relies on.
-    private static int[] BuildPieceTypes(IReadOnlyList<GrillPiece> ordered)
-    {
-        var types = new int[ordered.Count];
-        var nextType = 0;
-        for (var i = 1; i < ordered.Count; i++)
+        public GrillPlan BuildPlan(GrillMenu menu, string plannerName, TimeSpan elapsed)
         {
-            if (!IsIdentical(ordered[i], ordered[i - 1]))
+            // Honest: the search stops early only when it has proved the answer (the floor is
+            // reached, or the whole search space was explored); the one stop that is not a
+            // proof is the node budget running out. "Proven" is exactly "finished within
+            // budget".
+            var proven = !_budgetExceeded;
+            return new GrillPlan(menu, _bestRounds!, plannerName, _lowerBound, proven, SearchNodes: _nodes, elapsed);
+        }
+
+        // Search-equivalence for the identical-piece symmetry breaking: same geometry and same
+        // name. The name is part of the identity on purpose: same-shaped pieces with different
+        // names stay distinct, so the plan's name-to-slot assignment is deterministic per named
+        // piece, at the cost of exploring a few extra branches.
+        private static bool AreSearchEquivalent(GrillPiece a, GrillPiece b) =>
+            a.Length == b.Length && a.Width == b.Width && a.Name == b.Name;
+
+        // Total order over slots (y, then x, then rotation) used for the identical-piece
+        // symmetry breaking. The grill width is the radix of the coordinate pair, so the x
+        // coordinate (always < grill width) can never spill into the y term.
+        private long SlotOrder(int y, int x, bool rotated)
+        {
+            var rotation = rotated ? 1L : 0L;
+            var row = ((long)y * _grillWidth) + x;
+            return (row * 2L) + rotation;
+        }
+
+        // Ceiling division for positive dividends.
+        private static int CeilDiv(int a, int b) => (a + b - 1) / b;
+
+        // A fresh copy of the current rounds. The raw stacks are materialized into immutable
+        // GrillPiecePlacement records, so the snapshot retains no mutable search state: undoing
+        // later placements cannot reach into it.
+        private List<GrillRound> SnapshotRounds()
+        {
+            var rounds = new List<GrillRound>(_nonEmptyRounds);
+            for (var i = 0; i < _nonEmptyRounds; i++)
             {
-                nextType++;
+                var depth = _roundStackDepth[i];
+                var placements = new GrillPiecePlacement[depth];
+                for (var j = 0; j < depth; j++)
+                {
+                    var raw = _roundStacks[i][j];
+                    placements[j] = new GrillPiecePlacement(_pieces[raw.PieceIndex], new Point(raw.X, raw.Y), raw.Rotated);
+                }
+
+                rounds.Add(new GrillRound(placements));
             }
 
-            types[i] = nextType;
+            return rounds;
         }
 
-        return types;
-    }
-
-    private static bool IsIdentical(GrillPiece a, GrillPiece b) =>
-        a.Length == b.Length && a.Width == b.Width && a.Name == b.Name;
-
-    // Total order over slots (y, then x, then rotation) used for identical-piece symmetry breaking.
-    // 100 must stay greater than the largest possible grill width (x is the minor term of `row`).
-    private static long SlotOrder(GrillPiecePlacement p)
-    {
-        var rotation = p.Rotated ? 1L : 0L;
-        var row = (p.Position.Y.Value * 100L) + p.Position.X.Value;
-        return (row * 2L) + rotation;
-    }
-
-    // We can only use at most (_best - 1) rounds to improve, so that caps the usable capacity.
-    private int TotalFreeCapacity() => (_grillArea * (_best - 1)) - _totalUsedArea;
-
-    private List<GrillRound> SnapshotRounds()
-    {
-        var rounds = new List<GrillRound>();
-        for (var i = 0; i < _nonEmptyRounds; i++)
+        // A stack-only record of one placement: coordinates plus the index of the piece in
+        // _pieces. The hot loop stores and loads these instead of GrillPiecePlacement records,
+        // which would box-allocate one object per candidate position.
+        private readonly struct RawPlacement(int x, int y, int pieceIndex, bool rotated)
         {
-            var round = new GrillRound();
-            foreach (var p in _roundPlacements[i])
-            {
-                round.Add(p);
-            }
-
-            rounds.Add(round);
+            public readonly int X = x;
+            public readonly int Y = y;
+            public readonly int PieceIndex = pieceIndex;
+            public readonly bool Rotated = rotated;
         }
-
-        return rounds;
     }
-
-    private static bool FitsOnEmptyGrill(GrillPiece piece, GrillSize grill) =>
-        (piece.Length <= grill.Width && piece.Width <= grill.Height) ||
-        (piece.Width <= grill.Width && piece.Length <= grill.Height);
 }
