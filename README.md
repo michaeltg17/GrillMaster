@@ -84,7 +84,8 @@ change to see the perf diff. The files are local artifacts, not committed.
 - `src/` — the app itself, in three small parts: the plain data (menus, pieces, rounds), the
   plan logic (the eight planners) with its configuration, and the console program that ties
   them together.
-- `tests/` — the four test suites above, each carrying the API stand-in / menu fixtures it needs.
+- `tests/` — the four test suites above, plus the shared `GrillMaster.Testing` project carrying
+  the full-fixture `grill-menus.json` and the test helpers the suites draw from.
 - `docs/` — the plain-language planner explanations, starting from
   [`docs/planners.md`](docs/planners.md).
 

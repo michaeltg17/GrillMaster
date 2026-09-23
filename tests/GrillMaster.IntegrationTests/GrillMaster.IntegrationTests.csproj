@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
@@ -25,10 +25,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="Mocks\GrillMenuApi\grill-menus.json">
-      <Link>grill-menus.json</Link>
+    <Content Include="Mocks\GrillMenuApi\api-grill-menus.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    </Content>
   </ItemGroup>
 
 </Project>

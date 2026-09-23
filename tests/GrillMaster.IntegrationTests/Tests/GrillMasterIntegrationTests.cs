@@ -39,8 +39,8 @@ public sealed class GrillMasterIntegrationTests(ITestOutputHelper output) : Gril
         app.ExitCode.Should().Be(0);
         GrillMenuApiMock.AssertGetMenusRequest();
 
-        var expectedNames = GrillMenusProvider
-            .GetGrillMenusTyped
+        var expectedNames = ApiGrillMenusProvider
+            .GetApiGrillMenusTyped
             .Select(m => m.Menu)
             .OrderBy(n => n, StringComparer.Ordinal)
             .ToArray();
