@@ -9,7 +9,7 @@ using Xunit;
 namespace GrillMaster.PerformanceTests;
 
 /// <summary>
-/// Benchmarks every grilling planner over the full 15-menu fixture, prints the measurements with
+/// Benchmarks every grill planner over the full 15-menu fixture, prints the measurements with
 /// the delta against the previously stored results, and rewrites the git-committed performance
 /// results (<c>results.json</c>). This is a measurement, not a gate: it never fails and is marked
 /// explicit, so it only runs on demand with

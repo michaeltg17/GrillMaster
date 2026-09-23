@@ -1,6 +1,6 @@
 # Grill Master
 
-A small console app that tells you **how many rounds of grilling** you need to cook every piece
+A small console app that tells you **how many grill rounds** you need to cook every piece
 of meat on a list of menus — without burning anything.
 
 This is the solution for the *isolutions "Assessment Grill Master"* task.
@@ -82,7 +82,7 @@ updated file so the diff shows up in the PR.
 ## What's in the repo
 
 - `src/` — the app itself, in three small parts: the plain data (menus, pieces, rounds), the
-  grilling logic (the eight planners) with its configuration, and the console program that ties
+  planning logic (the eight planners) with its configuration, and the console program that ties
   them together.
 - `tests/` — the four test suites above, each carrying the API stand-in / menu fixtures it needs.
 - `docs/` — the plain-language planner explanations, starting from

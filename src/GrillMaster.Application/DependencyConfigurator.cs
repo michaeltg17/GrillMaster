@@ -12,7 +12,7 @@ public static class DependencyConfigurator
     /// <summary>
     /// Registers the application layer: the settings (the <c>GrillMaster</c> configuration section,
     /// validated on start and exposed as <see cref="IGrillMasterSettings"/>), the grill-menu HTTP
-    /// client and service, the grilling planners (all as <see cref="IGrillPlanner"/> singletons) and
+    /// client and service, the grill planners (all as <see cref="IGrillPlanner"/> singletons) and
     /// the app.
     /// </summary>
     public static IServiceCollection AddApplicationDependencies(this IServiceCollection services)
