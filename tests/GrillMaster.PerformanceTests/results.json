@@ -1,55 +1,55 @@
 {
-  "generatedAt": "2026-09-21T22:49:19.1814509Z",
-  "gitCommit": "e83c765",
+  "generatedAt": "2026-09-23T00:22:39.0080254Z",
+  "gitCommit": "e737e20",
   "planners": [
     {
       "planner": "greedy",
       "totalRounds": 39,
       "lowerBound": 37,
       "searchNodes": 0,
-      "medianMs": 2.1721
+      "medianMs": 2.3224
     },
     {
       "planner": "exact",
       "totalRounds": 37,
       "lowerBound": 37,
       "searchNodes": 38261,
-      "medianMs": 2.3311
+      "medianMs": 2.355
     },
     {
       "planner": "optimized",
       "totalRounds": 37,
       "lowerBound": 37,
       "searchNodes": 0,
-      "medianMs": 2.4028
+      "medianMs": 2.3179
     },
     {
       "planner": "maxrects",
       "totalRounds": 39,
       "lowerBound": 37,
       "searchNodes": 0,
-      "medianMs": 0.0298
+      "medianMs": 0.0304
     },
     {
       "planner": "guillotine",
       "totalRounds": 39,
       "lowerBound": 37,
       "searchNodes": 0,
-      "medianMs": 0.0466
+      "medianMs": 0.0347
     },
     {
       "planner": "batch",
       "totalRounds": 62,
       "lowerBound": 37,
       "searchNodes": 0,
-      "medianMs": 0.1779
+      "medianMs": 0.1424
     },
     {
       "planner": "portfolio",
       "totalRounds": 37,
       "lowerBound": 37,
       "searchNodes": 0,
-      "medianMs": 2.9679
+      "medianMs": 2.4746
     }
   ]
 }
