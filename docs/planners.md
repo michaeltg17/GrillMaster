@@ -43,7 +43,7 @@ The program runs one planner at a time; you choose it in
 {
   "GrillMaster": {
     "GrillMenuApiUrl": "http://isol-grillassessment.azurewebsites.net",
-    "Planner": "greedy"
+    "Planner": "exact"
   }
 }
 ```
@@ -52,10 +52,11 @@ The program runs one planner at a time; you choose it in
 environment variable (e.g. `GRILLMASTER__GRILLMENUAPIURL`, `GRILLMASTER__PLANNER`), so you
 can try a planner without touching the file.
 
-- `greedy` is the default (fastest, very good).
-- `exact` proves the answer is the best possible within its node budget: on this data it
-  proves 14 of 15 menus in well under a second, but Menu 01 spends the whole budget
-  (about 30 s) and comes back unproven.
+- `exact` is the default: it proves the answer is the best possible within its node budget —
+  on this data it proves 14 of 15 menus in well under a second, but Menu 01 spends the whole
+  budget (about 30 s) and comes back unproven.
+- `greedy` is the fast option: very good answers in about 2 ms per menu, but without the
+  proof.
 
 ## Results on the live dataset (15 menus)
 
