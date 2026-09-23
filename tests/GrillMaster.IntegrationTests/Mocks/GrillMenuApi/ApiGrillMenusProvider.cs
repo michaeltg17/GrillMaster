@@ -3,7 +3,7 @@ using GrillMaster.Application.Features.Menus.Models;
 
 namespace GrillMaster.IntegrationTests.Mocks.GrillMenuApi;
 
-public static class GrillMenusProvider
+public static class ApiGrillMenusProvider
 {
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {
@@ -12,7 +12,7 @@ public static class GrillMenusProvider
     };
 
     public static string GetGrillMenusJson => File.ReadAllText(
-        Path.Combine(AppContext.BaseDirectory, "Mocks", "GrillMenuApi", "grill-menus-api.json"));
+        Path.Combine(AppContext.BaseDirectory, "Mocks", "GrillMenuApi", "api-grill-menus.json"));
 
     public static IReadOnlyList<GrillMenuResponse> GetGrillMenusTyped =>
         JsonSerializer.Deserialize<List<GrillMenuResponse>>(GetGrillMenusJson, SerializerOptions)
