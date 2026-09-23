@@ -55,15 +55,10 @@ public sealed class PlannerFullFixtureQualityTests
 
     /// <summary>
     /// Committed per-planner quality snapshot: (total rounds, area lower bound, search nodes) over
-    /// the full fixture. The exact and portfolio planners are run with bounded search budgets
-    /// (<see cref="TestPlanners"/>): on this fixture the production defaults exhaust the exact
+    /// the full fixture. The exact planner is run with a bounded search budget
+    /// (<see cref="TestPlanners"/>): on this fixture the production default exhausts the exact
     /// solver's 20 000 000-node budget on Menu 01 (~30 s in Release, several minutes in Debug),
-    /// and the bounded budgets return the same plans, so the pinned quality is unchanged.
-    /// OrToolsPlanner is deliberately not snapshotted: its 30 s CP-SAT time cap per menu would
-    /// take ~35 minutes and the snapshot would only record the cap. The portfolio's
-    /// search-node count is not pinned (null): on the menus whose heuristics do not reach the
-    /// lower bound it runs the exact planner's full (bounded) node budget plus the OrTools
-    /// planner's wall-clock-capped branch count, which varies from run to run.
+    /// and the bounded budget returns the same plans, so the pinned quality is unchanged.
     /// </summary>
     public static TheoryData<string, IGrillPlanner, int, int, long?> PlannerSnapshots()
     {
@@ -71,11 +66,6 @@ public sealed class PlannerFullFixtureQualityTests
         {
             { "greedy", new GreedyShelfPlanner(), 39, 37, 0 },
             { "exact", TestPlanners.CreateExact(), 38, 37, 1_809_581 },
-            { "optimized", new OptimizedHeuristicPlanner(), 39, 37, 0 },
-            { "maxrects", new MaxRectsPlanner(), 39, 37, 0 },
-            { "guillotine", new GuillotinePlanner(), 39, 37, 0 },
-            { "batch", new BatchPlanner(), 62, 37, 0 },
-            { "portfolio", TestPlanners.CreatePortfolio(), 38, 37, null },
         };
         return snapshots;
     }

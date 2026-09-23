@@ -17,7 +17,7 @@ no pieces overlapping — cooks together. Pieces may be turned sideways (a 15×7
 7×15), but they must stay on the grill, on whole centimetres.
 
 That is the whole problem. It is the same kind of puzzle as fitting boxes into a lorry: obvious
-for one or two boxes, genuinely hard in general — which is why the app ships several different
+for one or two boxes, genuinely hard in general — which is why the app ships two different
 strategies (we call them *planners*) and lets you compare them.
 
 ## How to run it
@@ -45,12 +45,10 @@ Total: 39 rounds
 ## How it thinks (one paragraph)
 
 The app arranges the meat with a *planner* — a strategy for deciding what goes on the grill in
-each round. There are **eight** of them: a fast "biggest first, tuck it in" cook; a patient one
-that tries arrangements until it can *prove* no better answer exists; a specialist
-integer-programming engine; and a team captain that runs the good ones and keeps the best
-plate. You pick one in a single line of a configuration file. The plain-language explanations,
-the results table, and the configuration details all live in
-[`docs/planners.md`](docs/planners.md).
+each round. There are **two** of them: a fast "biggest first, tuck it in" cook, and a patient
+one that tries arrangements until it can *prove* no better answer exists. You pick one in a
+single line of a configuration file. The plain-language explanations, the results table, and
+the configuration details all live in [`docs/planners.md`](docs/planners.md).
 
 ## Testing
 
@@ -82,7 +80,7 @@ change to see the perf diff. The files are local artifacts, not committed.
 ## What's in the repo
 
 - `src/` — the app itself, in three small parts: the plain data (menus, pieces, rounds), the
-  plan logic (the eight planners) with its configuration, and the console program that ties
+  plan logic (the two planners) with its configuration, and the console program that ties
   them together.
 - `tests/` — the four test suites above, plus the shared `GrillMaster.Testing` project carrying
   the full-fixture `grill-menus.json` and the test helpers the suites draw from.

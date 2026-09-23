@@ -69,13 +69,6 @@ public sealed class GrillMasterPerformanceTest(ITestOutputHelper output)
     {
         new GreedyShelfPlanner(),
         new ExactBacktrackingPlanner(),
-        new OptimizedHeuristicPlanner(),
-        new MaxRectsPlanner(),
-        new GuillotinePlanner(),
-        new BatchPlanner(),
-        // OrToolsPlanner is deliberately not benchmarked: its 30 s CP-SAT time cap per menu
-        // would make this suite take ~35 minutes and the recorded results would only show the cap.
-        new PortfolioPlanner(),
     };
 
     /// <summary>

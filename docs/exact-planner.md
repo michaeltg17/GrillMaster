@@ -36,8 +36,8 @@ Before searching, the planner does two quick things:
 can ever go below it. (The only *math* in this whole program, and it's just
 division-and-round-up.) There is a second floor for menus full of one meat: 40 sausages
 need 2 rounds when a grill holds at most 30, even if the area says 1 — that part is
-computed exactly (see [the batch planner](batch-planner.md)). The floor is the larger of
-the two.
+computed exactly by a small cached search over one empty grill. The floor is the larger
+of the two.
 
 **The champion.** Run the [greedy planner](greedy-planner.md) first and keep *its*
 answer as the current best — the **champion**. Now the search only has one job:
@@ -198,8 +198,7 @@ would actually rest: the bottom edge, then the tops of whatever is already down)
   floor cost essentially nothing.
 - **Quality:** 38 rounds on the 15-menu fixture: the floor (37) is reached and proven
   on 14 menus; on Menu 01 the search runs out of budget and returns the best-so-far
-  4-round plan, flagged `IsProvenOptimal: false` (CP-SAT independently reaches the same
-  4 rounds without proving three is impossible either).
+  4-round plan, flagged `IsProvenOptimal: false` (three rounds has not been ruled out).
 - **Guarantees:** a valid plan, and — within budget — a *proof* that nothing is better.
   If the budget is ever exceeded, the best-so-far plan is returned and honestly flagged
   `IsProvenOptimal: false`.
@@ -209,7 +208,7 @@ would actually rest: the bottom edge, then the tops of whatever is already down)
 - Use it when you need the **proof** — or when the menu is small-to-medium (a few
   dozen pieces), which is all the search handles comfortably.
 - On huge or adversarial menus it could hit its budget (Menu 01 does); then you get
-  the best arrangement found within budget, not a proof. For everyday use the
-  [optimized planner](optimized-planner.md) comes within a round of `exact`'s answer on
-  our fixture with a fraction of the machinery — `exact` is the one to reach for when
+  the best arrangement found within budget, not a proof. For everyday use
+  [greedy](greedy-planner.md) comes within a round of `exact`'s answer on our fixture
+  with a fraction of the machinery — `exact` is the one to reach for when
   "I must know this is the best" matters.

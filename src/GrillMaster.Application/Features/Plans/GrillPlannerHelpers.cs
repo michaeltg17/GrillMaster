@@ -79,8 +79,7 @@ public static class GrillPlannerHelpers
     // Per-type single-round capacity search
     // ------------------------------------------------------------------
 
-    // The seam into the search engine for the batch planner's MaxPattern (its only other consumer):
-    // internal, not public, because the engine is an implementation detail of the lower bound.
+    // internal, not public, because the search engine is an implementation detail of the lower bound.
     internal enum Fit { Unknown, NotFits, Fits }
 
     internal sealed record OneRoundResult(Fit Fits, IReadOnlyList<GrillPiecePlacement> Pattern);
