@@ -7,9 +7,9 @@ using GrillMaster.PerformanceTests.Base.Models;
 namespace GrillMaster.PerformanceTests.Base;
 
 /// <summary>
-/// Loads and saves the git-committed performance results. The source file lives next to this code in
-/// git; at runtime it is read from the build output and, when updating, written back to the source
-/// file so the regenerated results can be committed.
+/// Loads and saves the git-committed performance results. The file lives in the source tree next to
+/// the project file: the benchmark reads it before measuring (to print the delta) and rewrites it
+/// afterwards, so the regenerated results can be committed.
 /// </summary>
 public static class PerformanceResultStore
 {
@@ -24,27 +24,9 @@ public static class PerformanceResultStore
     private const string ResultsFileName = "results.json";
 
     /// <summary>
-    /// True when the run should (re)write the results file instead of asserting against it. Enabled by
-    /// setting the <c>UPDATE_PERF_RESULTS</c> environment variable to <c>1</c> or <c>true</c>.
-    /// </summary>
-    public static bool UpdateMode
-    {
-        get
-        {
-            var value = Environment.GetEnvironmentVariable("UPDATE_PERF_RESULTS");
-            return string.Equals(value, "1", StringComparison.Ordinal)
-                || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
-        }
-    }
-
-    /// <summary>The path to the results file inside the build output directory.</summary>
-    public static string OutputPath =>
-        Path.Combine(AppContext.BaseDirectory, ResultsFileName);
-
-    /// <summary>
-    /// The path to the results file in the source tree (the file that is committed to git and that
-    /// update mode writes back to). Located by walking up from the build output to the directory
-    /// that contains the project file, so the layout does not depend on the output directory depth.
+    /// The path to the results file in the source tree (the git-committed copy). Located by walking
+    /// up from the build output to the directory that contains the project file, so the layout does
+    /// not depend on the output directory depth.
     /// </summary>
     public static string SourcePath
     {
@@ -61,18 +43,17 @@ public static class PerformanceResultStore
     }
 
     /// <summary>
-    /// Loads the results from the build output. Returns null when the file is absent so the caller can
-    /// produce a clear "run in update mode first" message.
+    /// Loads the results from the source tree. Returns null when the file is absent so the caller
+    /// can report that there is no previous measurement to compare against.
     /// </summary>
     public static PerformanceResult? Load() =>
-        File.Exists(OutputPath)
-            ? JsonSerializer.Deserialize<PerformanceResult>(File.ReadAllText(OutputPath), JsonOptions)
+        File.Exists(SourcePath)
+            ? JsonSerializer.Deserialize<PerformanceResult>(File.ReadAllText(SourcePath), JsonOptions)
             : null;
 
     /// <summary>
-    /// Captures the results (with the current UTC timestamp and git commit) and serialises them to the
-    /// source-tree file (the git-committed copy). The build output copy is refreshed on the next build
-    /// via <c>CopyToOutputDirectory</c>.
+    /// Captures the results (with the current UTC timestamp and git commit) and serialises them to
+    /// the source-tree file (the git-committed copy).
     /// </summary>
     public static void Save(IReadOnlyList<PerformancePlannerResult> planners)
     {

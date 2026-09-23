@@ -17,6 +17,6 @@ public interface IGrillPlanner
     /// </summary>
     /// <param name="menu">The menu to plan (its items provide the pieces to place).</param>
     /// <param name="grill">The grill dimensions.</param>
-    /// <returns>The plan (carrying the menu), including the produced rounds and metadata.</returns>
+    /// <returns>The plan with the rounds and metadata.</returns>
     GrillPlan Plan(GrillMenu menu, GrillSize grill);
 }

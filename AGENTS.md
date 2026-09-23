@@ -1,12 +1,17 @@
 ## Conventions
 - Keep the domain value types (`Centimeters`, `SquareCentimeters`, ...) out of the planner hot
   loops: their operators are not inlined, so the packing engines work on raw ints (flattened
-  grids, cached widths/areas). That is what the performance gate below protects.
-- The performance suite gates on the committed
-  `tests/GrillMaster.PerformanceTests/results.json`: quality (rounds) regressions fail hard,
-  speed is allowed +50% headroom. Regenerate the baseline with
-  `UPDATE_PERF_RESULTS=1 dotnet run --project tests/GrillMaster.PerformanceTests` and commit the
-  updated file.
+  grids, cached widths/areas). That is what the quality snapshot and performance benchmark below
+  protect.
+- Packing quality over the full 15-menu fixture is pinned by `PlannerFullFixtureQualityTests` in
+  the unit tests (deterministic, always run, machine-independent). Update the snapshot when a
+  change deliberately alters packing quality.
+- Wall-clock speed is measured, not gated:
+  `dotnet run --project tests/GrillMaster.PerformanceTests -- --explicit only` benchmarks the
+  planners,
+  prints the delta against the previous results, and rewrites the committed
+  `tests/GrillMaster.PerformanceTests/results.json`. Run it before and after a
+  performance-relevant change and commit the updated file so the PR shows the perf diff.
 
 ## Workflow
 Commit on `dev` → push `dev` → open (or update) the `dev` → `main` PR.

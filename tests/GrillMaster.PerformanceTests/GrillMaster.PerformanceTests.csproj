@@ -17,13 +17,11 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\GrillMaster.Application\GrillMaster.Application.csproj" />
+    <ProjectReference Include="..\GrillMaster.UnitTests\GrillMaster.UnitTests.csproj" />
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="results.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Update="Data\menus.json">
+    <None Include="..\GrillMaster.UnitTests\Data\menus.json">
       <Link>menus.json</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
