@@ -7,8 +7,8 @@ using Xunit;
 namespace GrillMaster.UnitTests.Tests.Application.Features.Plans;
 
 /// <summary>
-/// Cross-planner quality checks: the exact search is never worse than the heuristics, and the
-/// heuristics never beat the area lower bound. Per-planner contract tests live in
+/// Cross-planner quality checks: the exact search is never worse than the heuristic, and the
+/// heuristic never beats the area lower bound. Per-planner contract tests live in
 /// <see cref="PlannerTestsBase"/> and its derived classes.
 /// </summary>
 public class GrillPlanOptimalityTests
@@ -16,18 +16,15 @@ public class GrillPlanOptimalityTests
     private static readonly GrillSize Grill = GrillSize.Standard;
 
     [Fact]
-    public void Exact_IsNeverWorseThanHeuristics()
+    public void Exact_IsNeverWorseThanGreedy()
     {
         var menu = PlannerTestsBase.BuildMenu(BuildMixedPieces());
 
         var exact = new ExactBacktrackingPlanner().Plan(menu, Grill);
         var greedy = new GreedyShelfPlanner().Plan(menu, Grill);
-        var optimized = new OptimizedHeuristicPlanner().Plan(menu, Grill);
 
         exact.Rounds.Count.Should().BeLessThanOrEqualTo(greedy.Rounds.Count, "exact should beat or tie greedy");
-        exact.Rounds.Count.Should().BeLessThanOrEqualTo(optimized.Rounds.Count, "exact should beat or tie optimized");
         greedy.Rounds.Count.Should().BeGreaterThanOrEqualTo(exact.LowerBound, "greedy cannot beat the lower bound");
-        optimized.Rounds.Count.Should().BeGreaterThanOrEqualTo(exact.LowerBound, "optimized cannot beat the lower bound");
     }
 
     private static List<GrillPiece> BuildMixedPieces()

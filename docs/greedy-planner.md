@@ -172,7 +172,7 @@ EEEEEGGGG....................     ..............................
 The fix is simple to *see* but impossible for greedy to *find*: stand the pork chop up
 vertically along the right edge (6 wide × 20 tall) instead of laying it flat. That
 opens the middle of the grill, where the steak fits comfortably. Then **everything
-fits in one round** — which the `optimized` and `exact` planners actually find:
+fits in one round** — which the `exact` planner actually finds:
 
 ```
 AAAAAAAAAAAAAAAAAAAAAAAACCCCCC
@@ -229,7 +229,7 @@ Here is each piece of code translated back into the story:
 
 The grill's map itself is `RoundOccupancy`
 (`src/GrillMaster.Application/Features/Plans/RoundOccupancy.cs`): a 30×20 grid of
-"taken / free" squares shared by `greedy`, `optimized` and `exact`.
+"taken / free" squares shared by `greedy` and `exact`.
 
 ## 6. The numbers
 
@@ -240,6 +240,6 @@ The grill's map itself is `RoundOccupancy`
 - **Guarantees:** a valid plan (no overlaps, nothing off the grill), never fewer rounds
   than the lower bound, but no claim that it is optimal.
 
-If you want the same speed with a better answer, look at
-[the optimized planner](optimized-planner.md) — it starts with exactly this plan and
-then improves it — or at `exact` when the proof matters.
+If you want a better answer on a small-to-medium menu, look at
+[the exact planner](exact-planner.md) — it improves on this plan and can prove the
+answer is the best possible.

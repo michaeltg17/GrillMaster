@@ -36,13 +36,12 @@ internal static class GrillMasterFactory
                     settings.GrillMenuApiUrl = apiUrl;
                 });
 
-                // The pipeline plans all 15 fixture menus; with the production defaults the two
+                // The pipeline plans all 15 fixture menus; with the production default the two
                 // menus that do not settle at the lower bound exhaust the exact solver's
-                // 20 000 000-node budget (~30 s in Release, several minutes in Debug) and the
-                // OrTools solver's 30 s cap. Swap in the budget-bounded test planners, which
-                // return the same per-menu round counts (see TestPlanners).
+                // 20 000 000-node budget (~30 s in Release, several minutes in Debug). Swap in
+                // the budget-bounded test planner, which returns the same per-menu round counts
+                // (see TestPlanners).
                 ReplacePlanner(services, TestPlanners.CreateExact);
-                ReplacePlanner(services, TestPlanners.CreatePortfolio);
             });
 
         return new GrillMasterApp(host, sink, testOutputSink);

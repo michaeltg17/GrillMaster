@@ -6,10 +6,4 @@ using Xunit.Sdk;
 [assembly: RegisterXunitSerializer(typeof(TestCaseSerializer),
     typeof(IGrillPlanner),
     typeof(GreedyShelfPlanner),
-    typeof(ExactBacktrackingPlanner),
-    typeof(OptimizedHeuristicPlanner),
-    typeof(MaxRectsPlanner),
-    typeof(GuillotinePlanner),
-    typeof(BatchPlanner),
-    typeof(OrToolsPlanner),
-    typeof(PortfolioPlanner))]
+    typeof(ExactBacktrackingPlanner))]

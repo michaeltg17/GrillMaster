@@ -23,13 +23,6 @@ public sealed class GrillMasterIntegrationTests(ITestOutputHelper output) : Gril
     [Theory]
     [InlineData(PlannerNames.Greedy)]
     [InlineData(PlannerNames.Exact)]
-    [InlineData(PlannerNames.Optimized)]
-    [InlineData(PlannerNames.MaxRects)]
-    [InlineData(PlannerNames.Guillotine)]
-    [InlineData(PlannerNames.Batch)]
-    // "ortools" is deliberately not pipeline-tested here: its 30 s CP-SAT time cap per menu would
-    // make this suite take ~8 minutes; the planner itself is covered by OrToolsPlannerTests.
-    [InlineData(PlannerNames.Portfolio)]
     public async Task LogsPerMenuRoundsAndTotal(string plannerName)
     {
         GrillMenuApiMock.SetGetMenus();
