@@ -1,7 +1,7 @@
 namespace GrillMaster.Domain;
 
 /// <summary>
-/// One "round" of grilling: the set of pieces that sit on the grill at the same time.
+/// One round: the set of pieces that sit on the grill at the same time.
 /// All pieces in a round must be non-overlapping and within the grill bounds.
 /// </summary>
 public sealed class GrillRound

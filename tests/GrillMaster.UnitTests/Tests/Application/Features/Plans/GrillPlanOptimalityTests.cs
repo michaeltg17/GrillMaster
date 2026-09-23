@@ -11,7 +11,7 @@ namespace GrillMaster.UnitTests.Tests.Application.Features.Plans;
 /// heuristics never beat the area lower bound. Per-planner contract tests live in
 /// <see cref="PlannerTestsBase"/> and its derived classes.
 /// </summary>
-public class GrillingOptimalityTests
+public class GrillPlanOptimalityTests
 {
     private static readonly GrillSize Grill = GrillSize.Standard;
 

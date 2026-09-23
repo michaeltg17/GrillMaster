@@ -11,7 +11,7 @@ using Xunit;
 namespace GrillMaster.IntegrationTests.Tests;
 
 /// <summary>
-/// Runs the whole flow (WireMock API -> client -> grilling -> logging) in-process through the hosted
+/// Runs the whole flow (WireMock API -> client -> plan -> log) in-process through the hosted
 /// application (the same host as <c>Program</c>) and validates the console log response — what a real
 /// user would see — via the in-memory sink, instead of asserting on the HTTP client.
 /// </summary>

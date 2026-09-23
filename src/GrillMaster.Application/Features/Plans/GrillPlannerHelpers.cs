@@ -4,7 +4,7 @@ using GrillMaster.Domain;
 namespace GrillMaster.Application.Features.Plans;
 
 /// <summary>
-/// Shared helpers used by every grilling planner: canonical piece ordering and the lower bound on
+/// Shared helpers used by every grill planner: canonical piece ordering and the lower bound on
 /// the number of rounds. The bound combines two floors: the total-area floor
 /// (<c>ceil(totalArea / grillArea)</c>) and, for every distinct piece type, the per-type capacity
 /// floor (<c>ceil(count / capacity)</c>, where <c>capacity</c> is how many identical pieces fit on

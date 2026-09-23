@@ -14,7 +14,7 @@ using Xunit.Sdk;
 namespace GrillMaster.UnitTests.Tests.Application.Features.Plans.Planners;
 
 /// <summary>
-/// The common contract every grilling planner must satisfy, run once per concrete planner test
+/// The common contract every grill planner must satisfy, run once per concrete planner test
 /// class: each piece placed exactly once, all pieces within the grill, no overlaps, footprints
 /// matching the piece dimensions (with or without a 90° rotation), the area lower bound never
 /// beaten, and the plan reporting the planner's own name.
