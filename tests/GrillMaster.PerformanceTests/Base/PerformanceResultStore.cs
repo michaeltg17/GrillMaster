@@ -7,9 +7,11 @@ using GrillMaster.PerformanceTests.Base.Models;
 namespace GrillMaster.PerformanceTests.Base;
 
 /// <summary>
-/// Loads and saves the git-committed performance results. The file lives in the source tree next to
-/// the project file: the benchmark reads it before measuring (to print the delta) and rewrites it
-/// afterwards, so the regenerated results can be committed.
+/// Loads and saves the local performance results. The files live in the source tree next to the
+/// project file: <c>before.json</c> holds the baseline measurement and <c>after.json</c> holds
+/// the latest one. The benchmark creates the baseline on the first run and rewrites the after
+/// file on every later run, so the caller can print the delta between the two. Neither file is
+/// committed: they are local artifacts of the on-demand benchmark.
 /// </summary>
 public static class PerformanceResultStore
 {
@@ -21,14 +23,16 @@ public static class PerformanceResultStore
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
 
-    private const string ResultsFileName = "results.json";
+    private const string BeforeFileName = "before.json";
+
+    private const string AfterFileName = "after.json";
 
     /// <summary>
-    /// The path to the results file in the source tree (the git-committed copy). Located by walking
-    /// up from the build output to the directory that contains the project file, so the layout does
-    /// not depend on the output directory depth.
+    /// The directory in the source tree that holds the result files (next to the project file).
+    /// Located by walking up from the build output to the directory that contains the project
+    /// file, so the layout does not depend on the output directory depth.
     /// </summary>
-    public static string SourcePath
+    public static string SourceDirectory
     {
         get
         {
@@ -38,27 +42,50 @@ public static class PerformanceResultStore
                 dir = dir.Parent;
             }
 
-            return Path.Combine(dir?.FullName ?? AppContext.BaseDirectory, ResultsFileName);
+            return dir?.FullName ?? AppContext.BaseDirectory;
         }
     }
 
+    /// <summary>The path to the baseline file (the measurement the delta is printed against).</summary>
+    public static string BeforePath => Path.Combine(SourceDirectory, BeforeFileName);
+
+    /// <summary>The path to the latest measurement file (rewritten on every run once the baseline exists).</summary>
+    public static string AfterPath => Path.Combine(SourceDirectory, AfterFileName);
+
     /// <summary>
-    /// Loads the results from the source tree. Returns null when the file is absent so the caller
-    /// can report that there is no previous measurement to compare against.
+    /// Loads the baseline from the source tree. Returns null when the file is absent so the caller
+    /// can report that there is no baseline measurement to compare against.
     /// </summary>
-    public static PerformanceResult? Load() =>
-        File.Exists(SourcePath)
-            ? JsonSerializer.Deserialize<PerformanceResult>(File.ReadAllText(SourcePath), JsonOptions)
-            : null;
+    public static PerformanceResult? LoadBefore() => Load(BeforePath);
+
+    /// <summary>
+    /// Loads the latest measurement from the source tree. Returns null when the file is absent.
+    /// </summary>
+    public static PerformanceResult? LoadAfter() => Load(AfterPath);
 
     /// <summary>
     /// Captures the results (with the current UTC timestamp and git commit) and serialises them to
-    /// the source-tree file (the git-committed copy).
+    /// the baseline file.
     /// </summary>
-    public static void Save(IReadOnlyList<PerformancePlannerResult> planners)
+    public static void SaveBefore(IReadOnlyList<PerformancePlannerResult> planners) =>
+        Save(BeforePath, planners);
+
+    /// <summary>
+    /// Captures the results (with the current UTC timestamp and git commit) and serialises them to
+    /// the after file, replacing any previous latest measurement.
+    /// </summary>
+    public static void SaveAfter(IReadOnlyList<PerformancePlannerResult> planners) =>
+        Save(AfterPath, planners);
+
+    private static PerformanceResult? Load(string path) =>
+        File.Exists(path)
+            ? JsonSerializer.Deserialize<PerformanceResult>(File.ReadAllText(path), JsonOptions)
+            : null;
+
+    private static void Save(string path, IReadOnlyList<PerformancePlannerResult> planners)
     {
         var results = new PerformanceResult(DateTime.UtcNow.ToString("o"), GitCommit(), planners);
-        File.WriteAllText(SourcePath, JsonSerializer.Serialize(results, JsonOptions));
+        File.WriteAllText(path, JsonSerializer.Serialize(results, JsonOptions));
     }
 
     /// <summary>The short git commit the results are captured at, or "unknown" outside a git checkout.</summary>
@@ -66,7 +93,7 @@ public static class PerformanceResultStore
     {
         try
         {
-            var repoRoot = new DirectoryInfo(SourcePath);
+            var repoRoot = new DirectoryInfo(SourceDirectory);
             while (repoRoot is not null && !Directory.Exists(Path.Combine(repoRoot.FullName, ".git")))
             {
                 repoRoot = repoRoot.Parent;

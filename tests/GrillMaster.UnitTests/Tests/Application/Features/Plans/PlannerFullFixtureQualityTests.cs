@@ -10,8 +10,9 @@ namespace GrillMaster.UnitTests.Tests.Application.Features.Plans;
 /// <summary>
 /// Pins the packing quality of every planner over the full 15-menu fixture. The planners are
 /// deterministic, so the totals are machine-independent and must match the committed snapshot
-/// exactly — the same quality figures the performance suite records in <c>results.json</c>.
-/// Update the snapshot when a change deliberately alters packing quality.
+/// exactly — the same quality figures the performance suite records in its local
+/// <c>before.json</c> / <c>after.json</c> files. Update the snapshot when a change deliberately
+/// alters packing quality.
 /// </summary>
 public sealed class PlannerFullFixtureQualityTests
 {

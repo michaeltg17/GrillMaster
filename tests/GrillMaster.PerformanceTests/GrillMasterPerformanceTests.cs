@@ -9,13 +9,14 @@ using Xunit;
 namespace GrillMaster.PerformanceTests;
 
 /// <summary>
-/// Benchmarks every grill planner over the full 15-menu fixture, prints the measurements with
-/// the delta against the previously stored results, and rewrites the git-committed performance
-/// results (<c>results.json</c>). This is a measurement, not a gate: it never fails and is marked
-/// explicit, so it only runs on demand with
+/// Benchmarks every grill planner over the full 15-menu fixture. The first run stores the
+/// measurement as the local <c>before.json</c> baseline; every later run rewrites
+/// <c>after.json</c> and prints the measurements with the delta against the baseline, so the
+/// before/after comparison is visible in the test output. This is a measurement, not a gate: it
+/// never fails and is marked explicit, so it only runs on demand with
 /// <c>dotnet run --project tests/GrillMaster.PerformanceTests -- --explicit only</c>, for example
-/// before and after a performance-relevant change — commit the rewritten file so the change shows
-/// up as a diff. Deterministic quality (rounds, lower bound, search nodes) is asserted by the unit
+/// before and after a performance-relevant change. The result files are local artifacts, not
+/// committed. Deterministic quality (rounds, lower bound, search nodes) is asserted by the unit
 /// tests instead.
 /// </summary>
 public sealed class GrillMasterPerformanceTests(ITestOutputHelper output)
@@ -29,17 +30,32 @@ public sealed class GrillMasterPerformanceTests(ITestOutputHelper output)
     [Fact(Explicit = true)]
     public void Planners_BenchmarkAndWriteResults()
     {
-        var previous = PerformanceResultStore.Load();
         var measured = MeasurePlanners();
+        var before = PerformanceResultStore.LoadBefore();
+
+        if (before is null)
+        {
+            PerformanceResultStore.SaveBefore(measured);
+
+            foreach (var m in measured)
+            {
+                _output.WriteLine(Describe(m, null));
+            }
+
+            _output.WriteLine(Summary(measured));
+            _output.WriteLine($"Baseline written to {PerformanceResultStore.BeforePath}; run again after your change to see the delta");
+            return;
+        }
+
+        PerformanceResultStore.SaveAfter(measured);
 
         foreach (var m in measured)
         {
-            _output.WriteLine(Describe(m, previous?.Planners.FirstOrDefault(s => s.Planner == m.Planner)));
+            _output.WriteLine(Describe(m, before.Planners.FirstOrDefault(s => s.Planner == m.Planner)));
         }
 
-        PerformanceResultStore.Save(measured);
         _output.WriteLine(Summary(measured));
-        _output.WriteLine($"Performance results written to {PerformanceResultStore.SourcePath}");
+        _output.WriteLine($"After results written to {PerformanceResultStore.AfterPath}");
     }
 
     /// <summary>Benchmarks every planner over the full 15-menu fixture.</summary>
@@ -96,22 +112,23 @@ public sealed class GrillMasterPerformanceTests(ITestOutputHelper output)
 
     /// <summary>
     /// One report line per planner: the measured quality and speed with the delta against the
-    /// previously stored results, so the before/after comparison is printed instead of leaving
-    /// the reader to diff the file.
+    /// baseline, so the before/after comparison is printed instead of leaving the reader to
+    /// diff the files. Wall-clock values use the default shortest round-trip format, the same
+    /// numbers the JSON result files store.
     /// </summary>
     private static string Describe(PerformancePlannerResult measured, PerformancePlannerResult? previous)
     {
         if (previous is null)
         {
-            return $"{measured.Planner}: {measured.TotalRounds} rounds, {measured.MedianMs:F1} ms (first measurement)";
+            return $"{measured.Planner}: {measured.TotalRounds} rounds, {measured.MedianMs} ms (first measurement)";
         }
 
         var rounds = measured.TotalRounds == previous.TotalRounds
             ? $"{measured.TotalRounds} rounds"
             : $"{measured.TotalRounds} rounds (was {previous.TotalRounds})";
         var ms = previous.MedianMs <= 0
-            ? $"{measured.MedianMs:F1} ms (was {previous.MedianMs:F1} ms)"
-            : $"{measured.MedianMs:F1} ms (was {previous.MedianMs:F1} ms, {DeltaPercent(measured.MedianMs, previous.MedianMs):+0.0;-0.0}%)";
+            ? $"{measured.MedianMs} ms (was {previous.MedianMs} ms)"
+            : $"{measured.MedianMs} ms (was {previous.MedianMs} ms, {FormatDelta(DeltaPercent(measured.MedianMs, previous.MedianMs))}%)";
         return $"{measured.Planner}: {rounds}, {ms}";
     }
 
@@ -122,9 +139,16 @@ public sealed class GrillMasterPerformanceTests(ITestOutputHelper output)
         return (ratio - 1) * 100;
     }
 
+    /// <summary>
+    /// A delta with an explicit sign. Done in code instead of a "+0.0;-0.0" custom format, because
+    /// .NET renders values whose magnitude rounds to zero as "-+0.0" with that format.
+    /// </summary>
+    private static string FormatDelta(double delta) =>
+        $"{(delta < 0 ? '-' : '+')}{Math.Abs(delta):0.0}";
+
     /// <summary>The one-line report: how many planners were measured and their combined totals.</summary>
     private static string Summary(IReadOnlyList<PerformancePlannerResult> measured) =>
-        $"Total: {measured.Count} planners, {measured.Sum(m => m.TotalRounds)} rounds, {measured.Sum(m => m.MedianMs):F1} ms";
+        $"Total: {measured.Count} planners, {measured.Sum(m => m.TotalRounds)} rounds, {Math.Round(measured.Sum(m => m.MedianMs), 4)} ms";
 
     private static double Median(List<double> values)
     {

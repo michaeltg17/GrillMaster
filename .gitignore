@@ -396,3 +396,8 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# Local performance benchmark baselines (created by the on-demand benchmark, see
+# tests/GrillMaster.PerformanceTests)
+tests/GrillMaster.PerformanceTests/before.json
+tests/GrillMaster.PerformanceTests/after.json

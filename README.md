@@ -74,10 +74,10 @@ comparable on the same machine:
 dotnet run --project tests/GrillMaster.PerformanceTests -- --explicit only
 ```
 
-That run benchmarks the planners, prints the delta against the previous results in
-[`tests/GrillMaster.PerformanceTests/results.json`](tests/GrillMaster.PerformanceTests/results.json),
-and rewrites the file — run it before and after a performance-relevant change and commit the
-updated file so the diff shows up in the PR.
+That run benchmarks the planners. The first run stores a `before.json` baseline in
+`tests/GrillMaster.PerformanceTests/`; later runs rewrite `after.json` beside it and print the
+delta against the baseline in the test output — run it before and after a performance-relevant
+change to see the perf diff. The files are local artifacts, not committed.
 
 ## What's in the repo
 
