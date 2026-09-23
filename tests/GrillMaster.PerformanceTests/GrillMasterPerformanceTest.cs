@@ -19,7 +19,7 @@ namespace GrillMaster.PerformanceTests;
 /// committed. Deterministic quality (rounds, lower bound, search nodes) is asserted by the unit
 /// tests instead.
 /// </summary>
-public sealed class GrillMasterPerformanceTests(ITestOutputHelper output)
+public sealed class GrillMasterPerformanceTest(ITestOutputHelper output)
 {
     private const int Runs = 5;
 
