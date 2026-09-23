@@ -2,7 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using GrillMaster.Domain;
 
-namespace GrillMaster.UnitTests.Data;
+namespace GrillMaster.Testing.Data;
 
 /// <summary>
 /// Reads and writes <see cref="Centimeters"/> as a plain whole-centimetre number, keeping the JSON

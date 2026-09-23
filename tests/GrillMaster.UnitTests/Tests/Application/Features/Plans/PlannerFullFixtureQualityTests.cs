@@ -2,7 +2,7 @@ using AwesomeAssertions;
 using GrillMaster.Application.Features.Plans;
 using GrillMaster.Application.Features.Plans.Planners;
 using GrillMaster.Domain;
-using GrillMaster.UnitTests.Data;
+using GrillMaster.Testing.Data;
 using Xunit;
 
 namespace GrillMaster.UnitTests.Tests.Application.Features.Plans;
@@ -27,7 +27,7 @@ public sealed class PlannerFullFixtureQualityTests
         int expectedLowerBound,
         long expectedSearchNodes)
     {
-        var menus = GrillMenuBuilder.BuildAll();
+        var menus = GrillMenusProvider.GetGrillMenus();
 
         var totalRounds = 0;
         var lowerBound = 0;

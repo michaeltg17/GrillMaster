@@ -3,7 +3,7 @@ using GrillMaster.Application.Features.Plans.Planners;
 using GrillMaster.Domain;
 using GrillMaster.PerformanceTests.Base;
 using GrillMaster.PerformanceTests.Base.Models;
-using GrillMaster.UnitTests.Data;
+using GrillMaster.Testing.Data;
 using Xunit;
 
 namespace GrillMaster.PerformanceTests;
@@ -61,7 +61,7 @@ public sealed class GrillMasterPerformanceTest(ITestOutputHelper output)
     /// <summary>Benchmarks every planner over the full 15-menu fixture.</summary>
     private static IReadOnlyList<PerformancePlannerResult> MeasurePlanners()
     {
-        var menus = GrillMenuBuilder.BuildAll();
+        var menus = GrillMenusProvider.GetGrillMenus();
         return Planners().Select(planner => Benchmark(planner, menus)).ToList();
     }
 
