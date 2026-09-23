@@ -70,6 +70,12 @@ public sealed class GrillMasterIntegrationTests(ITestOutputHelper output) : Gril
             .WithLevel(LogEventLevel.Information)
             .WithProperty("TotalRounds")
             .WithValue(perMenuRounds.Sum());
+
+        // No other logging is produced: exactly one message per menu, plus the single total.
+        app.Sink
+            .LogEvents
+            .Should()
+            .HaveCount(expectedNames.Length + 1);
     }
 
     [Fact]
