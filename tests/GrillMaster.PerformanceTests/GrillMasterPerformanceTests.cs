@@ -1,47 +1,45 @@
-using AwesomeAssertions;
 using GrillMaster.Application.Features.Plans;
 using GrillMaster.Application.Features.Plans.Planners;
 using GrillMaster.Domain;
 using GrillMaster.PerformanceTests.Base;
-using GrillMaster.PerformanceTests.Data;
 using GrillMaster.PerformanceTests.Base.Models;
+using GrillMaster.UnitTests.Data;
 using Xunit;
 
 namespace GrillMaster.PerformanceTests;
 
 /// <summary>
-/// Benchmarks every grilling planner over the full 15-menu fixture and compares the result against
-/// the git-committed performance results (<c>results.json</c>). Quality (total rounds) is
-/// a hard failure if it regresses; speed is a hard failure only on a significant relative regression
-/// (default +50%) so that machine-to-machine variance does not cause flaky failures. Regenerate the
-/// results with <c>UPDATE_PERF_RESULTS=1</c>.
+/// Benchmarks every grilling planner over the full 15-menu fixture, prints the measurements with
+/// the delta against the previously stored results, and rewrites the git-committed performance
+/// results (<c>results.json</c>). This is a measurement, not a gate: it never fails and is marked
+/// explicit, so it only runs on demand with
+/// <c>dotnet run --project tests/GrillMaster.PerformanceTests -- --explicit only</c>, for example
+/// before and after a performance-relevant change — commit the rewritten file so the change shows
+/// up as a diff. Deterministic quality (rounds, lower bound, search nodes) is asserted by the unit
+/// tests instead.
 /// </summary>
 public sealed class GrillMasterPerformanceTests(ITestOutputHelper output)
 {
     private const int Runs = 5;
-    private const double DefaultSpeedThreshold = 0.5;
 
     private static readonly GrillSize Grill = GrillSize.Standard;
 
     private readonly ITestOutputHelper _output = output;
 
-    private static double SpeedThreshold =>
-        double.TryParse(Environment.GetEnvironmentVariable("PERF_SPEED_THRESHOLD"), out var t)
-            ? t
-            : DefaultSpeedThreshold;
-
-    [Fact]
-    public void Planners_MatchCommittedResults()
+    [Fact(Explicit = true)]
+    public void Planners_BenchmarkAndWriteResults()
     {
+        var previous = PerformanceResultStore.Load();
         var measured = MeasurePlanners();
 
-        if (PerformanceResultStore.UpdateMode)
+        foreach (var m in measured)
         {
-            WriteResults(measured);
-            return;
+            _output.WriteLine(Describe(m, previous?.Planners.FirstOrDefault(s => s.Planner == m.Planner)));
         }
 
-        CompareWithCommitted(measured);
+        PerformanceResultStore.Save(measured);
+        _output.WriteLine(Summary(measured));
+        _output.WriteLine($"Performance results written to {PerformanceResultStore.SourcePath}");
     }
 
     /// <summary>Benchmarks every planner over the full 15-menu fixture.</summary>
@@ -60,7 +58,7 @@ public sealed class GrillMasterPerformanceTests(ITestOutputHelper output)
         new GuillotinePlanner(),
         new BatchPlanner(),
         // OrToolsPlanner is deliberately not benchmarked: its 30 s CP-SAT time cap per menu
-        // would make this suite take ~35 minutes and the committed results would only record the cap.
+        // would make this suite take ~35 minutes and the recorded results would only show the cap.
         new PortfolioPlanner(),
     };
 
@@ -96,64 +94,37 @@ public sealed class GrillMasterPerformanceTests(ITestOutputHelper output)
         return new PerformancePlannerResult(planner.Name, totalRounds, lowerBound, searchNodes, Median(elapsed));
     }
 
-    private void WriteResults(IReadOnlyList<PerformancePlannerResult> measured)
-    {
-        PerformanceResultStore.Save(measured);
-        _output.WriteLine(Summary(measured, $"Performance results written to {PerformanceResultStore.SourcePath}"));
-    }
-
-    private void CompareWithCommitted(IReadOnlyList<PerformancePlannerResult> measured)
-    {
-        var committed = PerformanceResultStore.Load()
-            ?? throw new InvalidOperationException(
-                "Performance results not found. Run with UPDATE_PERF_RESULTS=1 to generate them.");
-
-        var threshold = SpeedThreshold;
-        var failures = new List<string>();
-        foreach (var m in measured)
-        {
-            var baseline = committed.Planners.FirstOrDefault(s => s.Planner == m.Planner)
-                ?? throw new InvalidOperationException(
-                    $"Planner '{m.Planner}' is missing from the committed results. " +
-                    "Run with UPDATE_PERF_RESULTS=1 to add it.");
-
-            failures.AddRange(Compare(m, baseline, threshold));
-            _output.WriteLine(
-                $"{m.Planner}: {m.TotalRounds} rounds, {m.MedianMs:F1} ms " +
-                $"(committed {baseline.TotalRounds} rounds, {baseline.MedianMs:F1} ms)");
-        }
-
-        _output.WriteLine(Summary(measured, $"Performance vs committed {committed.GitCommit} (speed threshold +{threshold * 100:F0}%)"));
-
-        failures.Should().BeEmpty(string.Join(Environment.NewLine, failures));
-    }
-
     /// <summary>
-    /// The regressions of one planner against its committed baseline: the rounds (quality) regression
-    /// and the significant speed regression, if any.
+    /// One report line per planner: the measured quality and speed with the delta against the
+    /// previously stored results, so the before/after comparison is printed instead of leaving
+    /// the reader to diff the file.
     /// </summary>
-    private static List<string> Compare(PerformancePlannerResult measured, PerformancePlannerResult committed, double threshold)
+    private static string Describe(PerformancePlannerResult measured, PerformancePlannerResult? previous)
     {
-        var failures = new List<string>();
-
-        if (measured.TotalRounds > committed.TotalRounds)
+        if (previous is null)
         {
-            failures.Add($"{measured.Planner}: rounds regressed {committed.TotalRounds} -> {measured.TotalRounds}");
+            return $"{measured.Planner}: {measured.TotalRounds} rounds, {measured.MedianMs:F1} ms (first measurement)";
         }
 
-        if (measured.MedianMs > committed.MedianMs * (1 + threshold))
-        {
-            failures.Add(
-                $"{measured.Planner}: slower than committed {committed.MedianMs:F1} ms " +
-                $"({((measured.MedianMs / committed.MedianMs) - 1) * 100:F1}% > +{threshold * 100:F0}%)");
-        }
+        var rounds = measured.TotalRounds == previous.TotalRounds
+            ? $"{measured.TotalRounds} rounds"
+            : $"{measured.TotalRounds} rounds (was {previous.TotalRounds})";
+        var ms = previous.MedianMs <= 0
+            ? $"{measured.MedianMs:F1} ms (was {previous.MedianMs:F1} ms)"
+            : $"{measured.MedianMs:F1} ms (was {previous.MedianMs:F1} ms, {DeltaPercent(measured.MedianMs, previous.MedianMs):+0.0;-0.0}%)";
+        return $"{measured.Planner}: {rounds}, {ms}";
+    }
 
-        return failures;
+    /// <summary>The relative change in percent between two measurements.</summary>
+    private static double DeltaPercent(double measured, double previous)
+    {
+        var ratio = measured / previous;
+        return (ratio - 1) * 100;
     }
 
     /// <summary>The one-line report: how many planners were measured and their combined totals.</summary>
-    private static string Summary(IReadOnlyList<PerformancePlannerResult> measured, string heading) =>
-        $"{heading}: {measured.Count} planners, {measured.Sum(m => m.TotalRounds)} rounds, {measured.Sum(m => m.MedianMs):F1} ms";
+    private static string Summary(IReadOnlyList<PerformancePlannerResult> measured) =>
+        $"Total: {measured.Count} planners, {measured.Sum(m => m.TotalRounds)} rounds, {measured.Sum(m => m.MedianMs):F1} ms";
 
     private static double Median(List<double> values)
     {

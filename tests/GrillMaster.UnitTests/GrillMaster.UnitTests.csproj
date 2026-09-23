@@ -19,4 +19,11 @@
     <ProjectReference Include="..\..\src\GrillMaster.Application\GrillMaster.Application.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="Data\menus.json">
+      <Link>menus.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

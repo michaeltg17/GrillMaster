@@ -66,11 +66,18 @@ dotnet run --project tests/GrillMaster.PerformanceTests
 The unit, integration, and performance suites run against a local stand-in for the API (no
 network needed); the end-to-end suite launches the built console app against the live API.
 
-The performance suite gates on the committed results in
-[`tests/GrillMaster.PerformanceTests/results.json`](tests/GrillMaster.PerformanceTests/results.json):
-a quality (rounds) regression fails hard, and speed is allowed +50% headroom so machine-to-machine
-variance does not cause flaky failures. Regenerate the baseline with
-`UPDATE_PERF_RESULTS=1 dotnet run --project tests/GrillMaster.PerformanceTests`.
+Packing quality is pinned by a snapshot test in the unit suite (the planners are deterministic, so
+it is machine-independent). Speed is measured, not gated, because wall-clock numbers are only
+comparable on the same machine:
+
+```bash
+dotnet run --project tests/GrillMaster.PerformanceTests -- --explicit only
+```
+
+That run benchmarks the planners, prints the delta against the previous results in
+[`tests/GrillMaster.PerformanceTests/results.json`](tests/GrillMaster.PerformanceTests/results.json),
+and rewrites the file — run it before and after a performance-relevant change and commit the
+updated file so the diff shows up in the PR.
 
 ## What's in the repo
 

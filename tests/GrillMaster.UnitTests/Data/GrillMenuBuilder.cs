@@ -2,12 +2,13 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using GrillMaster.Domain;
 
-namespace GrillMaster.PerformanceTests.Data;
+namespace GrillMaster.UnitTests.Data;
 
 /// <summary>
-/// Builds the benchmark menus from the domain-shaped JSON fixture (<c>Data/menus.json</c>), which
-/// holds the same data as the API fixture used by the integration tests but structured as the
-/// domain model, so the committed performance results stay comparable.
+/// Builds the full-fixture menus from the domain-shaped JSON fixture (<c>Data/menus.json</c>),
+/// which holds the same data as the API fixture used by the integration tests but structured as
+/// the domain model. Shared by the unit tests' quality snapshot and the performance benchmark so
+/// both always run over the identical 15 menus.
 /// </summary>
 public static class GrillMenuBuilder
 {
