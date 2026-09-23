@@ -79,21 +79,6 @@ public static class GrillPlannerHelpers
         (piece.Length <= grill.Width && piece.Width <= grill.Height) ||
         (piece.Width <= grill.Width && piece.Length <= grill.Height);
 
-    /// <summary>
-    /// Canonical, deterministic ordering for greedy placement: largest area first, then longest
-    /// side, then shortest side, then name. Placing big pieces first leaves the awkward leftover
-    /// space for the small pieces.
-    /// </summary>
-    public static IReadOnlyList<GrillPiece> OrderPieces(IReadOnlyList<GrillPiece> pieces)
-    {
-        return pieces
-            .OrderByDescending(p => p.Area)
-            .ThenByDescending(p => p.LongSide)
-            .ThenByDescending(p => p.ShortSide)
-            .ThenBy(p => p.Name, StringComparer.Ordinal)
-            .ToList();
-    }
-
     // ------------------------------------------------------------------
     // Per-type single-round capacity search
     // ------------------------------------------------------------------

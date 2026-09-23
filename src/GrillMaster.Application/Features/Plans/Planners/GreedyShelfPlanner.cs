@@ -16,7 +16,7 @@ public sealed class GreedyShelfPlanner : IGrillPlanner
         var stopwatch = Stopwatch.StartNew();
         var pieces = menu.ExpandPieces();
         var lowerBound = GrillPlannerHelpers.ComputeLowerBound(pieces, grill);
-        var ordered = GrillPlannerHelpers.OrderPieces(pieces);
+        var ordered = OrderPieces(pieces);
 
         var rounds = new List<GrillRound>();
         var occupancies = new List<RoundOccupancy>();
@@ -74,5 +74,20 @@ public sealed class GreedyShelfPlanner : IGrillPlanner
         }
 
         return best;
+    }
+
+    /// <summary>
+    /// Canonical, deterministic ordering for greedy placement: largest area first, then longest
+    /// side, then shortest side, then name. Placing big pieces first leaves the awkward leftover
+    /// space for the small pieces.
+    /// </summary>
+    public static IReadOnlyList<GrillPiece> OrderPieces(IReadOnlyList<GrillPiece> pieces)
+    {
+        return pieces
+            .OrderByDescending(p => p.Area)
+            .ThenByDescending(p => p.LongSide)
+            .ThenByDescending(p => p.ShortSide)
+            .ThenBy(p => p.Name, StringComparer.Ordinal)
+            .ToList();
     }
 }
