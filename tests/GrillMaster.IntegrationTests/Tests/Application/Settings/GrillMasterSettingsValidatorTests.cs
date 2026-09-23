@@ -30,6 +30,7 @@ public sealed class GrillMasterSettingsValidatorTests(ITestOutputHelper output) 
         using var app = await RunGrillMaster(PlannerNames.Greedy, GrillMenuApiMock.Url);
 
         app.ExitCode.Should().Be(0);
+        GrillMenuApiMock.AssertGetMenusRequest();
         app.Sink.Should().NotHaveMessage(ErrorMessageTemplate);
     }
 

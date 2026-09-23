@@ -37,6 +37,7 @@ public sealed class GrillMasterIntegrationTests(ITestOutputHelper output) : Gril
         using var app = await RunGrillMaster(plannerName, GrillMenuApiMock.Url);
 
         app.ExitCode.Should().Be(0);
+        GrillMenuApiMock.AssertGetMenusRequest();
 
         var expectedNames = GrillMenusProvider
             .GetGrillMenusTyped
@@ -79,6 +80,7 @@ public sealed class GrillMasterIntegrationTests(ITestOutputHelper output) : Gril
         using var app = await RunGrillMaster(PlannerNames.Greedy, GrillMenuApiMock.Url);
 
         app.ExitCode.Should().Be(0);
+        GrillMenuApiMock.AssertGetMenusRequest();
 
         app.Sink
             .Should()
@@ -104,6 +106,7 @@ public sealed class GrillMasterIntegrationTests(ITestOutputHelper output) : Gril
 
         // API failures surface as the raw .NET exception and reach the top (unhandled -> non-zero exit).
         await act.Should().ThrowAsync<HttpRequestException>();
+        GrillMenuApiMock.AssertGetMenusRequest();
     }
 
     [Fact]
@@ -115,5 +118,6 @@ public sealed class GrillMasterIntegrationTests(ITestOutputHelper output) : Gril
         var act = () => app.RunAsync(TestContext.Current.CancellationToken);
 
         await act.Should().ThrowAsync<JsonException>();
+        GrillMenuApiMock.AssertGetMenusRequest();
     }
 }
