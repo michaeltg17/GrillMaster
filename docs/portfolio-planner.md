@@ -42,10 +42,11 @@ then `ortools`. Two reasons:
 - if the menu is hard, you still get `exact`'s answer before the slow specialist
   (`ortools`, up to 30 s per menu) is even asked.
 
-On our 15-menu fixture, every menu is settled by `greedy` or `optimized` — `exact`
-and `ortools` never have to run at all (that's why the portfolio reports **0**
-search decisions and finishes in milliseconds), and the whole thing still takes
-about 2 ms per menu.
+On our 15-menu fixture, 14 of the 15 menus are settled by `greedy` or `optimized` —
+but on Menu 01 both heuristics come back one round above the floor, so the portfolio
+asks `exact` (which exhausts its 20,000,000-decision budget in about 30 s) and then
+`ortools` (up to 30 s) as well. That one menu is where the portfolio spends its time
+and its ~21 million search decisions; the other 14 still cost milliseconds.
 
 ## 2. Worked examples (all verified against the real code)
 
@@ -68,12 +69,12 @@ floor (282 cm² < 600 cm²). Stop immediately. Nobody else runs.
 
 ### Example C: the full 15-menu fixture
 
-Every one of the 15 menus is settled by `greedy` or `optimized` before `exact` is
-ever consulted. Total: **37 rounds — the floor for every menu, i.e. proven optimal
-for all of them** — in about 2 ms per menu, with **0** search decisions spent.
-Compare: running `exact` alone would spend about 38,000 search decisions to prove the
-same 37 rounds. The portfolio got the same *proof* for free, because `optimized`
-reached the floor first.
+Fourteen of the 15 menus are settled by `greedy` or `optimized` before `exact` is
+ever consulted. Menu 01 is the exception: both heuristics return 4 rounds against a
+floor of 3, so the portfolio spends `exact`'s whole 20,000,000-decision budget (about
+30 s) and `ortools`' 30 s cap on it — and all four cooks agree on 4. Total:
+**38 rounds** — the floor on 14 menus, best-so-far on Menu 01, honestly flagged
+unproven — with about 21 million search decisions, almost all on that one menu.
 
 ## 3. When does the portfolio actually pay off?
 
@@ -105,7 +106,7 @@ The planner lives in
 | `var best = Members[0].Plan(menu, grill);` | Ask the first cook; their plate is the current best. |
 | `for (var i = 1; i < Members.Length && best.Rounds.Count > lowerBound; i++)` | Keep asking the next cooks **while** the best plate isn't yet at the floor. |
 | `if (plan.Rounds.Count < best.Rounds.Count) best = plan;` | A better plate arrives — swap it in. |
-| `searchNodes += plan.SearchNodes;` | Keep the running total of search decisions spent (0 here: `exact` rarely runs). |
+| `searchNodes += plan.SearchNodes;` | Keep the running total of search decisions spent (0 on 14 of the 15 fixture menus; ~21 million on the 15th). |
 | `IsProvenOptimal: best.Rounds.Count == lowerBound` | The honesty clause: "proven" exactly when some cook reached the floor. |
 | `Name` = `"portfolio"` | The report says "portfolio" produced this plan, whatever cook's plate it kept. |
 
@@ -114,13 +115,14 @@ about 40 lines of glue: no packing logic of its own, nothing to get out of sync.
 
 ## 5. The numbers
 
-- **Speed:** about 2 ms per menu on the 15-menu fixture (the early stop means it costs
-  roughly one or two cooks, not four).
-- **Quality:** **37 rounds — the floor for every menu, proven optimal** — versus 39
-  for `greedy`/`maxrects` and the same 37 for `optimized`/`exact`.
+- **Speed:** about 2 ms per menu on 14 of the 15 menus (the early stop means it costs
+  roughly one or two cooks, not four); Menu 01 runs all four and takes about a minute.
+- **Quality:** **38 rounds** — the floor on 14 menus, best-so-far on Menu 01 — versus
+  39 for `greedy`/`maxrects`/`optimized` and the same 38 for `exact`.
 - **Guarantees:** never worse than the best member; `IsProvenOptimal` is true exactly
   when the floor was reached by any member.
-- **Search decisions:** 0 on the fixture (every menu was settled before `exact` ran).
+- **Search decisions:** about 21 million on the fixture, almost all on Menu 01 (the
+  exact budget plus ortools' time-capped branch count, which varies a little per run).
 
 ## 6. Where it fits
 
@@ -130,5 +132,6 @@ about 40 lines of glue: no packing logic of its own, nothing to get out of sync.
 - `portfolio` — the head chef: **runs the four cooks above, serves the best plate,
   and tells you honestly whether that plate is provably the best possible.**
 
-For the assessment's menus it is the strongest default: optimal and proven, in a few
-milliseconds per menu.
+For the assessment's menus it is the strongest default: 14 of 15 menus proven optimal
+in a few milliseconds each, and the hard one settled by the whole kitchen in about a
+minute.

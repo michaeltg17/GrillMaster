@@ -155,10 +155,12 @@ is hopeless by definition — the search ends, and the answer is *proven*.
 
 Real menus can be nasty, and "try everything promising" can still be large. So the
 search counts every decision it makes against a **budget** (default: 20,000,000
-decisions). On the full 15-menu fixture it uses only about 38,000 in total — a tiny
-fraction. But if a menu *did* blow the budget, the planner would stop and return the
-best arrangement it had found so far, honestly flagged as **not proven optimal**. It
-never lies: `IsProvenOptimal` is true only when it can *prove* the floor was reached.
+decisions). On the full 15-menu fixture, fourteen menus use only a handful of
+decisions in total — but Menu 01 (1791 cm² of meat against three rounds of 600 cm²:
+nine squares of slack) blows the entire budget in about 30 s. When a menu blows the
+budget, the planner stops and returns the best arrangement it had found so far,
+honestly flagged as **not proven optimal**. It never lies: `IsProvenOptimal` is true
+only when it can *prove* the floor was reached.
 
 ## 6. How the code does this
 
@@ -190,11 +192,14 @@ would actually rest: the bottom edge, then the tops of whatever is already down)
 
 ## 7. The numbers
 
-- **Speed:** about 2 ms per menu (median, over repeated runs of the 15-menu fixture),
-  38,261 decisions for all 15 menus together. Menus where greedy already hit the floor
-  cost essentially nothing.
-- **Quality:** 37 rounds on the 15-menu fixture — exactly the floor, i.e. **proven
-  optimal for every menu**.
+- **Speed:** about 2 ms per menu for 14 of the 15 menus (median, over repeated runs of
+  the fixture); Menu 01 exhausts the full 20,000,000-decision budget in about 30 s.
+  20,809,581 decisions for all 15 menus together. Menus where greedy already hit the
+  floor cost essentially nothing.
+- **Quality:** 38 rounds on the 15-menu fixture: the floor (37) is reached and proven
+  on 14 menus; on Menu 01 the search runs out of budget and returns the best-so-far
+  4-round plan, flagged `IsProvenOptimal: false` (CP-SAT independently reaches the same
+  4 rounds without proving three is impossible either).
 - **Guarantees:** a valid plan, and — within budget — a *proof* that nothing is better.
   If the budget is ever exceeded, the best-so-far plan is returned and honestly flagged
   `IsProvenOptimal: false`.
@@ -203,8 +208,8 @@ would actually rest: the bottom edge, then the tops of whatever is already down)
 
 - Use it when you need the **proof** — or when the menu is small-to-medium (a few
   dozen pieces), which is all the search handles comfortably.
-- On huge or adversarial menus it could hit its budget; then you get the best
-  arrangement found within budget, not a proof. For everyday use the
-  [optimized planner](optimized-planner.md) reaches the same 37-round answer on our
-  fixture with a fraction of the machinery — `exact` is the one to reach for when
+- On huge or adversarial menus it could hit its budget (Menu 01 does); then you get
+  the best arrangement found within budget, not a proof. For everyday use the
+  [optimized planner](optimized-planner.md) comes within a round of `exact`'s answer on
+  our fixture with a fraction of the machinery — `exact` is the one to reach for when
   "I must know this is the best" matters.

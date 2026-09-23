@@ -27,12 +27,12 @@ There are eight planners. They are like eight different cooks with the same ingr
 |-------------|----------------------------------------------------------------------------------|----------|--------------------------------------------------------------------------|
 | `greedy`    | Put the biggest pieces down first, tuck each one into the tightest free spot.   | Fast     | Very good, but it can be 1–2 rounds off the best and it can't prove it.  |
 | `exact`     | Try arrangements one by one, but skip millions of pointless ones with smart rules. | Slower   | **Proves** the answer is the best possible (within its time budget).     |
-| `optimized` | Take `greedy`'s answer, then keep asking "can we do it with one fewer round?".  | Fast     | Reaches the best possible on all our menus.                              |
+| `optimized` | Take `greedy`'s answer, then keep asking "can we do it with one fewer round?".  | Fast     | Within a round of the best found on all our menus.                       |
 | `maxrects`  | Track the largest free rectangles and place each piece at the corner that wastes least. | Fastest  | Good (ties `greedy` on our fixture), different packing style.            |
 | `guillotine`| Only cut pieces out of the corners of free rectangles — straight cuts only.     | Fastest  | Ties `greedy` on our fixture, with tiny bookkeeping.                     |
 | `batch`     | Grill each meat type separately: proven full grills per type, then mix leftovers. | Fast     | Weakest on our mixed menus; shines on single-type menus.                 |
 | `ortools`   | Write the problem as maths and let a professional IP solver (CP-SAT) cook it.   | Slow (30 s cap per menu) | A second, independent exact engine; proves some menus.         |
-| `portfolio` | Run all the other planners and keep the best plan.                              | Fast     | The best of everything; proven optimal on all our menus.                 |
+| `portfolio` | Run all the other planners and keep the best plan.                              | Fast*    | The best of everything; 14 of 15 menus proven optimal (*one menu takes a minute). |
 
 Each planner is explained in its own file, written for a person who has never coded or done
 math — with pictures and worked examples:
@@ -65,11 +65,11 @@ environment variable (e.g. `GRILLMASTER__GRILLMENUAPIURL`, `GRILLMASTER__PLANNER
 can try a planner without touching the file.
 
 - `greedy` is the default (fastest, very good).
-- `optimized` is the best everyday choice: it matches the proven optimum on the full
-  15-menu fixture (37 rounds) in about 2 ms per menu.
+- `optimized` is the best everyday choice: 39 rounds on the full 15-menu fixture in
+  about 2 ms per menu — one round off the best found on two menus.
 - `portfolio` runs `greedy`, `optimized`, `exact` and `ortools` (cheapest first) and keeps
-  the best result — the same 37 rounds, still a couple of milliseconds per menu, because on
-  this fixture the fast cooks settle every menu before the slow ones ever run.
+  the best result — 38 rounds, a couple of milliseconds per menu on 14 menus; the 15th
+  (Menu 01) spends the exact budget and ortools' cap and still comes back unproven.
 - `ortools` alone is the "let the specialist think" option — up to 30 seconds per menu.
 
 ## Results on the live dataset (15 menus)
@@ -77,26 +77,29 @@ can try a planner without touching the file.
 | Planner      | Total rounds | Notes                                                    |
 |--------------|--------------|----------------------------------------------------------|
 | `greedy`     | 39           | fast baseline                                            |
-| `exact`      | **37**       | equals the lower bound → optimal                         |
-| `optimized`  | **37**       | matches the optimum via local search                     |
+| `exact`      | **38**       | floor on 14 menus; Menu 01 hits the node budget, unproven |
+| `optimized`  | 39           | floor on 13 menus; one off on Menu 01 and Menu 07       |
 | `maxrects`   | 39           | ~0.02 ms/menu                                            |
 | `guillotine` | 39           | ~0.02 ms/menu, lightest bookkeeping                      |
 | `batch`      | 62           | per-type full grills; weakest on these mixed menus       |
 | `ortools`    | 38           | 30 s cap per menu; proves 4 of 15 menus; excluded from the perf suite |
-| `portfolio`  | **37**       | best of all members; proven optimal, 0 search nodes (early stop) |
+| `portfolio`  | **38**       | best of all members; 14 of 15 proven, ~21M search nodes on Menu 01 |
 
 `37` is the sum of the per-menu lower bounds — the maximum of the area bound
 (`ceil(totalArea / 600)`) and the per-type bound — so no solution can use fewer rounds; on
-this dataset the area bound is the binding one. `exact` proves it, `optimized` reaches it,
-and `portfolio` collects it without `exact` ever needing to run.
+this dataset the area bound is the binding one. Every planner reaches it on most menus;
+Menu 01 (nine square centimetres of slack across three full rounds) defeats the floor,
+and the best anyone found is 38 — `exact` and `ortools` agree on that 4-round plan,
+though neither can yet prove three is impossible.
 
 ## Honest corners
 
 - **Axis-aligned placement only.** Pieces may be turned 90°, but not at an arbitrary angle.
-- **`exact` has a node budget** (default 20 000 000). On this data it finishes in well under a
-  second and proves the optimum; on a much larger or adversarial menu it may hit the budget
-  and return the best plan found so far, flagged as *not* proven (`GrillPlan.IsProvenOptimal
-  == false`). `ortools` behaves the same way with its 30-second cap.
+- **`exact` has a node budget** (default 20 000 000). On this data it proves the optimum on
+  14 of 15 menus in well under a second, but Menu 01 exhausts the whole budget (about
+  30 s) and comes back flagged as *not* proven (`GrillPlan.IsProvenOptimal == false`). A
+  much larger or adversarial menu would do the same. `ortools` behaves the same way with
+  its 30-second cap.
 - **Assumes every piece fits the grill.** The largest piece in this data is 22 cm, which fits
   the 30 cm side. A piece that cannot fit the grill in either orientation makes the planner
   throw an error instead of guessing.

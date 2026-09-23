@@ -157,8 +157,8 @@ piece never floats or can be slid down).
 - **Speed:** about 2 ms per menu (median, over repeated runs of the 15-menu
   fixture) — usually one or two re-packing questions per menu, and many questions are
   settled by the area shortcut alone.
-- **Quality:** 37 rounds on the 15-menu fixture — **exactly the floor, i.e. optimal
-  for every menu** — versus 39 for greedy.
+- **Quality:** 39 rounds on the 15-menu fixture — the floor on 13 menus, one above it
+  on Menu 01 and Menu 07 — tying `greedy`; `exact` gets 38.
 - **Guarantees:** a valid plan that is never worse than greedy's; "proven optimal"
   exactly when it reached the floor. It is not a general proof engine (if the search
   budget runs out on a question, it stops and reports what it has).

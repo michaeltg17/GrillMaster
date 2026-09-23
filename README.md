@@ -39,7 +39,7 @@ Menu 04: 2 rounds
 Menu 11: 1 rounds
 Menu 03: 3 rounds
 ...
-Total: 37 rounds
+Total: 39 rounds
 ```
 
 ## How it thinks (one paragraph)

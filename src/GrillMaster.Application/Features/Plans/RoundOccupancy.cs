@@ -211,6 +211,14 @@ public sealed class RoundOccupancy
                     }
 
                     y = next;
+
+                    // The jump lands just above an occupied row, but the occupied structure can have
+                    // thickness (a 2 cm bridge, not a 1 cm shelf): rows just below the landing may
+                    // still be occupied. Walk below the structure until the footprint is free.
+                    while (y + h <= _height && !IsFreeCells(x, y, w, h))
+                    {
+                        y = NextSkylineY(x, w, y);
+                    }
                 }
             }
         }
