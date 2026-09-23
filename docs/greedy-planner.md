@@ -204,7 +204,7 @@ One round. Done.
 This is the fundamental trade-off: greedy makes each choice in an instant and never
 revisits it. When the choices line up (which is most of the time) it's excellent; when
 they don't, it pays for it with an extra round. On the full 15-menu fixture, greedy
-needs **39 rounds** where the true best is **37** — usually it ties the best answer,
+needs **39 rounds** where the best found is **38** — usually it ties the best answer,
 occasionally it is a round or two off.
 
 ## 5. How the code does this
@@ -235,11 +235,11 @@ The grill's map itself is `RoundOccupancy`
 
 - **Speed:** about 2 ms per menu (median, over repeated runs of the 15-menu fixture).
   It never searches or backtracks — every piece gets exactly one decision.
-- **Quality:** 39 rounds on the 15-menu fixture (best possible: 37). It ties the best
+- **Quality:** 39 rounds on the 15-menu fixture (best found: 38). It ties the best
   answer on most menus and is off by a round on two of them.
 - **Guarantees:** a valid plan (no overlaps, nothing off the grill), never fewer rounds
   than the lower bound, but no claim that it is optimal.
 
-If you want the same speed with the best possible answer, look at
+If you want the same speed with a better answer, look at
 [the optimized planner](optimized-planner.md) — it starts with exactly this plan and
-then improves it.
+then improves it — or at `exact` when the proof matters.

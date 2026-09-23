@@ -203,12 +203,15 @@ Measured on the 15-menu fixture (single search worker, 30 s cap):
   whose lower bound is 1 is proven the moment the first one-round packing is
   found); many others spend the whole 30 s trying to prove the last step. The whole
   fixture takes several minutes.
-- **Why slower than `exact` here?** On these small menus, a purpose-built
-  backtracking search (skyline positions, per-type symmetry, area bounds) is a much
-  sharper tool than a general engine — the full argument is in §1. CP-SAT is not out to beat our `exact` planner
-  on *this* fixture — it is an **independent second opinion**: a completely different
-  engine, written by a different team, that solves the same maths. If it and `exact`
-  agree, the answer is very likely right.
+- **Why slower than `exact` here?** On most menus, a purpose-built backtracking search
+  (skyline positions, per-type symmetry, area bounds) settles in milliseconds where
+  CP-SAT spends its whole 30 s cap trying to prove the last step — the full argument is
+  in §1. CP-SAT is not out to beat our `exact` planner on *this* fixture — it is an
+  **independent second opinion**: a completely different engine, written by a different
+  team, that solves the same maths. The two now agree on 38 rounds, including the same
+  unproven 4-round plan for Menu 01; while the skyline enumeration was still buggy,
+  `exact` claimed an impossible 37 while CP-SAT said 38 — the disagreement is what
+  flagged the bug.
 
 Because of the 30 s cap, `ortools` is deliberately **not** in the end-to-end suite or
 the performance benchmark (both would take ~8 and ~35 minutes respectively); the
