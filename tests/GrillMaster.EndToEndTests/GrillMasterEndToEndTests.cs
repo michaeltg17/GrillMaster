@@ -9,7 +9,9 @@ namespace GrillMaster.EndToEndTests;
 /// <summary>
 /// The real end-to-end: launches the built console app as an external process exactly the way a user
 /// runs it — no mocks, configuration comes from the app's own <c>appsettings.json</c> (the live API) —
-/// captures its console output and validates the report the user would see.
+/// captures its console output and validates the report the user would see. Console color is not
+/// validated: with stdout redirected (as here) .NET writes no color codes at all, so the captured text
+/// carries no color information — observing it would require a Windows pseudoconsole (ConPTY).
 /// </summary>
 public sealed partial class GrillMasterEndToEndTests
 {
@@ -34,20 +36,24 @@ public sealed partial class GrillMasterEndToEndTests
             .ToList();
 
         // The user sees only the report: one "{menu}: {rounds} rounds" line per menu,
-        // ending with a single "Total: {rounds} rounds" line.
+        // ending with a single "Total: {rounds} rounds" line — and nothing else.
         lines.Should().NotBeEmpty();
         lines.Should().OnlyContain(line => MenuLine().IsMatch(line) || TotalLine().IsMatch(line));
         TotalLine().IsMatch(lines[^1]).Should().BeTrue();
 
         var menuMatches = lines.Where(line => MenuLine().IsMatch(line)).Select(line => MenuLine().Match(line)).ToList();
-        menuMatches.Should().NotBeEmpty();
+        var totalMatches = lines.Where(line => TotalLine().IsMatch(line)).Select(line => TotalLine().Match(line)).ToList();
+
+        // The live API serves exactly 15 menus, and the report has exactly one total line.
+        menuMatches.Should().HaveCount(15);
+        totalMatches.Should().HaveCount(1);
 
         // Menus are reported in name order.
         var menuNames = menuMatches.Select(match => match.Groups["menu"].Value).ToList();
         menuNames.Should().BeInAscendingOrder(StringComparer.Ordinal);
 
         // The total is the sum of the per-menu round counts.
-        var total = int.Parse(TotalLine().Match(lines[^1]).Groups["rounds"].Value);
+        var total = int.Parse(totalMatches.Single().Groups["rounds"].Value);
         total.Should().Be(menuMatches.Sum(match => int.Parse(match.Groups["rounds"].Value)));
     }
 
