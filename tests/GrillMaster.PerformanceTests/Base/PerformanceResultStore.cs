@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -88,38 +87,36 @@ public static class PerformanceResultStore
         File.WriteAllText(path, JsonSerializer.Serialize(results, JsonOptions));
     }
 
-    /// <summary>The short git commit the results are captured at, or "unknown" outside a git checkout.</summary>
+    /// <summary>
+    /// The short git commit the results are captured at. Fails when the checkout or git is not
+    /// available, since git is expected to always be installed.
+    /// </summary>
     private static string GitCommit()
     {
-        try
+        var repoRoot = new DirectoryInfo(SourceDirectory);
+        while (repoRoot is not null && !Directory.Exists(Path.Combine(repoRoot.FullName, ".git")))
         {
-            var repoRoot = new DirectoryInfo(SourceDirectory);
-            while (repoRoot is not null && !Directory.Exists(Path.Combine(repoRoot.FullName, ".git")))
-            {
-                repoRoot = repoRoot.Parent;
-            }
-
-            if (repoRoot is null)
-            {
-                return "unknown";
-            }
-
-            var psi = new ProcessStartInfo("git", $"-C \"{repoRoot.FullName}\" rev-parse --short HEAD")
-            {
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-            };
-            using var process = Process.Start(psi)!;
-            var stdout = process.StandardOutput.ReadToEnd();
-            process.WaitForExit();
-            return process.ExitCode == 0 ? stdout.Trim() : "unknown";
+            repoRoot = repoRoot.Parent;
         }
-        catch (Exception exception)
-            when (exception is Win32Exception or FileNotFoundException or IOException or UnauthorizedAccessException)
+
+        if (repoRoot is null)
         {
-            // No git available (or no readable checkout): the commit is decorative, not load-bearing.
-            return "unknown";
+            throw new InvalidOperationException($"No git checkout found above '{SourceDirectory}'.");
         }
+
+        var psi = new ProcessStartInfo("git", $"-C \"{repoRoot.FullName}\" rev-parse --short HEAD")
+        {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+        };
+        using var process = Process.Start(psi)!;
+        var stdout = process.StandardOutput.ReadToEnd();
+        var stderr = process.StandardError.ReadToEnd();
+        process.WaitForExit();
+        return process.ExitCode == 0
+            ? stdout.Trim()
+            : throw new InvalidOperationException(
+                $"'git rev-parse --short HEAD' failed in '{repoRoot.FullName}': {stderr.Trim()}");
     }
 }
