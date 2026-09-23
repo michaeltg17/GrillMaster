@@ -17,6 +17,8 @@ internal static partial class Program
     {
         using var host = HostBuilder.CreateHost(HostBuilder.ConfigureConsoleLogging);
         var logger = host.Services.GetRequiredService<ILoggerFactory>().CreateLogger("GrillMaster");
+        logger.LogInformation("Calculating... \n");
+
         try
         {
             await host.RunAsync();
