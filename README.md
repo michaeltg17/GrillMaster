@@ -82,7 +82,7 @@ updated file so the diff shows up in the PR.
 ## What's in the repo
 
 - `src/` — the app itself, in three small parts: the plain data (menus, pieces, rounds), the
-  planning logic (the eight planners) with its configuration, and the console program that ties
+  plan logic (the eight planners) with its configuration, and the console program that ties
   them together.
 - `tests/` — the four test suites above, each carrying the API stand-in / menu fixtures it needs.
 - `docs/` — the plain-language planner explanations, starting from
