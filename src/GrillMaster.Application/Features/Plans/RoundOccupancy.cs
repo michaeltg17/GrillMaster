@@ -6,11 +6,18 @@ namespace GrillMaster.Application.Features.Plans;
 /// Tracks which centimetre cells of a single grill round are occupied, and finds free
 /// positions for new pieces. Coordinates match <see cref="GrillSize"/>: x in [0, Width),
 /// y in [0, Height).
+/// <para>
+/// The grid is held twice — once per row, once per column, as one <see cref="uint"/> each
+/// (bit <c>x</c> of row <c>y</c>, bit <c>y</c> of column <c>x</c>) — so "is this rectangle
+/// free?" and "where is the next skyline level?" are a handful of bit operations instead of
+/// a scan over every cell. This keeps the exact search's per-node cost low; the grill
+/// dimensions are whole centimetres and far below the 32 bits a <see cref="uint"/> holds.
+/// </para>
 /// </summary>
 public sealed class RoundOccupancy
 {
-    // Flattened row-major grid (cell = y * Width + x) for fast contiguous access in the inner loops.
-    private readonly bool[] _occupied;
+    private readonly uint[] _rowBits;
+    private readonly uint[] _colBits;
     private readonly int _width;
     private readonly int _height;
 
@@ -18,7 +25,8 @@ public sealed class RoundOccupancy
     {
         _width = grill.Width.Value;
         _height = grill.Height.Value;
-        _occupied = new bool[_width * _height];
+        _rowBits = new uint[_height];
+        _colBits = new uint[_width];
     }
 
     public Centimeters Width => _width;
@@ -26,67 +34,50 @@ public sealed class RoundOccupancy
 
     /// <summary>True when the axis-aligned rectangle <c>[x, x+w) × [y, y+h)</c> is fully inside the grill and unoccupied.</summary>
     public bool IsFree(Point position, Centimeters w, Centimeters h) =>
-        IsFreeCells(position.X.Value, position.Y.Value, w.Value, h.Value);
+        IsFreeCells(_colBits, _width, _height, position.X.Value, position.Y.Value, w.Value, h.Value);
 
-    private bool IsFreeCells(int x, int y, int w, int h)
-    {
-        if (x < 0 || y < 0 || x + w > _width || y + h > _height)
-        {
-            return false;
-        }
-
-        var start = (y * _width) + x;
-        for (var cy = y; cy < y + h; cy++)
-        {
-            for (var cx = x; cx < x + w; cx++)
-            {
-                if (_occupied[start + (cx - x)])
-                {
-                    return false;
-                }
-            }
-
-            start += _width;
-        }
-
-        return true;
-    }
+    private bool IsFreeCells(int x, int y, int w, int h) =>
+        IsFreeCells(_colBits, _width, _height, x, y, w, h);
 
     public void MarkOccupied(Point position, Centimeters w, Centimeters h)
     {
-        var x = position.X.Value;
-        var y = position.Y.Value;
-
-        var start = (y * _width) + x;
-        for (var cy = y; cy < y + h.Value; cy++)
-        {
-            for (var cx = x; cx < x + w.Value; cx++)
-            {
-                _occupied[start + (cx - x)] = true;
-            }
-
-            start += _width;
-        }
+        Mark(position.X.Value, position.Y.Value, w.Value, h.Value, occupy: true);
     }
 
     public void MarkFree(Point position, Centimeters w, Centimeters h)
     {
-        var x = position.X.Value;
-        var y = position.Y.Value;
+        Mark(position.X.Value, position.Y.Value, w.Value, h.Value, occupy: false);
+    }
 
-        var start = (y * _width) + x;
-        for (var cy = y; cy < y + h.Value; cy++)
+    // Raw-coordinate overloads for the exact search's hot loop, which works on ints and must not
+    // touch the domain value types (their operators are not inlined).
+    internal void MarkOccupiedCells(int x, int y, int w, int h) => Mark(x, y, w, h, occupy: true);
+
+    internal void MarkFreeCells(int x, int y, int w, int h) => Mark(x, y, w, h, occupy: false);
+
+    // Entry point of the allocation-free skyline scan, for the exact search's hot loop.
+    internal SkylinePositions CreateSkylineScan(int w, int h) => new(_rowBits, _colBits, _width, _height, w, h);
+
+    private void Mark(int x, int y, int w, int h, bool occupy)
+    {
+        var colMask = RowMask(y, h);
+        for (var cx = x; cx < x + w; cx++)
         {
-            for (var cx = x; cx < x + w.Value; cx++)
-            {
-                _occupied[start + (cx - x)] = false;
-            }
+            _colBits[cx] = occupy ? _colBits[cx] | colMask : _colBits[cx] & ~colMask;
+        }
 
-            start += _width;
+        var rowMask = ColMask(x, w);
+        for (var cy = y; cy < y + h; cy++)
+        {
+            _rowBits[cy] = occupy ? _rowBits[cy] | rowMask : _rowBits[cy] & ~rowMask;
         }
     }
 
-    public void Clear() => Array.Clear(_occupied, 0, _occupied.Length);
+    public void Clear()
+    {
+        Array.Clear(_rowBits, 0, _rowBits.Length);
+        Array.Clear(_colBits, 0, _colBits.Length);
+    }
 
     /// <summary>Rebuilds the occupancy grid from a set of placements (discarding previous state).</summary>
     public void Rebuild(IEnumerable<GrillPiecePlacement> placements)
@@ -109,8 +100,9 @@ public sealed class RoundOccupancy
         var best = default(GrillPiecePlacement?);
         var bestScore = int.MaxValue;
 
-        foreach (var orientation in new[] { false, true })
+        for (var i = 0; i < 2; i++)
         {
+            var orientation = i == 1;
             var w = (orientation ? piece.Width : piece.Length).Value;
             var h = (orientation ? piece.Length : piece.Width).Value;
 
@@ -140,29 +132,18 @@ public sealed class RoundOccupancy
     // Penalise empty space to the left of and above the candidate rectangle.
     private int Score(int x, int y, int w, int h)
     {
+        var colMask = RowMask(y, h);
         var leftFree = 0;
         for (var cx = 0; cx < x; cx++)
         {
-            for (var cy = y; cy < y + h; cy++)
-            {
-                if (!_occupied[(cy * _width) + cx])
-                {
-                    leftFree++;
-                }
-            }
+            leftFree += h - (int)uint.PopCount(_colBits[cx] & colMask);
         }
 
+        var rowMask = ColMask(x, w);
         var topFree = 0;
         for (var cy = 0; cy < y; cy++)
         {
-            var rowStart = (cy * _width) + x;
-            for (var cx = x; cx < x + w; cx++)
-            {
-                if (!_occupied[rowStart + (cx - x)])
-                {
-                    topFree++;
-                }
-            }
+            topFree += w - (int)uint.PopCount(_rowBits[cy] & rowMask);
         }
 
         // Weight vertical gaps more heavily to encourage shelf formation.
@@ -186,94 +167,233 @@ public sealed class RoundOccupancy
     /// </summary>
     public IEnumerable<GrillPiecePlacement> EnumerateSkylinePositions(GrillPiece piece)
     {
-        foreach (var orientation in new[] { false, true })
+        var positions = new List<GrillPiecePlacement>();
+
+        for (var i = 0; i < 2; i++)
         {
+            var orientation = i == 1;
             var w = (orientation ? piece.Width : piece.Length).Value;
             var h = (orientation ? piece.Length : piece.Width).Value;
 
-            for (var x = 0; x + w <= _width; x++)
+            var scan = new SkylinePositions(_rowBits, _colBits, _width, _height, w, h);
+            while (scan.MoveNext())
             {
-                // Lowest y at which the piece fits in this column range.
-                var y = LowestFreeY(x, w, h);
-                while (y + h <= _height)
+                positions.Add(new GrillPiecePlacement(piece, new Point(scan.X, scan.Y), orientation));
+            }
+        }
+
+        return positions;
+    }
+
+    /// <summary>
+    /// An allocation-free, stack-only scan of the canonical skyline positions of one
+    /// orientation: the same positions, in the same order, as
+    /// <see cref="EnumerateSkylinePositions"/> yields for that orientation, without the
+    /// iterator state machine or a <see cref="GrillPiecePlacement"/> per position. The exact
+    /// search's hot loop walks it directly.
+    /// </summary>
+    internal ref struct SkylinePositions(uint[] rowBits, uint[] colBits, int width, int height, int w, int h)
+    {
+        private readonly uint[] _rowBits = rowBits;
+        private readonly uint[] _colBits = colBits;
+        private readonly int _height = height;
+        private readonly int _w = w;
+        private readonly int _h = h;
+        private readonly int _lastX = width - w;
+
+        private int _x;
+        private int _y;
+        private bool _emitted;
+
+        /// <summary>The x coordinate of the current position (valid after <see cref="MoveNext"/>).</summary>
+        public int X { get; private set; }
+
+        /// <summary>The y coordinate of the current position (valid after <see cref="MoveNext"/>).</summary>
+        public int Y { get; private set; }
+
+        public bool MoveNext()
+        {
+            while (true)
+            {
+                if (_emitted)
                 {
-                    // Canonical only if it rests on the floor or on an occupied cell.
-                    if (y == 0 || HasOccupiedAbove(x, w, y))
+                    // Advance to the next sequence level below the emitted position.
+                    var xMask = ColMask(_x, _w);
+                    var next = NextSkylineY(_rowBits, _height, xMask, _y + _h);
+                    if (next <= _y)
                     {
-                        yield return new GrillPiecePlacement(piece, new Point(x, y), orientation);
+                        _emitted = false;
+                        _x++;
+                        continue;
                     }
 
-                    // Next skyline level in this column: just above the highest occupied cell.
-                    var next = NextSkylineY(x, w, y + h);
-                    if (next <= y)
+                    _y = next;
+                    while (_y + _h <= _height && !IsFreeCells(_colBits, _w, _h, _x, _y))
                     {
-                        break;
+                        _y = NextSkylineY(_rowBits, _height, xMask, _y);
                     }
 
-                    y = next;
-
-                    // The jump lands just above an occupied row, but the occupied structure can have
-                    // thickness (a 2 cm bridge, not a 1 cm shelf): rows just below the landing may
-                    // still be occupied. Walk below the structure until the footprint is free.
-                    while (y + h <= _height && !IsFreeCells(x, y, w, h))
+                    if (_y + _h > _height)
                     {
-                        y = NextSkylineY(x, w, y);
+                        _emitted = false;
+                        _x++;
+                        continue;
                     }
+                }
+                else
+                {
+                    // Start the next x at the lowest free level in this column range.
+                    while (_x <= _lastX)
+                    {
+                        _y = LowestFreeY(_colBits, _height, _x, _w, _h);
+                        if (_y + _h <= _height)
+                        {
+                            break;
+                        }
+
+                        _x++;
+                    }
+
+                    if (_x > _lastX)
+                    {
+                        return false;
+                    }
+                }
+
+                var mask = ColMask(_x, _w);
+                var rests = _y == 0 || (_rowBits[_y - 1] & mask) != 0;
+                var blockedLeft = _x == 0 || (_colBits[_x - 1] & RowMask(_y, _h)) != 0;
+
+                if (rests && blockedLeft)
+                {
+                    X = _x;
+                    Y = _y;
+                    _emitted = true;
+                    return true;
+                }
+
+                if (rests)
+                {
+                    // Free and resting, but the piece could shift left: not canonical. The
+                    // footprint is free, so advance past it exactly like after an emission.
+                    _emitted = true;
+                    continue;
+                }
+
+                // The level is free but not resting (empty space underneath): walk down the
+                // sequence until the piece rests on the floor or an occupied cell.
+                var below = NextSkylineY(_rowBits, _height, mask, _y);
+                if (below <= _y)
+                {
+                    _x++;
+                    continue;
+                }
+
+                _y = below;
+                while (_y + _h <= _height && !IsFreeCells(_colBits, _w, _h, _x, _y))
+                {
+                    _y = NextSkylineY(_rowBits, _height, mask, _y);
+                }
+
+                if (_y + _h > _height)
+                {
+                    _x++;
+                    continue;
                 }
             }
         }
     }
 
-    // Lowest y such that the w×h rectangle at (x, y) is fully free, or _height+1 if none.
-    private int LowestFreeY(int x, int w, int h)
-    {
-        for (var y = 0; y + h <= _height; y++)
-        {
-            if (IsFreeCells(x, y, w, h))
-            {
-                return y;
-            }
-        }
+    // ------------------------------------------------------------------
+    // Shared grid scans (static so the ref-struct scan can reuse them)
+    // ------------------------------------------------------------------
 
-        return _height + 1;
-    }
-
-    // True when any cell directly above the rectangle's top edge (within its x range) is occupied.
-    private bool HasOccupiedAbove(int x, int w, int y)
+    // True when the w×h rectangle at (x, y) is fully inside the grill and unoccupied.
+    private static bool IsFreeCells(uint[] colBits, int width, int height, int x, int y, int w, int h)
     {
-        if (y == 0)
+        if (x < 0 || y < 0 || x + w > width || y + h > height)
         {
             return false;
         }
 
-        var rowStart = ((y - 1) * _width) + x;
+        var mask = RowMask(y, h);
         for (var cx = x; cx < x + w; cx++)
         {
-            if (_occupied[rowStart + (cx - x)])
+            if ((colBits[cx] & mask) != 0)
             {
-                return true;
+                return false;
             }
         }
 
-        return false;
+        return true;
     }
 
-    // The next y (strictly greater than `fromY`) at which a new skyline level appears in the column
-    // range [x, x+w): the smallest y' > fromY with an occupied cell in [x, x+w) at row y'-1.
-    private int NextSkylineY(int x, int w, int fromY)
+    // Convenience for the ref-struct scan, which already knows the rectangle is in bounds.
+    private static bool IsFreeCells(uint[] colBits, int w, int h, int x, int y)
     {
-        for (var y = fromY; y < _height; y++)
+        var mask = RowMask(y, h);
+        for (var cx = x; cx < x + w; cx++)
         {
-            var rowStart = (y * _width) + x;
-            for (var cx = x; cx < x + w; cx++)
+            if ((colBits[cx] & mask) != 0)
             {
-                if (_occupied[rowStart + (cx - x)])
-                {
-                    return y + 1;
-                }
+                return false;
             }
         }
 
-        return _height + 1;
+        return true;
+    }
+
+    // Lowest y such that the w×h rectangle at (x, y) is fully free, or height+1 if none.
+    private static int LowestFreeY(uint[] colBits, int height, int x, int w, int h)
+    {
+        var mask = RowMask(0, h);
+        for (var y = 0; y + h <= height; y++)
+        {
+            var free = true;
+            for (var cx = x; cx < x + w; cx++)
+            {
+                if ((colBits[cx] & mask) != 0)
+                {
+                    free = false;
+                    break;
+                }
+            }
+
+            if (free)
+            {
+                return y;
+            }
+
+            mask <<= 1;
+        }
+
+        return height + 1;
+    }
+
+    // The next y (strictly greater than `fromY`) at which a new skyline level appears in the
+    // given column range: the smallest y' > fromY with an occupied cell in the range at row y'-1.
+    private static int NextSkylineY(uint[] rowBits, int height, uint xMask, int fromY)
+    {
+        for (var y = fromY; y < height; y++)
+        {
+            if ((rowBits[y] & xMask) != 0)
+            {
+                return y + 1;
+            }
+        }
+
+        return height + 1;
+    }
+
+    // Bits y..y+h-1 of a column.
+    private static uint RowMask(int y, int h)
+    {
+        return (uint)((1 << h) - 1) << y;
+    }
+
+    // Bits x..x+w-1 of a row.
+    private static uint ColMask(int x, int w)
+    {
+        return (uint)((1 << w) - 1) << x;
     }
 }

@@ -4,13 +4,14 @@ using GrillMaster.Domain;
 namespace GrillMaster.Application.Features.Plans;
 
 /// <summary>
-/// Shared helpers used by every grill planner: canonical piece ordering and the lower bound on
-/// the number of rounds. The bound combines two floors: the total-area floor
-/// (<c>ceil(totalArea / grillArea)</c>) and, for every distinct piece type, the per-type capacity
-/// floor (<c>ceil(count / capacity)</c>, where <c>capacity</c> is how many identical pieces fit on
-/// one grill). The per-type capacity is computed exactly by a budgeted single-round backtracking
-/// search and cached, so the first call pays for it and every later call (other planners, other
-/// menus with the same type) is free.
+/// Shared helpers used by every grill planner: canonical piece ordering, the lower bound on
+/// the number of rounds, and the per-type single-round capacity the bound is built from. The
+/// bound combines two floors: the total-area floor (<c>ceil(totalArea / grillArea)</c>) and,
+/// for every distinct piece type, the per-type capacity floor (<c>ceil(count / capacity)</c>,
+/// where <c>capacity</c> is how many identical pieces fit on one grill). The per-type capacity
+/// is computed exactly by a budgeted single-round backtracking search and cached, so the first
+/// call pays for it and every later call (other planners, other menus with the same type) is
+/// free.
 /// </summary>
 public static class GrillPlannerHelpers
 {
@@ -18,7 +19,7 @@ public static class GrillPlannerHelpers
     // "unknown" and the bound falls back to the (weaker) area-based estimate for that type.
     private const long OneRoundNodeBudget = 200_000;
 
-    private static readonly ConcurrentDictionary<(string Name, Centimeters Length, Centimeters Width, Centimeters GrillWidth, Centimeters GrillHeight, int Count), OneRoundResult> OneRoundCache = new();
+    private static readonly ConcurrentDictionary<(string Name, Centimeters Length, Centimeters Width, Centimeters GrillWidth, Centimeters GrillHeight), int> CapacityCache = new();
 
     /// <summary>
     /// The theoretical minimum number of rounds: the maximum of the total-area floor and every
@@ -39,13 +40,7 @@ public static class GrillPlannerHelpers
             }
 
             var count = group.Count();
-            var areaCap = grill.Area / type.Area;
-            var k = Math.Min(count, areaCap);
-            var result = OneRound(type, grill, k);
-
-            // Upper bound on how many of this type fit on one grill: k-1 when k is proven not to
-            // fit, otherwise k (exact when k == areaCap, a safe over-estimate otherwise).
-            var capacity = result.Fits == Fit.Fits ? k : k - 1;
+            var capacity = Math.Min(SingleRoundCapacity(type, grill), count);
             if (capacity > 0)
             {
                 bound = Math.Max(bound, (count + capacity - 1) / capacity);
@@ -54,6 +49,30 @@ public static class GrillPlannerHelpers
 
         return bound;
     }
+
+    /// <summary>
+    /// A valid upper bound on how many pieces of <paramref name="type"/> fit on one empty
+    /// <paramref name="grill"/>: exact when the budgeted single-round search proves it, the
+    /// area-based estimate otherwise. Over-estimating the capacity keeps every floor derived
+    /// from it a true lower bound, so the estimate is used whenever the search is inconclusive.
+    /// </summary>
+    public static int SingleRoundCapacity(GrillPiece type, GrillSize grill)
+    {
+        var areaCap = grill.Area / type.Area;
+        var key = (type.Name, type.Length, type.Width, grill.Width, grill.Height);
+        return CapacityCache.GetOrAdd(key, _ =>
+        {
+            var result = SolveOneRound(type, grill, areaCap);
+            return Capacity(result, areaCap);
+        });
+    }
+
+    /// <summary>
+    /// Maps a one-round search result to a valid capacity upper bound. Only a *proven* non-fit
+    /// may lower the capacity below the area estimate; an unknown result keeps the estimate.
+    /// </summary>
+    internal static int Capacity(OneRoundResult result, int areaCap) =>
+        result.Fits == Fit.NotFits ? areaCap - 1 : areaCap;
 
     /// <summary>True when the piece fits on an empty grill in either orientation.</summary>
     public static bool FitsOnEmptyGrill(GrillPiece piece, GrillSize grill) =>
@@ -84,12 +103,6 @@ public static class GrillPlannerHelpers
 
     internal sealed record OneRoundResult(Fit Fits, IReadOnlyList<GrillPiecePlacement> Pattern);
 
-    internal static OneRoundResult OneRound(GrillPiece type, GrillSize grill, int count)
-    {
-        var key = (type.Name, type.Length, type.Width, grill.Width, grill.Height, count);
-        return OneRoundCache.GetOrAdd(key, _ => SolveOneRound(type, grill, count));
-    }
-
     // Decides whether `count` identical pieces fit on one empty grill, returning a witness packing
     // when they do. Identical-piece symmetry: placements are explored in non-decreasing slot
     // order, so each multiset of positions is visited once.
@@ -98,6 +111,7 @@ public static class GrillPlannerHelpers
         var occupancy = new RoundOccupancy(grill);
         var placements = new List<GrillPiecePlacement>(count);
         var nodeCount = 0L;
+        var grillWidth = grill.Width.Value;
 
         return Search(0, long.MinValue);
 
@@ -135,14 +149,15 @@ public static class GrillPlannerHelpers
 
             return new OneRoundResult(Fit.NotFits, []);
         }
-    }
 
-    // One total order over slots (y, then x, then rotation) for identical-piece symmetry breaking.
-    // 100 must stay greater than the largest possible grill width (x is the minor term of `row`).
-    private static long SlotOrder(GrillPiecePlacement p)
-    {
-        var rotation = p.Rotated ? 1L : 0L;
-        var row = (p.Position.Y.Value * 100L) + p.Position.X.Value;
-        return (row * 2L) + rotation;
+        // One total order over slots (y, then x, then rotation) for identical-piece symmetry
+        // breaking. The grill width is the radix of the coordinate pair, so the x coordinate
+        // (always < grill width) can never spill into the y term.
+        long SlotOrder(GrillPiecePlacement p)
+        {
+            var rotation = p.Rotated ? 1L : 0L;
+            var row = ((long)p.Position.Y.Value * grillWidth) + p.Position.X.Value;
+            return (row * 2L) + rotation;
+        }
     }
 }

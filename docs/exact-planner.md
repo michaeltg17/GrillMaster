@@ -52,7 +52,8 @@ below the floor is impossible, so the champion is proven optimal instantly.
 
 The search works like a very patient person arranging a bookshelf:
 
-1. Take the **biggest** piece still waiting (biggest first, same as greedy).
+1. Take the **biggest** piece still waiting (biggest area first; ties: fatter first,
+    then longer — big pieces have the fewest options).
 2. Try every reasonable spot for it, one at a time.
 3. For each spot, repeat the whole game with the *next* biggest piece.
 4. If a branch can't possibly beat the champion, **abandon it** — no point going deeper.
@@ -120,22 +121,28 @@ champion — 1 round — is on the floor, so the search stops. **Proven optimal:
 Without these rules, even our small menus would take forever. Each one is a way of
 saying "this whole family of arrangements is hopeless or pointless — skip it":
 
-1. **The area bound.** To beat the champion you must finish in *fewer* rounds than it
-   used, so all the meat — what is placed plus what is still waiting — must fit inside
-   that many grills' total area. If it can't, no arrangement under this branch can win
-   — abandon it. (Example: champion is 2 rounds, so beating it means fitting everything
-   into 1 round = 600 cm²; a menu whose meat totals 700 cm² can't be beaten at all,
-   which the search notices immediately.)
+1. **The look-ahead bound.** At every decision point the planner asks: "in the best
+   case, how many rounds do I still need?" The meat that is still waiting must fit into
+   the leftover space of the grills already open plus fresh grills (600 cm² each); and
+   for each kind of meat, the waiting pieces of that kind beyond what the open grills
+   can still hold must go into fresh grills, each of which holds at most a fixed number
+   of that kind. If that total is at least the champion's round count, no arrangement
+   under this branch can win — abandon it. (The bound gets sharper the deeper the search
+   goes: the more meat already down, the less room is left. Example: the champion is on
+   2 rounds, and the waiting meat plus the open grills' leftover room would need 3
+   grills — abandon the branch.)
 
 2. **Biggest first.** Big pieces have the fewest options; placing them early means
    hopeless branches are discovered early, when there is the least to abandon.
 
-3. **Resting spots only (the "skyline" rule).** A piece must sit on the grill's bottom
-   edge or on top of another piece — it may never *float*. If a spot has empty space
-   directly under the piece, then the piece could slide down, which means that floating
-   spot is never a "real" arrangement; its slid-down version will be considered
-   separately. This throws away huge families of equivalent positions. (It's the same
-   rule as stacking boxes: every box rests on the floor or on another box.)
+3. **Resting, pushed-in spots only (the "skyline" rule).** A piece must sit on the
+   grill's bottom edge or on top of another piece — it may never *float* — and it must
+   be pushed as far **left** as it will go: if the piece could slide left into empty
+   space, the slid-left version is considered instead. Every "real" arrangement can be
+   slid up and left into exactly one such spot, so nothing is missed, and huge families
+   of equivalent positions are thrown away. (It's the same rule as stacking boxes:
+   every box rests on the floor or on another box, and is slid left until it bumps
+   into something.)
 
 4. **Don't open a later grill while an earlier one is empty.** Grills are
    indistinguishable boxes: "put the steak on grill 3 while grill 2 is empty" is the *same plan* as
@@ -155,12 +162,16 @@ is hopeless by definition — the search ends, and the answer is *proven*.
 
 Real menus can be nasty, and "try everything promising" can still be large. So the
 search counts every decision it makes against a **budget** (default: 20,000,000
-decisions). On the full 15-menu fixture, fourteen menus use only a handful of
-decisions in total — but Menu 01 (1791 cm² of meat against three rounds of 600 cm²:
-nine squares of slack) blows the entire budget in about 30 s. When a menu blows the
-budget, the planner stops and returns the best arrangement it had found so far,
-honestly flagged as **not proven optimal**. It never lies: `IsProvenOptimal` is true
-only when it can *prove* the floor was reached.
+decisions). On the full 15-menu fixture, thirteen menus need no decisions at all
+(the greedy plan is already on the floor and is accepted without searching), Menu 07
+uses 619, and Menu 01 (1791 cm² of meat against three rounds of 600 cm²: nine
+squares of slack) uses 6,124,767 — about 5 s in Release. The search stops on its own
+the moment it has *proved* the answer: the champion reached the floor, or every
+promising arrangement has been checked. If a menu blows the budget before that, the
+planner stops and returns the best arrangement it had found so far, honestly flagged
+as **not proven optimal**. It never lies: `IsProvenOptimal` is true exactly when the
+search finished within its budget — the proof is either the floor or the exhausted
+search space.
 
 ## 6. How the code does this
 
@@ -170,44 +181,50 @@ Code, translated into the story:
 
 | Code | What it is in the story |
 |------|--------------------------|
-| `Plan(menu, grill)` | Takes the job: builds the floor, the champion, then starts the search. |
+| `Plan(menu, grill)` | Takes the job: builds the floor, hires the champion, starts the search. |
 | `new GreedyShelfPlanner().Plan(...)` | Hiring the fast cook to set the champion's score. |
-| `GrillPlannerHelpers.ComputeLowerBound(...)` | The floor: the larger of total area ÷ 600 and the per-type capacity count. Computed once and cached. |
+| `greedy.Rounds.Count == lowerBound → return` | The champion is already on the floor: proven with zero search. |
+| `GrillPlannerHelpers.ComputeLowerBound(...)` | The floor: the larger of total area ÷ 600 and the per-type capacity count. Computed once, per-type capacities cached. |
+| `SearchState` | The patient person's notebook: everything mutable about the search, one per `Plan` call. |
 | `Search(index)` | The patient person, mid-arrangement: `index` = "which piece am I placing now?". |
-| `for (var round = 0; ...)` | Trying each grill, one after another. |
-| `round > _nonEmptyRounds → break` | Rule 4: never open a later grill while an earlier one is empty. |
-| `roundsAfter >= _best → break` | Rule 1 (champion edition): opening this grill can't beat the champion. |
-| `_remainingArea[index] > TotalFreeCapacity()` | Rule 1 (area edition): the waiting meat can't fit in the champion's leftover room — abandon the branch. |
-| `hasPrevSame` / `SlotOrder(...)` | Rule 5: the identical-piece ordering. |
-| `EnumerateSkylinePositions(piece)` | Rule 3: the list of "resting spots only" for this piece. |
-| `occupancy.MarkOccupied(...)` / `MarkFree(...)` | Putting the piece on the grill / lifting it back off (the undo). |
+| `for (var round = 0; round <= _nonEmptyRounds; ...)` | Trying each grill, one after another; only the last one may be new. |
+| `opensNewRound && _nonEmptyRounds + 1 >= _best → break` | Rule 1 (champion edition): opening this grill can't beat the champion. |
+| `RoundsLowerBound(index) >= _best → return` | Rule 1 (look-ahead edition): the waiting meat can't fit in the open grills' leftover room plus fresh full grills — abandon the branch. |
+| `hasPrevSame` / `SlotOrder(y, x, rotated)` | Rule 5: the identical-piece ordering. |
+| `occupancy.CreateSkylineScan(w, h)` | Rule 3: walks this piece's "resting, pushed-in" spots one at a time, without allocating. |
+| `MarkOccupiedCells(...)` / `MarkFreeCells(...)` | Putting the piece on the grill / lifting it back off (the undo). |
+| `RawPlacement` stacks | The arrangements under construction, kept as raw numbers — no bookkeeping object per candidate. |
 | `Search(index + 1)` | Recurse: the same game with the next piece. |
 | `_best = _nonEmptyRounds; _bestRounds = SnapshotRounds()` | A new champion! Save the arrangement. |
 | `_nodes` / `MaxNodes` | The tally of decisions tried / the budget. |
-| `IsProvenOptimal = _best == lowerBound && !_budgetExceeded` | The honesty clause: "proven" only when the floor was reached *and* the search was allowed to finish. |
+| `IsProvenOptimal = !_budgetExceeded` | The honesty clause: "proven" whenever the search finished within its budget — the floor was reached, or every promising arrangement was checked. |
 
-The shared grill map and the "resting spots" rule live in
-`RoundOccupancy.cs` (`EnumerateSkylinePositions` walks only the levels where a piece
-would actually rest: the bottom edge, then the tops of whatever is already down).
+The shared grill map and the "resting, pushed-in" rule live in
+`RoundOccupancy.cs`. The map holds the grill as one 32-bit word per row and one per
+column, so "is this rectangle free?" is a handful of bit operations, and
+`CreateSkylineScan` walks only the spots where a piece would actually rest (the bottom
+edge, then the tops of whatever is already down) and could not be slid left — without
+allocating anything per spot.
 
 ## 7. The numbers
 
-- **Speed:** about 2 ms per menu for 14 of the 15 menus (median, over repeated runs of
-  the fixture); Menu 01 exhausts the full 20,000,000-decision budget in about 30 s.
-  20,809,581 decisions for all 15 menus together. Menus where greedy already hit the
-  floor cost essentially nothing.
-- **Quality:** 38 rounds on the 15-menu fixture: the floor (37) is reached and proven
-  on 14 menus; on Menu 01 the search runs out of budget and returns the best-so-far
-  4-round plan, flagged `IsProvenOptimal: false` (three rounds has not been ruled out).
-- **Guarantees:** a valid plan, and — within budget — a *proof* that nothing is better.
-  If the budget is ever exceeded, the best-so-far plan is returned and honestly flagged
+- **Speed:** thirteen of the 15 menus cost essentially nothing (the greedy plan is
+  already on the floor and is accepted without searching); Menu 07 uses 619 decisions;
+  Menu 01 uses 6,124,767 — about 5 s in Release at the default 20,000,000 budget.
+- **Quality:** 38 rounds on the 15-menu fixture, proven optimal on all 15 menus at the
+  default budget: 14 menus reach the floor (37 in total), and on Menu 01 the search
+  explores the whole space and proves 4 rounds is best (its floor is 3, but no
+  3-round arrangement exists).
+- **Guarantees:** a valid plan, and — within budget — a *proof* that nothing is better,
+  by reaching the floor or exhausting the promising arrangements. If the budget is
+  ever exceeded, the best-so-far plan is returned and honestly flagged
   `IsProvenOptimal: false`.
 
 ## 8. When to use it (and when not to)
 
 - Use it when you need the **proof** — or when the menu is small-to-medium (a few
   dozen pieces), which is all the search handles comfortably.
-- On huge or adversarial menus it could hit its budget (Menu 01 does); then you get
+- On huge or adversarial menus it could hit its budget; then you get
   the best arrangement found within budget, not a proof. For everyday use
   [greedy](greedy-planner.md) comes within a round of `exact`'s answer on our fixture
   with a fraction of the machinery — `exact` is the one to reach for when
