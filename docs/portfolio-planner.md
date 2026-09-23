@@ -104,7 +104,7 @@ The planner lives in
 |------|--------------------------|
 | `Members` | The four cooks, in the order they get asked: greedy, optimized, exact, ortools. |
 | `var best = Members[0].Plan(menu, grill);` | Ask the first cook; their plate is the current best. |
-| `for (var i = 1; i < Members.Length && best.Rounds.Count > lowerBound; i++)` | Keep asking the next cooks **while** the best plate isn't yet at the floor. |
+| `for (var i = 1; i < Members.Count && best.Rounds.Count > lowerBound; i++)` | Keep asking the next cooks **while** the best plate isn't yet at the floor. |
 | `if (plan.Rounds.Count < best.Rounds.Count) best = plan;` | A better plate arrives — swap it in. |
 | `searchNodes += plan.SearchNodes;` | Keep the running total of search decisions spent (0 on 14 of the 15 fixture menus; ~21 million on the 15th). |
 | `IsProvenOptimal: best.Rounds.Count == lowerBound` | The honesty clause: "proven" exactly when some cook reached the floor. |

@@ -1,4 +1,6 @@
+using GrillMaster.Application.Features.Plans;
 using GrillMaster.Application.Settings;
+using GrillMaster.Testing.Plans;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog.Sinks.InMemory;
 using Serilog.Sinks.XUnit.Injectable;
@@ -33,8 +35,34 @@ internal static class GrillMasterFactory
                     settings.Planner = planner;
                     settings.GrillMenuApiUrl = apiUrl;
                 });
+
+                // The pipeline plans all 15 fixture menus; with the production defaults the two
+                // menus that do not settle at the lower bound exhaust the exact solver's
+                // 20 000 000-node budget (~30 s in Release, several minutes in Debug) and the
+                // OrTools solver's 30 s cap. Swap in the budget-bounded test planners, which
+                // return the same per-menu round counts (see TestPlanners).
+                ReplacePlanner(services, TestPlanners.CreateExact);
+                ReplacePlanner(services, TestPlanners.CreatePortfolio);
             });
 
         return new GrillMasterApp(host, sink, testOutputSink);
+    }
+
+    /// <summary>
+    /// Swaps the registered <typeparamref name="TPlanner"/> singleton for one built by
+    /// <paramref name="factory"/>: the app picks its planner by a single name match over all the
+    /// <see cref="IGrillPlanner"/> registrations, so the default registration must be removed
+    /// rather than shadowed.
+    /// </summary>
+    private static void ReplacePlanner<TPlanner>(IServiceCollection services, Func<TPlanner> factory)
+        where TPlanner : IGrillPlanner
+    {
+        var descriptors = services.Where(d => d.ImplementationType == typeof(TPlanner)).ToList();
+        foreach (var descriptor in descriptors)
+        {
+            services.Remove(descriptor);
+        }
+
+        services.AddSingleton<IGrillPlanner>(_ => factory());
     }
 }

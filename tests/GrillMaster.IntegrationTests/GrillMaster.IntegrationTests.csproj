@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
@@ -22,6 +22,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\GrillMaster.Console\GrillMaster.Console.csproj" />
+    <ProjectReference Include="..\GrillMaster.Testing\GrillMaster.Testing.csproj" />
   </ItemGroup>
 
   <ItemGroup>
