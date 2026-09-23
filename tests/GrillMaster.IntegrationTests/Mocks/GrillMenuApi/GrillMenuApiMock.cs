@@ -17,7 +17,7 @@ public sealed class GrillMenuApiMock : ApiMock
         Server.Given(Request.Create().UsingGet().WithPath(GrillMenuPath))
             .RespondWith(Response.Create()
                 .WithStatusCode(statusCode)
-                .WithBody(body ?? ApiGrillMenusProvider.GetGrillMenusJson)
+                .WithBody(body ?? ApiGrillMenusProvider.GetApiGrillMenusJson)
                 .WithHeader("Content-Type", "application/json"));
     }
 

@@ -11,10 +11,10 @@ public static class ApiGrillMenusProvider
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
     };
 
-    public static string GetGrillMenusJson => File.ReadAllText(
+    public static string GetApiGrillMenusJson => File.ReadAllText(
         Path.Combine(AppContext.BaseDirectory, "Mocks", "GrillMenuApi", "api-grill-menus.json"));
 
-    public static IReadOnlyList<GrillMenuResponse> GetGrillMenusTyped =>
-        JsonSerializer.Deserialize<List<GrillMenuResponse>>(GetGrillMenusJson, SerializerOptions)
+    public static IReadOnlyList<GrillMenuResponse> GetApiGrillMenusTyped =>
+        JsonSerializer.Deserialize<List<GrillMenuResponse>>(GetApiGrillMenusJson, SerializerOptions)
         ?? throw new InvalidOperationException("The grill menus fixture deserialised to null.");
 }

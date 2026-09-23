@@ -40,7 +40,7 @@ public sealed class GrillMasterIntegrationTests(ITestOutputHelper output) : Gril
         GrillMenuApiMock.AssertGetMenusRequest();
 
         var expectedNames = ApiGrillMenusProvider
-            .GetGrillMenusTyped
+            .GetApiGrillMenusTyped
             .Select(m => m.Menu)
             .OrderBy(n => n, StringComparer.Ordinal)
             .ToArray();
