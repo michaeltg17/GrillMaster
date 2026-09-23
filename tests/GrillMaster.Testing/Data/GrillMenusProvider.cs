@@ -5,7 +5,7 @@ using GrillMaster.Domain;
 namespace GrillMaster.Testing.Data;
 
 /// <summary>
-/// Loads the full-fixture menus from the domain-shaped JSON fixture (<c>Data/menus.json</c>),
+/// Loads the full-fixture menus from the domain-shaped JSON fixture (<c>Data/grill-menus.json</c>),
 /// which holds the same data as the API fixture used by the integration tests but structured as
 /// the domain model. Shared by the unit tests' quality snapshot and the performance benchmark so
 /// both always run over the identical 15 menus.
@@ -22,7 +22,7 @@ public static class GrillMenusProvider
     /// <summary>All 15 benchmark menus, ordered by menu name.</summary>
     public static IReadOnlyList<GrillMenu> GetGrillMenus()
     {
-        var json = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "menus.json"));
+        var json = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Data", "grill-menus.json"));
         var menus = JsonSerializer.Deserialize<List<GrillMenu>>(json, SerializerOptions)
             ?? throw new InvalidOperationException("The grill menus fixture deserialised to null.");
         return menus.OrderBy(m => m.Name, StringComparer.Ordinal).ToList();

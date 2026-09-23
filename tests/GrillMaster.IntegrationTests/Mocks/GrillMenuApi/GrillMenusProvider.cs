@@ -12,7 +12,7 @@ public static class GrillMenusProvider
     };
 
     public static string GetGrillMenusJson => File.ReadAllText(
-        Path.Combine(AppContext.BaseDirectory, "grill-menus.json"));
+        Path.Combine(AppContext.BaseDirectory, "Mocks", "GrillMenuApi", "grill-menus-api.json"));
 
     public static IReadOnlyList<GrillMenuResponse> GetGrillMenusTyped =>
         JsonSerializer.Deserialize<List<GrillMenuResponse>>(GetGrillMenusJson, SerializerOptions)

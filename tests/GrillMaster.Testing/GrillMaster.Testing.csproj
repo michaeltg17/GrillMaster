@@ -13,8 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Data\menus.json">
-      <Link>menus.json</Link>
+    <Content Include="Data\grill-menus.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
