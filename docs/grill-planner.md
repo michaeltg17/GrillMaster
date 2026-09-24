@@ -177,9 +177,11 @@ searching), Menu 07 settles in 619, and Menu 01 (1791 cm² of meat against three
 rounds of 600 cm²: nine squares of slack) spends the whole budget: the fast pass uses
 about 6.1M decisions and comes up short of the floor, then the verification pass
 spends the remaining ~14M trying to prove that no 3-round arrangement exists — and
-does not finish in time, so Menu 01 is returned as **not proven**. (An external
-CP-SAT solver given 120 seconds cannot settle Menu 01 either, so the honest flag is
-the correct behaviour, not a planner failure.) If a menu blows the budget before a
+does not finish in time, so Menu 01 is returned as **not proven**. Menu 01 is a
+genuinely hard instance: the 3-round verification space is over 500,000,000
+decisions (a 500M-node run still had not exhausted it after ~7 minutes), and an
+external CP-SAT solver given 10 minutes cannot prove that 3 rounds are impossible
+either. The honest flag is therefore the correct behaviour, not a planner failure. If a menu blows the budget before a
 proof, the planner stops and returns the best arrangement it had found so far,
 honestly flagged as **not proven optimal**. It never lies: `IsProvenOptimal` is true
 exactly when the champion reached the floor or the *complete* position set was
