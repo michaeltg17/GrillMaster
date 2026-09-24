@@ -14,5 +14,11 @@ public interface IGrillMasterSettings
     /// </summary>
     public bool EnableParallelism { get; }
 
+    /// <summary>
+    /// The number of search threads when <see cref="EnableParallelism"/> is set; 0 (the
+    /// default) means all logical cores.
+    /// </summary>
+    public int Parallelism { get; }
+
     public bool VerboseLogging { get; }
 }

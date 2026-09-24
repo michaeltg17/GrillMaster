@@ -13,7 +13,8 @@ namespace GrillMaster.Application.Features.Plans;
 /// The search budget (<see cref="IGrillMasterSettings.MaxNodes"/>) and mode
 /// (<see cref="IGrillMasterSettings.EnableParallelism"/>) come from the settings: with
 /// <see cref="IGrillMasterSettings.EnableParallelism"/> set, the search runs on all logical
-/// cores, each owning its own state; only the incumbent, the node budget and a work queue of
+/// cores (the thread count can be capped with <see cref="IGrillMasterSettings.Parallelism"/>),
+/// each owning its own state; only the incumbent, the node budget and a work queue of
 /// subtree tasks are shared. The planner itself is stateless: every call to <see cref="Plan"/>
 /// builds its own search state, so one instance can plan concurrently from several threads.
 /// </summary>
@@ -88,7 +89,9 @@ public sealed class GrillPlanner(IGrillMasterSettings settings)
             return new GrillPlan(menu, greedyRounds, lowerBound, IsProvenOptimal: false, SearchNodes: 0, stopwatch.Elapsed);
         }
 
-        using var phase1 = new ParallelPhase(PlanData.Create(grill, ordered, lowerBound, allPositions: false), greedyRounds, settings.MaxNodes, Environment.ProcessorCount);
+        var parallelism = ParallelismDegree();
+
+        using var phase1 = new ParallelPhase(PlanData.Create(grill, ordered, lowerBound, allPositions: false), greedyRounds, settings.MaxNodes, parallelism);
         phase1.Run();
 
         if (phase1.Best == lowerBound || phase1.Outcome == SearchOutcome.BudgetExceeded)
@@ -97,12 +100,17 @@ public sealed class GrillPlanner(IGrillMasterSettings settings)
             return phase1.BuildPlan(menu, stopwatch.Elapsed);
         }
 
-        using var phase2 = new ParallelPhase(PlanData.Create(grill, ordered, lowerBound, allPositions: true), phase1.BestRounds, settings.MaxNodes - phase1.Nodes, Environment.ProcessorCount);
+        using var phase2 = new ParallelPhase(PlanData.Create(grill, ordered, lowerBound, allPositions: true), phase1.BestRounds, settings.MaxNodes - phase1.Nodes, parallelism);
         phase2.Run();
 
         stopwatch.Stop();
         return phase2.BuildPlan(menu, stopwatch.Elapsed, totalNodes: phase1.Nodes + phase2.Nodes);
     }
+
+    // The configured search-thread count; 0 means all logical cores, and a value below 1 falls
+    // back to a single worker (a parallel phase with one worker is just a work-queue search).
+    private int ParallelismDegree() =>
+        settings.Parallelism > 0 ? settings.Parallelism : Math.Max(1, Environment.ProcessorCount);
 
     // Search ordering heuristic: place restrictive pieces first. Largest area first, then the
     // fattest piece (largest short side) of the remaining area, then the longest side, then name

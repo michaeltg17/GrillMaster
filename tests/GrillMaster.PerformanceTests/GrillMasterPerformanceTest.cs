@@ -172,7 +172,7 @@ public sealed class GrillMasterPerformanceTest(ITestOutputHelper output)
 /// Planner settings for one benchmark row: the node budget and the search mode. The API URL and
 /// logging do not affect planning.
 /// </summary>
-internal sealed record BenchmarkPlannerSettings(long MaxNodes, bool EnableParallelism) : IGrillMasterSettings
+internal sealed record BenchmarkPlannerSettings(long MaxNodes, bool EnableParallelism, int Parallelism = 0) : IGrillMasterSettings
 {
     public Uri GrillMenuApiUrl => new("http://localhost");
 

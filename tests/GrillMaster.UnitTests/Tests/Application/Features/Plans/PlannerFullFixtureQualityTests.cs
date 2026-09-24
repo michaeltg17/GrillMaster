@@ -56,8 +56,8 @@ public sealed class PlannerFullFixtureQualityTests
     /// <summary>
     /// Committed quality snapshot: (total rounds, area lower bound, search nodes) over the full
     /// fixture. The planner is run with a bounded search budget (1 000 000 nodes): at the
-    /// production 20 000 000-node budget Menu 01 takes ~6.1M nodes (~5 s in Release, much longer
-    /// in Debug), and the bounded budget returns the same plans, so the pinned quality is
+    /// production 10 000 000-node budget Menu 01 spends the whole budget and is the only
+    /// expensive menu, and the bounded budget returns the same plans, so the pinned quality is
     /// unchanged — only Menu 01's search-node count is cut at the cap.
     /// The parallel row proves the same quality on the work-queue search: same plans, and the
     /// node count left unpinned because it is formally scheduling-dependent.

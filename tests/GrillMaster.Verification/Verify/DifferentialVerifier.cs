@@ -139,5 +139,7 @@ internal sealed record PlannerSettings(long MaxNodes) : IGrillMasterSettings
 
     public bool EnableParallelism => false;
 
+    public int Parallelism => 0;
+
     public bool VerboseLogging => false;
 }

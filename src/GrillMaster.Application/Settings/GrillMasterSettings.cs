@@ -13,6 +13,12 @@ public record GrillMasterSettings : IGrillMasterSettings
     /// </summary>
     public bool EnableParallelism { get; set; } = true;
 
+    /// <summary>
+    /// The number of search threads when <see cref="EnableParallelism"/> is set; 0 (the default)
+    /// means all logical cores.
+    /// </summary>
+    public int Parallelism { get; set; }
+
     /// <summary>Log the per-menu round count with its proven-optimal status, instead of the plain line.</summary>
     public bool VerboseLogging { get; set; }
 }

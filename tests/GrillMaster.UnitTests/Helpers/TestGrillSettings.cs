@@ -6,7 +6,7 @@ namespace GrillMaster.UnitTests.Helpers;
 /// Planner settings for the tests: the API URL and logging do not affect planning, so only the
 /// node budget and the search mode vary. Serial is the default.
 /// </summary>
-internal sealed record TestGrillSettings(long MaxNodes = 1_000_000, bool EnableParallelism = false) : IGrillMasterSettings
+internal sealed record TestGrillSettings(long MaxNodes = 1_000_000, bool EnableParallelism = false, int Parallelism = 0) : IGrillMasterSettings
 {
     public Uri GrillMenuApiUrl => new("http://localhost");
 

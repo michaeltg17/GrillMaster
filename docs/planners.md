@@ -46,7 +46,7 @@ The settings live in the `GrillMaster` section of
 {
   "GrillMaster": {
     "GrillMenuApiUrl": "http://isol-grillassessment.azurewebsites.net",
-    "MaxNodes": 20000000,
+    "MaxNodes": 10000000,
     "VerboseLogging": true
   }
 }
@@ -54,8 +54,13 @@ The settings live in the `GrillMaster` section of
 
 - `GrillMenuApiUrl` — the grill-menu API to fetch the menus from.
 - `MaxNodes` — the exact search's hard node budget, shared between its fast pass and its
-  verification pass. When the budget runs out, the best plan found so far is returned, flagged
-  as *not* proven.
+  verification pass and, in the default parallel mode, across all cores. When the budget runs
+  out, the best plan found so far is returned, flagged as *not* proven.
+- `EnableParallelism` — when `true` (the default) the exact search runs on every logical
+  core; when `false` it stays strictly serial and fully deterministic, including the exact
+  search-node count.
+- `Parallelism` — the number of search threads when parallelism is enabled; `0` (the default)
+  means every logical core.
 - `VerboseLogging` — when `true`, each menu is logged with its proven-optimal status
   (`Menu 01: 4 rounds (Proven: False)`); when `false`, the plain line
   (`Menu 01: 4 rounds`) is logged.
@@ -80,18 +85,20 @@ pre-pass itself; Menu 01 (nine square centimetres of slack across three full rou
 the floor — the search finds the 4-round plan, and its verification pass (which re-checks
 every possible position, because only that complete search is a real proof) cannot finish
 within the default budget, so Menu 01 comes back flagged *not* proven. This is a genuinely
-hard instance: the 3-round space is over 500 million search nodes, and an external CP-SAT
-solver given ten minutes cannot prove 3 rounds impossible either. Whether 3 rounds are
-actually possible is unknown.
+hard instance: the 3-round space is over 10 billion search nodes (a 10-billion-node run
+across all 16 cores took about 23 minutes and still had not exhausted it), and an external
+CP-SAT solver given ten minutes cannot prove 3 rounds impossible either. Whether 3 rounds
+are actually possible is unknown.
 
 ## Honest corners
 
 - **Axis-aligned placement only.** Pieces may be turned 90°, but not at an arbitrary angle.
-- **The exact search has a node budget** (default 20 000 000), shared between its fast
-  pass and its verification pass. On this data it proves the optimum on 14 menus in well
-  under a second; Menu 01 spends the whole budget (~20M nodes, ~10 s) and comes back
-  flagged as *not* proven (`GrillPlan.IsProvenOptimal == false`). A much larger or
-  adversarial menu would do the same.
+- **The exact search has a node budget** (default 10 000 000), shared between its fast
+  pass and its verification pass and, in the default parallel mode, across all cores. On
+  this data it proves the optimum on 14 menus in well under a second; Menu 01 spends the
+  whole budget (~10M nodes, ~2 s on 16 cores) and comes back flagged as *not* proven
+  (`GrillPlan.IsProvenOptimal == false`). A much larger or adversarial menu would do the
+  same.
 - **Assumes every piece fits the grill.** The largest piece in this data is 22 cm, which fits
   the 30 cm side. A piece that cannot fit the grill in either orientation makes the planner
   throw an error instead of guessing.
