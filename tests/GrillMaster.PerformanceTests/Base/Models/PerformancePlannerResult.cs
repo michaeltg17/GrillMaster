@@ -7,14 +7,12 @@ namespace GrillMaster.PerformanceTests.Base.Models;
 /// and <see cref="TotalMs"/> their sum. The median over the whole fixture is dominated by the
 /// cheap menus, so the total is what shows when a single heavy menu gets faster or slower.
 /// </summary>
-/// <param name="Planner">Stable planner name.</param>
 /// <param name="TotalRounds">Sum of rounds over all menus (the quality figure the README tracks).</param>
 /// <param name="LowerBound">Sum of the per-menu area lower bounds (the provable optimum target).</param>
 /// <param name="SearchNodes">Total search nodes explored (0 for menus the greedy pre-pass settles on the lower bound).</param>
 /// <param name="MedianMs">Median elapsed milliseconds over the benchmark runs.</param>
 /// <param name="TotalMs">Sum of elapsed milliseconds over all benchmark runs.</param>
 public sealed record PerformancePlannerResult(
-    string Planner,
     int TotalRounds,
     int LowerBound,
     long SearchNodes,
