@@ -62,7 +62,7 @@ public sealed class GrillMasterPerformanceTest(ITestOutputHelper output)
     private static IReadOnlyList<PerformancePlannerResult> MeasurePlanners()
     {
         var menus = GrillMenusProvider.GetGrillMenus();
-        return [Benchmark(new GrillPlanner(), menus)];
+        return [Benchmark(new GrillPlanner() { MaxNodes = 1_000_000 }, menus)];
     }
 
     /// <summary>

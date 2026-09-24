@@ -29,7 +29,7 @@ public sealed partial class GrillMasterApp(
             total += plan.Rounds.Count;
             if (settings.VerboseLogging)
             {
-                LogDebugMenuRounds(logger, plan.Menu.Name, plan.Rounds.Count, plan.IsProvenOptimal);
+                LogDebugMenuRounds(logger, plan.Menu.Name, plan.Rounds.Count, plan.IsProvenOptimal, plan.SearchNodes);
             }
             else
             {
@@ -46,6 +46,6 @@ public sealed partial class GrillMasterApp(
     [LoggerMessage(Level = LogLevel.Information, Message = "Total: {TotalRounds} rounds")]
     private static partial void LogTotalRounds(ILogger<GrillMasterApp> logger, int totalRounds);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "{MenuName}: {RoundCount} rounds (Proven: {Proven})")]
-    private static partial void LogDebugMenuRounds(ILogger<GrillMasterApp> logger, string menuName, int roundCount, bool proven);
+    [LoggerMessage(Level = LogLevel.Information, Message = "{MenuName}: {RoundCount} rounds. Proven: {Proven}. SearchNodes: {SearchNodes}")]
+    private static partial void LogDebugMenuRounds(ILogger<GrillMasterApp> logger, string menuName, int roundCount, bool proven, long searchNodes);
 }
