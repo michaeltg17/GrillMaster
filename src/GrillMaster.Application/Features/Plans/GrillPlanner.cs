@@ -19,16 +19,6 @@ namespace GrillMaster.Application.Features.Plans;
 /// </summary>
 public sealed class GrillPlanner(IGrillMasterSettings settings)
 {
-
-    // TEMPORARY debug instrumentation — remove before commit.
-    private static long _debugTasksCreated;
-    private static IReadOnlyList<long> _debugWorkerNodes = [];
-    private static long _debugInlineNodes;
-
-    public static long DebugLastTasksCreated => _debugTasksCreated;
-    public static IReadOnlyList<long> DebugLastWorkerNodes => _debugWorkerNodes;
-    public static long DebugLastInlineNodes => _debugInlineNodes;
-
     public GrillPlan Plan(GrillMenu menu, GrillSize grill)
     {
         var stopwatch = Stopwatch.StartNew();
@@ -98,7 +88,7 @@ public sealed class GrillPlanner(IGrillMasterSettings settings)
             return new GrillPlan(menu, greedyRounds, lowerBound, IsProvenOptimal: false, SearchNodes: 0, stopwatch.Elapsed);
         }
 
-        var phase1 = new ParallelPhase(PlanData.Create(grill, ordered, lowerBound, allPositions: false), greedyRounds, settings.MaxNodes, Environment.ProcessorCount);
+        using var phase1 = new ParallelPhase(PlanData.Create(grill, ordered, lowerBound, allPositions: false), greedyRounds, settings.MaxNodes, Environment.ProcessorCount);
         phase1.Run();
 
         if (phase1.Best == lowerBound || phase1.Outcome == SearchOutcome.BudgetExceeded)
@@ -107,7 +97,7 @@ public sealed class GrillPlanner(IGrillMasterSettings settings)
             return phase1.BuildPlan(menu, stopwatch.Elapsed);
         }
 
-        var phase2 = new ParallelPhase(PlanData.Create(grill, ordered, lowerBound, allPositions: true), phase1.BestRounds, settings.MaxNodes - phase1.Nodes, Environment.ProcessorCount);
+        using var phase2 = new ParallelPhase(PlanData.Create(grill, ordered, lowerBound, allPositions: true), phase1.BestRounds, settings.MaxNodes - phase1.Nodes, Environment.ProcessorCount);
         phase2.Run();
 
         stopwatch.Stop();
@@ -568,8 +558,22 @@ public sealed class GrillPlanner(IGrillMasterSettings settings)
     /// (its own round occupancies, stacks and counters) and processes subtree tasks from a
     /// shared work queue; the only shared mutable state is the <see cref="ParallelContext"/>
     /// (the incumbent, the node budget and the done flag) and the queue itself.
+    /// <para>
+    /// Tasks stay fine-grained without any splitting rule: a worker that has explored
+    /// <see cref="ParallelWorkerState.TaskNodeBudget"/> nodes of a task hands the task's
+    /// remaining candidates back to the queue as a new task (a node snapshot plus a resume
+    /// offset) and picks up whatever is next in line, so the workers balance themselves
+    /// across the search tree at every depth.
+    /// </para>
+    /// <para>
+    /// A task exists either in the queue (<see cref="_pending"/>) or held by a worker that
+    /// dequeued it (<see cref="_active"/>); only workers holding a task can enqueue more, so
+    /// the queue being empty with both counters at 0 means the search is truly finished. That
+    /// is the only condition under which a worker leaves the loop, which keeps the whole pool
+    /// alive for the duration of the phase.
+    /// </para>
     /// </summary>
-    private sealed class ParallelPhase
+    private sealed class ParallelPhase : IDisposable
     {
         private readonly PlanData _data;
         private readonly int _maxRounds;
@@ -577,19 +581,21 @@ public sealed class GrillPlanner(IGrillMasterSettings settings)
         private readonly ParallelContext _context;
         private readonly ConcurrentQueue<SearchTask> _queue = new();
 
-        // Tasks that are enqueued but not yet processed. A worker may leave the loop only when
-        // the queue is empty and this is 0: then no task exists anywhere and the search is done.
+        // Tasks that are enqueued but not yet dequeued.
         private int _pending;
+
+        // Tasks that are dequeued and being processed (including their inline descendants).
+        private int _active;
+
+        // Wakes idle workers when a task is enqueued; workers also time out so they notice the
+        // done flag and the drained queue without burning CPU while idle.
+        private readonly SemaphoreSlim _signal = new(0);
 
         // Results, filled by Run() once every worker has stopped.
         private SearchOutcome _outcome;
         private long _nodes;
         private int _best;
         private List<GrillRound> _bestRounds = [];
-
-        // TEMPORARY debug instrumentation — remove before commit.
-        private long _tasksCreated;
-        private readonly ConcurrentBag<long> _workerNodes = [];
 
         internal int Best => _best;
         internal long Nodes => _nodes;
@@ -604,12 +610,8 @@ public sealed class GrillPlanner(IGrillMasterSettings settings)
             _context = new ParallelContext(data.LowerBound, seedRounds, maxNodes);
 
             // The root node: no pieces placed, no rounds open.
-            _queue.Enqueue(new SearchTask { Index = 0 });
-            _pending = 1;
-            _tasksCreated = 1;
+            Enqueue(new SearchTask { Index = 0 });
         }
-
-        internal int Pending => Volatile.Read(ref _pending);
 
         internal void Enqueue(SearchTask task)
         {
@@ -617,7 +619,7 @@ public sealed class GrillPlanner(IGrillMasterSettings settings)
             // _pending at 0 while a task is still on its way in.
             Interlocked.Increment(ref _pending);
             _queue.Enqueue(task);
-            Interlocked.Increment(ref _tasksCreated);
+            _signal.Release();
         }
 
         internal void Run()
@@ -638,11 +640,6 @@ public sealed class GrillPlanner(IGrillMasterSettings settings)
             _outcome = _context.Done
                 ? (_context.FloorReached ? SearchOutcome.ProvenOptimal : SearchOutcome.BudgetExceeded)
                 : SearchOutcome.ProvenOptimal;
-
-            // TEMPORARY debug instrumentation — remove before commit.
-            _debugTasksCreated = _tasksCreated;
-            _debugWorkerNodes = _workerNodes.ToArray();
-            _debugInlineNodes = 0;
         }
 
         private void WorkerLoop()
@@ -656,53 +653,65 @@ public sealed class GrillPlanner(IGrillMasterSettings settings)
                     break;
                 }
 
-                if (!_queue.TryDequeue(out var task))
+                SearchTask? task;
+                while (true)
                 {
-                    if (Volatile.Read(ref _pending) == 0)
+                    if (_queue.TryDequeue(out task))
                     {
                         break;
                     }
 
-                    Thread.Yield();
-                    continue;
+                    // The queue is empty. No task can appear unless a worker holding a task
+                    // enqueues a successor, so with nothing pending and nothing in flight the
+                    // search is complete — the only moment a worker may leave.
+                    if (Volatile.Read(ref _pending) == 0 && Volatile.Read(ref _active) == 0)
+                    {
+                        task = null;
+                        break;
+                    }
+
+                    _signal.Wait(TimeSpan.FromMilliseconds(16));
+                }
+
+                if (task is null)
+                {
+                    break;
                 }
 
                 Interlocked.Decrement(ref _pending);
+                Interlocked.Increment(ref _active);
                 state.Restore(task);
-                state.Search(task.Index);
+                state.Search(task);
+                state.FlushNodes();
+                Interlocked.Decrement(ref _active);
             }
 
             state.FlushNodes();
-            _workerNodes.Add(state.LocalNodes);
         }
 
         internal GrillPlan BuildPlan(GrillMenu menu, TimeSpan elapsed, long? totalNodes = null)
         {
             return new GrillPlan(menu, _bestRounds, _data.LowerBound, _outcome == SearchOutcome.ProvenOptimal, SearchNodes: totalNodes ?? _nodes, elapsed);
         }
+
+        public void Dispose() => _signal.Dispose();
     }
 
     /// <summary>
     /// The mutable state of one worker thread of a parallel phase. It is a full copy of the
     /// serial search state (round occupancies, placement stacks, counters) plus the parallel
-    /// machinery: the shared context, and the split rule that turns a wide node into child
-    /// tasks for the other workers instead of recursing into it inline.
+    /// machinery: the shared context, and the rule that hands a long-running task back to the
+    /// work queue after <see cref="TaskNodeBudget"/> nodes, so the workers balance themselves
+    /// across the search tree at every depth.
     /// </summary>
     private sealed class ParallelWorkerState
     {
-        // A node is split into child tasks when it offers at least this many candidate
-        // placements; below that the enqueue/snapshot cost would not pay for the load balance.
-        private const int SplitThreshold = 4;
-
-        // Splitting happens only in the top levels of the search: that is where the work
-        // concentrates (deeper nodes are narrower and their subtrees smaller), and a few fat
-        // tasks keep the snapshot/queue overhead negligible. A node at level 0, 1 or 2 of the
-        // whole search splits; everything deeper is processed inline by its worker.
-        private const int MaxSplitLevel = 2;
-
-        // Soft cap on the number of queued tasks; above it, new children are processed inline
-        // by the splitting worker instead of being enqueued.
-        private const int QueueCap = 16_384;
+        // A task that has explored this many nodes hands its remaining candidates back to the
+        // queue as a new task. The snapshot cost of a hand-off is a few hundred bytes, so the
+        // budget only has to be large enough that hand-offs are rare compared to the nodes a
+        // worker explores between them; small enough that one task is never a long critical
+        // path for the other workers.
+        private const long TaskNodeBudget = 32_000;
 
         // Nodes are counted locally and flushed to the shared budget in batches of this size,
         // so the hot loop never takes an atomic write.
@@ -719,14 +728,11 @@ public sealed class GrillPlanner(IGrillMasterSettings settings)
         private readonly int[] _roundUsedArea;
         private readonly int[] _placementRound;
         private readonly long[] _placementSlot;
-        private readonly Candidate[][] _candidateBuffers;
 
         private int _nonEmptyRounds;
         private int _totalUsedArea;
         private long _unreportedNodes;
-
-        // TEMPORARY debug instrumentation — remove before commit.
-        public long LocalNodes { get; private set; }
+        private long _taskNodes;
 
         public ParallelWorkerState(PlanData data, int maxRounds, ParallelPhase phase, ParallelContext context)
         {
@@ -741,19 +747,10 @@ public sealed class GrillPlanner(IGrillMasterSettings settings)
             _roundUsedArea = new int[maxRounds];
             _placementRound = new int[data.N];
             _placementSlot = new long[data.N];
-            _candidateBuffers = new Candidate[data.N][];
             for (var i = 0; i < maxRounds; i++)
             {
                 _roundOccupancies[i] = new RoundOccupancy(data.Grill);
                 _roundStacks[i] = new RawPlacement[data.N];
-            }
-
-            // One candidate buffer per recursion depth: Search(index) only recurses to
-            // Search(index+1), so the depth and the piece index are the same number and the
-            // buffers never alias between nested calls.
-            for (var i = 0; i < data.N; i++)
-            {
-                _candidateBuffers[i] = new Candidate[SplitThreshold + 1];
             }
         }
 
@@ -793,10 +790,17 @@ public sealed class GrillPlanner(IGrillMasterSettings settings)
             }
         }
 
-        // The same branch-and-bound as the serial Search, with one difference: a node with many
-        // candidates becomes a fan-out of child tasks on the shared queue, so the workers
-        // balance themselves across the search tree.
-        public void Search(int index)
+        // Enters the task at its node: resets the per-task node tally and explores the node's
+        // remaining candidates. The same branch-and-bound as the serial Search, with one
+        // difference: after TaskNodeBudget nodes the task's unexplored candidates are handed
+        // back to the queue as a new task, so the workers balance themselves at every depth.
+        public void Search(SearchTask task)
+        {
+            _taskNodes = 0;
+            SearchInner(task.Index, task.Resume);
+        }
+
+        private void SearchInner(int index, int resume)
         {
             if (!NoteNode())
             {
@@ -830,11 +834,13 @@ public sealed class GrillPlanner(IGrillMasterSettings settings)
             var prevRound = hasPrevSame ? _placementRound[index - 1] : 0;
             var prevSlot = hasPrevSame ? _placementSlot[index - 1] : 0;
 
-            var canSplit = index <= MaxSplitLevel;
-            var candidates = _candidateBuffers[index];
-            var count = 0;
-            var splitting = false;
-            var inlineOnly = false;
+            // resume is how many of this node's candidates the previous holder of the task
+            // already explored (0 for a fresh task). The candidate order is a pure function of
+            // the node's state (restored identically from the task's snapshot) and, for the
+            // round-opening break, of a champion that only ever improves; a better champion can
+            // only prune the tail of the candidate list, so skipping the first resume
+            // candidates rediscovers exactly the work that is left.
+            var visited = 0;
 
             for (var round = 0; round <= _nonEmptyRounds; round++)
             {
@@ -864,16 +870,7 @@ public sealed class GrillPlanner(IGrillMasterSettings settings)
                         var scan = occupancy.CreateAllFreePositionsScan(w, h);
                         while (scan.MoveNext())
                         {
-                            var x = scan.X;
-                            var y = scan.Y;
-                            var slot = SlotOrder(y, x, rotated);
-
-                            if (hasPrevSame && round == prevRound && slot <= prevSlot)
-                            {
-                                continue;
-                            }
-
-                            if (!VisitCandidate(index, round, x, y, w, h, rotated, slot, canSplit, ref count, ref splitting, ref inlineOnly, candidates))
+                            if (!VisitCandidate(index, round, scan.X, scan.Y, w, h, rotated, SlotOrder(scan.Y, scan.X, rotated), hasPrevSame, prevRound, prevSlot, ref visited, resume))
                             {
                                 return;
                             }
@@ -884,16 +881,7 @@ public sealed class GrillPlanner(IGrillMasterSettings settings)
                         var scan = occupancy.CreateSkylineScan(w, h);
                         while (scan.MoveNext())
                         {
-                            var x = scan.X;
-                            var y = scan.Y;
-                            var slot = SlotOrder(y, x, rotated);
-
-                            if (hasPrevSame && round == prevRound && slot <= prevSlot)
-                            {
-                                continue;
-                            }
-
-                            if (!VisitCandidate(index, round, x, y, w, h, rotated, slot, canSplit, ref count, ref splitting, ref inlineOnly, candidates))
+                            if (!VisitCandidate(index, round, scan.X, scan.Y, w, h, rotated, SlotOrder(scan.Y, scan.X, rotated), hasPrevSame, prevRound, prevSlot, ref visited, resume))
                             {
                                 return;
                             }
@@ -901,135 +889,60 @@ public sealed class GrillPlanner(IGrillMasterSettings settings)
                     }
                 }
             }
-
-            // The node stayed below the split threshold: its buffered candidates are processed
-            // inline, in the same order the serial search would try them.
-            if (!splitting && !inlineOnly)
-            {
-                for (var i = 0; i < count; i++)
-                {
-                    VisitInline(index, candidates[i]);
-                    if (_context.Done)
-                    {
-                        return;
-                    }
-                }
-            }
         }
 
-        // Handles one candidate position of piece <c>index</c>. Returns false when the worker
-        // must stop (the floor was reached or the budget ran out). Until the node has produced
-        // more than SplitThreshold candidates it only buffers them; the (threshold+1)st one
-        // decides the node is wide enough to split, and the buffered candidates are flushed as
-        // child tasks. If the queue fills up mid-flush, the rest of the node degrades to
-        // inline processing, so no candidate is ever lost or visited twice.
-        private bool VisitCandidate(int index, int round, int x, int y, int w, int h, bool rotated, long slot, bool canSplit, ref int count, ref bool splitting, ref bool inlineOnly, Span<Candidate> buffer)
+        // Handles one candidate position of piece <c>index</c>: applies it, explores its
+        // subtree inline, undoes it, and — once this task has explored TaskNodeBudget nodes —
+        // hands the node's remaining candidates back to the queue as a new task. Returns false
+        // when the worker must stop processing this task (the floor was reached or the budget
+        // ran out, or the task was handed over).
+        private bool VisitCandidate(int index, int round, int x, int y, int w, int h, bool rotated, long slot, bool hasPrevSame, int prevRound, long prevSlot, ref int visited, int resume)
         {
-            if (!canSplit || inlineOnly)
+            if (hasPrevSame && round == prevRound && slot <= prevSlot)
             {
-                VisitInline(index, new Candidate(round, x, y, w, h, rotated, slot));
-                return !_context.Done;
-            }
-
-            if (splitting)
-            {
-                if (TryEnqueueChild(index, new Candidate(round, x, y, w, h, rotated, slot)))
-                {
-                    return !_context.Done;
-                }
-
-                inlineOnly = true;
-                VisitInline(index, new Candidate(round, x, y, w, h, rotated, slot));
-                return !_context.Done;
-            }
-
-            if (count < SplitThreshold)
-            {
-                buffer[count++] = new Candidate(round, x, y, w, h, rotated, slot);
                 return true;
             }
 
-            var failedAt = -1;
-            for (var i = 0; i < count; i++)
+            if (visited < resume)
             {
-                if (TryEnqueueChild(index, buffer[i]))
-                {
-                    continue;
-                }
-
-                failedAt = i;
-                break;
+                visited++;
+                return true;
             }
 
-            if (failedAt >= 0)
-            {
-                // The queue filled up mid-flush: the failed candidate and the rest of the
-                // buffer are processed inline, from here on.
-                inlineOnly = true;
-                for (var i = failedAt; i < count; i++)
-                {
-                    VisitInline(index, buffer[i]);
-                    if (_context.Done)
-                    {
-                        return false;
-                    }
-                }
+            Apply(index, round, x, y, w, h, rotated, slot);
+            SearchInner(index + 1, 0);
+            Undo(round, x, y, w, h, _data.PieceArea[index]);
+            visited++;
 
-                VisitInline(index, new Candidate(round, x, y, w, h, rotated, slot));
-                return !_context.Done;
-            }
-
-            if (TryEnqueueChild(index, new Candidate(round, x, y, w, h, rotated, slot)))
-            {
-                splitting = true;
-                return !_context.Done;
-            }
-
-            // The queue filled up on this very candidate: it (and everything after it) stays
-            // local, while the whole buffer went out as tasks.
-            inlineOnly = true;
-            VisitInline(index, new Candidate(round, x, y, w, h, rotated, slot));
-            return !_context.Done;
-        }
-
-        // Places the candidate, takes a snapshot of the resulting node as a child task, and
-        // undoes the placement. Returns false when the queue is full and the caller must
-        // process the candidate inline.
-        private bool TryEnqueueChild(int index, Candidate candidate)
-        {
-            if (_phase.Pending >= QueueCap)
+            if (_context.Done)
             {
                 return false;
             }
 
-            Apply(index, candidate);
-            var task = BuildTask(index + 1);
-            Undo(candidate.Round, candidate.X, candidate.Y, candidate.W, candidate.H, _data.PieceArea[index]);
+            if (_taskNodes >= TaskNodeBudget)
+            {
+                // Hand the node over: its unvisited candidates (visited and on) become a new
+                // task at the current node state, and this task goes back to the queue.
+                _phase.Enqueue(BuildTask(index, visited));
+                return false;
+            }
 
-            _phase.Enqueue(task);
             return true;
         }
 
-        private void VisitInline(int index, Candidate candidate)
+        private void Apply(int index, int round, int x, int y, int w, int h, bool rotated, long slot)
         {
-            Apply(index, candidate);
-            Search(index + 1);
-            Undo(candidate.Round, candidate.X, candidate.Y, candidate.W, candidate.H, _data.PieceArea[index]);
-        }
-
-        private void Apply(int index, Candidate candidate)
-        {
-            if (candidate.Round == _nonEmptyRounds)
+            if (round == _nonEmptyRounds)
             {
                 _nonEmptyRounds++;
             }
 
-            _roundOccupancies[candidate.Round].MarkOccupiedCells(candidate.X, candidate.Y, candidate.W, candidate.H);
-            _roundUsedArea[candidate.Round] += _data.PieceArea[index];
+            _roundOccupancies[round].MarkOccupiedCells(x, y, w, h);
+            _roundUsedArea[round] += _data.PieceArea[index];
             _totalUsedArea += _data.PieceArea[index];
-            _roundStacks[candidate.Round][_roundStackDepth[candidate.Round]++] = new RawPlacement(candidate.X, candidate.Y, index, candidate.Rotated);
-            _placementRound[index] = candidate.Round;
-            _placementSlot[index] = candidate.Slot;
+            _roundStacks[round][_roundStackDepth[round]++] = new RawPlacement(x, y, index, rotated);
+            _placementRound[index] = round;
+            _placementSlot[index] = slot;
         }
 
         private void Undo(int round, int x, int y, int w, int h, int area)
@@ -1045,23 +958,26 @@ public sealed class GrillPlanner(IGrillMasterSettings settings)
             _totalUsedArea -= area;
         }
 
-        // A self-contained snapshot of the node reached after placing piece index-1: the
-        // occupancies of the open rounds, the placement stacks, and the round/slot of the last
-        // placed piece (the input of the identical-piece symmetry breaking for the next one).
-        // Everything else the search needs is in the shared <see cref="PlanData"/>.
-        private SearchTask BuildTask(int nextIndex)
+        // A self-contained snapshot of the node at <c>index</c> (pieces 0..index-1 placed, no
+        // candidate of <c>index</c> applied): the occupancies of the open rounds, the placement
+        // stacks, the round/slot of the last placed piece (the input of the identical-piece
+        // symmetry breaking for the next one), and how many of the node's candidates the
+        // previous holder already explored. Everything else the search needs is in the shared
+        // <see cref="PlanData"/>.
+        private SearchTask BuildTask(int index, int resume)
         {
             var rounds = _nonEmptyRounds;
             var task = new SearchTask
             {
-                Index = nextIndex,
+                Index = index,
+                Resume = resume,
                 NonEmptyRounds = rounds,
                 TotalUsedArea = _totalUsedArea,
                 RoundUsedArea = new int[rounds],
                 RoundRowBits = new uint[rounds][],
                 RoundColBits = new uint[rounds][],
                 RoundStacks = new RawPlacement[rounds][],
-                HasPrevSame = nextIndex > 0 && _data.PieceType[nextIndex] == _data.PieceType[nextIndex - 1],
+                HasPrevSame = index > 0 && _data.PieceType[index] == _data.PieceType[index - 1],
             };
 
             for (var r = 0; r < rounds; r++)
@@ -1082,8 +998,8 @@ public sealed class GrillPlanner(IGrillMasterSettings settings)
 
             if (task.HasPrevSame)
             {
-                task.PrevRound = _placementRound[nextIndex - 1];
-                task.PrevSlot = _placementSlot[nextIndex - 1];
+                task.PrevRound = _placementRound[index - 1];
+                task.PrevSlot = _placementSlot[index - 1];
             }
 
             return task;
@@ -1137,7 +1053,7 @@ public sealed class GrillPlanner(IGrillMasterSettings settings)
         // Returns false when the budget is exhausted.
         private bool NoteNode()
         {
-            LocalNodes++;
+            _taskNodes++;
             _unreportedNodes++;
             if ((_unreportedNodes & (NodeBatch - 1)) == 0)
             {
@@ -1261,11 +1177,14 @@ public sealed class GrillPlanner(IGrillMasterSettings settings)
     /// <summary>
     /// A subtree task on the shared work queue: the search node at <see cref="Index"/> with the
     /// placement of every earlier piece snapshotted, so any worker can process it without any
-    /// other worker's state.
+    /// other worker's state. <see cref="Resume"/> is how many of the node's candidates the
+    /// previous holder of the task already explored; 0 for a fresh task, the hand-off offset
+    /// for one that was handed back to the queue mid-node.
     /// </summary>
     private sealed class SearchTask
     {
         public int Index;
+        public int Resume;
         public int NonEmptyRounds;
         public int TotalUsedArea;
         public int[] RoundUsedArea = [];
@@ -1275,19 +1194,6 @@ public sealed class GrillPlanner(IGrillMasterSettings settings)
         public bool HasPrevSame;
         public int PrevRound;
         public long PrevSlot;
-    }
-
-    // One candidate placement of the piece currently being branched on, kept as raw ints so
-    // the split rule can buffer a node's candidates on the stack without allocation.
-    private readonly struct Candidate(int round, int x, int y, int w, int h, bool rotated, long slot)
-    {
-        public readonly int Round = round;
-        public readonly int X = x;
-        public readonly int Y = y;
-        public readonly int W = w;
-        public readonly int H = h;
-        public readonly bool Rotated = rotated;
-        public readonly long Slot = slot;
     }
 
     // A stack-only record of one placement: coordinates plus the index of the piece in
