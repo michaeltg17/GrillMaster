@@ -13,4 +13,4 @@ namespace GrillMaster.PerformanceTests.Base.Models;
 public sealed record PerformanceResult(
     string GeneratedAt,
     string GitCommit,
-    IReadOnlyList<PerformancePlannerResult> Planners);
+    IReadOnlyList<PlannerPerformanceResult> Planners);
