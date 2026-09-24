@@ -74,8 +74,8 @@ public sealed class GrillMasterPerformanceTest(ITestOutputHelper output)
     /// <summary>
     /// Runs the planner over every menu <see cref="Runs"/> times and returns the deterministic
     /// totals for a single pass over all menus (rounds, lower bound, search nodes) plus the
-    /// median elapsed milliseconds over all runs. The planners are deterministic, so every run
-    /// produces identical totals.
+    /// median and the sum of elapsed milliseconds over all runs. The planners are
+    /// deterministic, so every run produces identical totals.
     /// </summary>
     private static PerformancePlannerResult Benchmark(IGrillPlanner planner, IReadOnlyList<GrillMenu> menus)
     {
@@ -100,29 +100,39 @@ public sealed class GrillMasterPerformanceTest(ITestOutputHelper output)
             }
         }
 
-        return new PerformancePlannerResult(planner.Name, totalRounds, lowerBound, searchNodes, Median(elapsed));
+        return new PerformancePlannerResult(
+            planner.Name,
+            totalRounds,
+            lowerBound,
+            searchNodes,
+            Median(elapsed),
+            Math.Round(elapsed.Sum(), 4));
     }
 
     /// <summary>
     /// One report line per planner: the measured quality and speed with the delta against the
     /// baseline, so the before/after comparison is printed instead of leaving the reader to
     /// diff the files. Wall-clock values use the default shortest round-trip format, the same
-    /// numbers the JSON result files store.
+    /// numbers the JSON result files store. The median is per-menu over the whole fixture (cheap
+    /// menus dominate it); the total is what shows a heavy menu getting faster or slower.
     /// </summary>
     private static string Describe(PerformancePlannerResult measured, PerformancePlannerResult? previous)
     {
         if (previous is null)
         {
-            return $"{measured.Planner}: {measured.TotalRounds} rounds, {measured.MedianMs} ms (first measurement)";
+            return $"{measured.Planner}: {measured.TotalRounds} rounds, median {measured.MedianMs} ms, total {measured.TotalMs} ms (first measurement)";
         }
 
         var rounds = measured.TotalRounds == previous.TotalRounds
             ? $"{measured.TotalRounds} rounds"
             : $"{measured.TotalRounds} rounds (was {previous.TotalRounds})";
         var ms = previous.MedianMs <= 0
-            ? $"{measured.MedianMs} ms (was {previous.MedianMs} ms)"
-            : $"{measured.MedianMs} ms (was {previous.MedianMs} ms, {FormatDelta(DeltaPercent(measured.MedianMs, previous.MedianMs))}%)";
-        return $"{measured.Planner}: {rounds}, {ms}";
+            ? $"median {measured.MedianMs} ms (was {previous.MedianMs} ms)"
+            : $"median {measured.MedianMs} ms (was {previous.MedianMs} ms, {FormatDelta(DeltaPercent(measured.MedianMs, previous.MedianMs))}%)";
+        var total = previous.TotalMs <= 0
+            ? $"total {measured.TotalMs} ms (was {previous.TotalMs} ms)"
+            : $"total {measured.TotalMs} ms (was {previous.TotalMs} ms, {FormatDelta(DeltaPercent(measured.TotalMs, previous.TotalMs))}%)";
+        return $"{measured.Planner}: {rounds}, {ms}, {total}";
     }
 
     /// <summary>The relative change in percent between two measurements.</summary>

@@ -3,6 +3,7 @@ using GrillMaster.Application.Features.Plans;
 using GrillMaster.Application.Features.Plans.Planners;
 using GrillMaster.Testing.Serializers;
 using GrillMaster.Domain;
+using GrillMaster.UnitTests.Helpers;
 using Xunit;
 using Xunit.Sdk;
 
@@ -102,44 +103,5 @@ public abstract class PlannerTestsBase
             .Select(g => new GrillMenuItem(Guid.NewGuid(), g.Key.Name, g.Key.Length, g.Key.Width, "10 min", g.Count()))
             .ToList());
 
-    protected static void Validate(GrillPlan result)
-    {
-        var input = result.Menu.ExpandPieces();
-        var placed = result.Rounds.SelectMany(r => r.Placements.Select(p => p.Piece)).ToList();
-
-        // 1) Same multiset of pieces as the input.
-        placed.Count.Should().Be(input.Count);
-        placed.Select(Identity).OrderBy(x => x)
-            .Should().Equal(input.Select(Identity).OrderBy(x => x));
-
-        // 2) Bounds, orientation, and no overlap per round.
-        foreach (var round in result.Rounds)
-        {
-            var occupied = new bool[Grill.Width.Value, Grill.Height.Value];
-
-            foreach (var p in round.Placements)
-            {
-                p.Position.X.Should().BeInRange(0, Grill.Width - 1);
-                p.Position.Y.Should().BeInRange(0, Grill.Height - 1);
-                p.Right.Should().BeLessThanOrEqualTo(Grill.Width, "piece exceeds grill width");
-                p.Bottom.Should().BeLessThanOrEqualTo(Grill.Height, "piece exceeds grill height");
-
-                var footprintMatches =
-                    (p.FootprintWidth == p.Piece.Length && p.FootprintHeight == p.Piece.Width) ||
-                    (p.FootprintWidth == p.Piece.Width && p.FootprintHeight == p.Piece.Length);
-                footprintMatches.Should().BeTrue("footprint does not match piece dimensions");
-
-                for (var y = p.Position.Y.Value; y < p.Bottom.Value; y++)
-                {
-                    for (var x = p.Position.X.Value; x < p.Right.Value; x++)
-                    {
-                        occupied[x, y].Should().BeFalse($"overlap at ({x},{y}) in a round");
-                        occupied[x, y] = true;
-                    }
-                }
-            }
-        }
-    }
-
-    private static string Identity(GrillPiece p) => $"{p.Name}|{p.Length}x{p.Width}";
+    protected static void Validate(GrillPlan result) => PlanValidator.Validate(result, Grill);
 }

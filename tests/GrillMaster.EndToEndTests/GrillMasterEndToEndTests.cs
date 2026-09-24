@@ -35,14 +35,17 @@ public sealed partial class GrillMasterEndToEndTests
             .Where(line => line.Length > 0)
             .ToList();
 
-        // The user sees only the report: one "{menu}: {rounds} rounds" line per menu,
-        // ending with a single "Total: {rounds} rounds" line — and nothing else.
+        // The user sees a "Calculating..." + new line, then only the report: one "{menu}: {rounds} rounds"
+        // line per menu, ending with a single "Total: {rounds} rounds" line — and nothing else.
         lines.Should().NotBeEmpty();
-        lines.Should().OnlyContain(line => MenuLine().IsMatch(line) || TotalLine().IsMatch(line));
-        TotalLine().IsMatch(lines[^1]).Should().BeTrue();
+        lines[0].Should().Be("Calculating... ");
 
-        var menuMatches = lines.Where(line => MenuLine().IsMatch(line)).Select(line => MenuLine().Match(line)).ToList();
-        var totalMatches = lines.Where(line => TotalLine().IsMatch(line)).Select(line => TotalLine().Match(line)).ToList();
+        var reportLines = lines.Skip(1).ToList();
+        reportLines.Should().OnlyContain(line => MenuLine().IsMatch(line) || TotalLine().IsMatch(line));
+        TotalLine().IsMatch(reportLines[^1]).Should().BeTrue();
+
+        var menuMatches = reportLines.Where(line => MenuLine().IsMatch(line)).Select(line => MenuLine().Match(line)).ToList();
+        var totalMatches = reportLines.Where(line => TotalLine().IsMatch(line)).Select(line => TotalLine().Match(line)).ToList();
 
         // The live API serves exactly 15 menus, and the report has exactly one total line.
         menuMatches.Should().HaveCount(15);

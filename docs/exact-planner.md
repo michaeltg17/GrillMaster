@@ -192,12 +192,13 @@ Code, translated into the story:
 | `RoundsLowerBound(index) >= _best → return` | Rule 1 (look-ahead edition): the waiting meat can't fit in the open grills' leftover room plus fresh full grills — abandon the branch. |
 | `hasPrevSame` / `SlotOrder(y, x, rotated)` | Rule 5: the identical-piece ordering. |
 | `occupancy.CreateSkylineScan(w, h)` | Rule 3: walks this piece's "resting, pushed-in" spots one at a time, without allocating. |
+| `var orientations = w0 == h0 ? 1 : 2;` | A square piece's 90° turn is the same geometry, so it is tried once, not twice. |
 | `MarkOccupiedCells(...)` / `MarkFreeCells(...)` | Putting the piece on the grill / lifting it back off (the undo). |
 | `RawPlacement` stacks | The arrangements under construction, kept as raw numbers — no bookkeeping object per candidate. |
 | `Search(index + 1)` | Recurse: the same game with the next piece. |
 | `_best = _nonEmptyRounds; _bestRounds = SnapshotRounds()` | A new champion! Save the arrangement. |
 | `_nodes` / `MaxNodes` | The tally of decisions tried / the budget. |
-| `IsProvenOptimal = !_budgetExceeded` | The honesty clause: "proven" whenever the search finished within its budget — the floor was reached, or every promising arrangement was checked. |
+| `SearchOutcome` / `IsProvenOptimal` | The honesty clause, made explicit: the search either ends `ProvenOptimal` (the floor was reached, or every promising arrangement was checked) or `BudgetExceeded` — the one finish that is not a proof. |
 
 The shared grill map and the "resting, pushed-in" rule live in
 `RoundOccupancy.cs`. The map holds the grill as one 32-bit word per row and one per
