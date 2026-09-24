@@ -170,18 +170,19 @@ is hopeless by definition — the search ends, and the answer is *proven*.
 ## 5. The budget: an honest time limit
 
 Real menus can be nasty, and "try everything" can still be large. So the search
-counts every decision it makes against a **budget** (default: 20,000,000 decisions),
-shared across both passes. On the full 15-menu fixture, thirteen menus need no
-decisions at all (the pre-pass is already on the floor and is accepted without
-searching), Menu 07 settles in 619, and Menu 01 (1791 cm² of meat against three
-rounds of 600 cm²: nine squares of slack) spends the whole budget: the fast pass uses
-about 6.1M decisions and comes up short of the floor, then the verification pass
-spends the remaining ~14M trying to prove that no 3-round arrangement exists — and
-does not finish in time, so Menu 01 is returned as **not proven**. Menu 01 is a
-genuinely hard instance: the 3-round verification space is over 500,000,000
-decisions (a 500M-node run still had not exhausted it after ~7 minutes), and an
-external CP-SAT solver given 10 minutes cannot prove that 3 rounds are impossible
-either. The honest flag is therefore the correct behaviour, not a planner failure. If a menu blows the budget before a
+counts every decision it makes against a **budget** (default: 10,000,000 decisions),
+shared across both passes and, in the default parallel mode, across all cores. On
+the full 15-menu fixture, thirteen menus need no decisions at all (the pre-pass is
+already on the floor and is accepted without searching), Menu 07 settles in 619,
+and Menu 01 (1791 cm² of meat against three rounds of 600 cm²: nine squares of
+slack) spends the whole budget: the fast pass uses about 6.1M decisions and comes up
+short of the floor, then the verification pass spends the remaining ~3.9M trying to
+prove that no 3-round arrangement exists — and does not finish in time, so Menu 01
+is returned as **not proven**. Menu 01 is a genuinely hard instance: the 3-round
+verification space is over 10,000,000,000 decisions (a 10-billion-node run across
+all 16 cores of a Ryzen 9800X3D — about 23 minutes — still had not exhausted it),
+and an external CP-SAT solver given 10 minutes cannot prove that 3 rounds are
+impossible either. The honest flag is therefore the correct behaviour, not a planner failure. If a menu blows the budget before a
 proof, the planner stops and returns the best arrangement it had found so far,
 honestly flagged as **not proven optimal**. It never lies: `IsProvenOptimal` is true
 exactly when the champion reached the floor or the *complete* position set was
@@ -224,14 +225,25 @@ edge, then the tops of whatever is already down) and could not be slid left, and
 `CreateAllFreePositionsScan` walks every free spot in row-major order — both as
 allocation-free `ref struct` iterators.
 
+By default the search does not run with one patient person but with one per core:
+each worker keeps its own notebook and pulls subtrees off a shared queue. A subtree
+is handed back to the queue whenever its holder has spent 32,000 decisions on it, so
+the cores stay balanced at every depth of the search. The champion, the budget tally,
+and the queue are the only things the workers share, so the same rules — and the
+same proof — apply as in the one-person story above; the quality snapshot pins the
+total rounds the search returns (and the serial run's exact node count), while the
+node count of a parallel run is formally scheduling-dependent and left unpinned. `EnableParallelism: false` keeps the search strictly serial
+and fully deterministic, including that node count; `Parallelism` caps the thread
+count when it is enabled.
+
 ## 7. The numbers
 
 - **Speed:** thirteen of the 15 menus cost essentially nothing (the pre-pass is
   already on the floor and is accepted without searching); Menu 07 settles in 619
-  decisions; Menu 01 spends the full 20,000,000 budget (fast pass: ~6.1M skyline
-  decisions, verification pass: the rest over the complete set) — about 10 s in
-  Release at the default budget, and ends **not proven** because the verification
-  pass cannot finish in time.
+  decisions; Menu 01 spends the full 10,000,000 budget (fast pass: ~6.1M skyline
+  decisions, verification pass: the rest over the complete set) — about 2 s in
+  Release at the default budget on all 16 cores (about 9 s serially), and ends
+  **not proven** because the verification pass cannot finish in time.
 - **Quality:** 38 rounds on the 15-menu fixture, unchanged by the two-pass search:
   14 menus reach the floor (37 in total), and Menu 01's best-found plan is 4 rounds
   (its floor is 3; no solver — this planner or the external CP-SAT oracle — has

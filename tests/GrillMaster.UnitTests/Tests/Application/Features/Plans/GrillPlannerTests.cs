@@ -16,7 +16,7 @@ public sealed class GrillPlannerTests
 {
     private static readonly GrillSize Grill = GrillSize.Standard;
 
-    private static GrillPlanner CreatePlanner() => new();
+    private static GrillPlanner CreatePlanner() => new(new TestGrillSettings());
 
     [Fact]
     public void ProducesValidPlan_ForFixture()

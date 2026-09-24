@@ -16,9 +16,10 @@ internal static class GrillMasterFactory
 {
     /// <summary>
     /// The planner's search-node budget for the tests. The pipeline plans all 15 fixture menus;
-    /// with the production 20 000 000-node default the two menus that do not settle at the lower
-    /// bound exhaust the solver's budget (~30 s in Release, several minutes in Debug). The capped
-    /// budget returns the same per-menu round counts (pinned by the unit-test quality snapshot).
+    /// with the production 10 000 000-node default the menus that need a real search (Menu 01,
+    /// which cannot settle at its lower bound within any practical budget, and Menu 07) would
+    /// consume it. The capped budget returns the same per-menu round counts (pinned by the
+    /// unit-test quality snapshot) in a fraction of the time.
     /// </summary>
     private const long TestNodeBudget = 1_000_000;
 

@@ -1,4 +1,5 @@
 using GrillMaster.Application.Features.Plans;
+using GrillMaster.Application.Settings;
 using GrillMaster.Domain;
 using GrillMaster.PerformanceTests.Base;
 using GrillMaster.PerformanceTests.Base.Models;
@@ -8,9 +9,10 @@ using Xunit;
 namespace GrillMaster.PerformanceTests;
 
 /// <summary>
-/// Benchmarks the grill planner over the full 15-menu fixture. The first run stores the
-/// measurement as the local <c>before.json</c> baseline; every later run rewrites
-/// <c>after.json</c> and prints the measurements with the delta against the baseline, so the
+/// Benchmarks the grill planner over the full 15-menu fixture with parallelism disabled and
+/// enabled (the enabled mode uses all logical cores). The first run stores the measurement as
+/// the local <c>before.json</c> baseline; every later run rewrites <c>after.json</c> and prints
+/// the measurements with the delta against the baseline of the same parallelism mode, so the
 /// before/after comparison is visible in the test output. This is a measurement, not a gate: it
 /// never fails and is marked explicit, so it only runs on demand with
 /// <c>dotnet run --project tests/GrillMaster.PerformanceTests -- --explicit only</c>, for example
@@ -27,9 +29,9 @@ public sealed class GrillMasterPerformanceTest(ITestOutputHelper output)
     private readonly ITestOutputHelper _output = output;
 
     [Fact(Explicit = true)]
-    public void Planners_BenchmarkAndWriteResults()
+    public void BenchmarkAndWriteResults()
     {
-        var measured = MeasurePlanners();
+        var measured = Measure();
         var before = PerformanceResultStore.LoadBefore();
 
         if (before is null)
@@ -48,9 +50,10 @@ public sealed class GrillMasterPerformanceTest(ITestOutputHelper output)
 
         PerformanceResultStore.SaveAfter(measured);
 
-        var previous = before.Planners.Count > 0 ? before.Planners[0] : null;
+        var beforeByParallelism = before.Planners.ToDictionary(p => p.ParallelismEnabled);
         foreach (var m in measured)
         {
+            beforeByParallelism.TryGetValue(m.ParallelismEnabled, out var previous);
             _output.WriteLine(Describe(m, previous));
         }
 
@@ -58,11 +61,19 @@ public sealed class GrillMasterPerformanceTest(ITestOutputHelper output)
         _output.WriteLine($"After results written to {PerformanceResultStore.AfterPath}");
     }
 
-    /// <summary>Benchmarks the planner over the full 15-menu fixture.</summary>
-    private static IReadOnlyList<PerformancePlannerResult> MeasurePlanners()
+    /// <summary>
+    /// Benchmarks the planner over the full 15-menu fixture with parallelism disabled
+    /// (deterministic) and enabled (all logical cores, the app default), so the before/after
+    /// report shows the serial path is unchanged and the parallel speedup.
+    /// </summary>
+    private static IReadOnlyList<PlannerPerformanceResult> Measure()
     {
         var menus = GrillMenusProvider.GetGrillMenus();
-        return [Benchmark(new GrillPlanner() { MaxNodes = 1_000_000 }, menus)];
+        return
+        [
+            Benchmark(parallelismEnabled: false, new GrillPlanner(new BenchmarkPlannerSettings(1_000_000, EnableParallelism: false)), menus),
+            Benchmark(parallelismEnabled: true, new GrillPlanner(new BenchmarkPlannerSettings(1_000_000, EnableParallelism: true)), menus),
+        ];
     }
 
     /// <summary>
@@ -71,7 +82,7 @@ public sealed class GrillMasterPerformanceTest(ITestOutputHelper output)
     /// median and the sum of elapsed milliseconds over all runs. The planner is deterministic,
     /// so every run produces identical totals.
     /// </summary>
-    private static PerformancePlannerResult Benchmark(GrillPlanner planner, IReadOnlyList<GrillMenu> menus)
+    private static PlannerPerformanceResult Benchmark(bool parallelismEnabled, GrillPlanner planner, IReadOnlyList<GrillMenu> menus)
     {
         var elapsed = new List<double>(Runs * menus.Count);
         var totalRounds = 0;
@@ -94,7 +105,8 @@ public sealed class GrillMasterPerformanceTest(ITestOutputHelper output)
             }
         }
 
-        return new PerformancePlannerResult(
+        return new PlannerPerformanceResult(
+            parallelismEnabled,
             totalRounds,
             lowerBound,
             searchNodes,
@@ -109,7 +121,7 @@ public sealed class GrillMasterPerformanceTest(ITestOutputHelper output)
     /// numbers the JSON result files store. The median is per-menu over the whole fixture (cheap
     /// menus dominate it); the total is what shows a heavy menu getting faster or slower.
     /// </summary>
-    private static string Describe(PerformancePlannerResult measured, PerformancePlannerResult? previous)
+    private static string Describe(PlannerPerformanceResult measured, PlannerPerformanceResult? previous)
     {
         if (previous is null)
         {
@@ -142,9 +154,9 @@ public sealed class GrillMasterPerformanceTest(ITestOutputHelper output)
     private static string FormatDelta(double delta) =>
         $"{(delta < 0 ? '-' : '+')}{Math.Abs(delta):0.0}";
 
-    /// <summary>The one-line report: the measured planner's combined totals.</summary>
-    private static string Summary(IReadOnlyList<PerformancePlannerResult> measured) =>
-        $"Total: {measured.Sum(m => m.TotalRounds)} rounds, {Math.Round(measured.Sum(m => m.MedianMs), 4)} ms";
+    /// <summary>The one-line report: the measured modes' combined wall clock.</summary>
+    private static string Summary(IReadOnlyList<PlannerPerformanceResult> measured) =>
+        "Total: " + string.Join(", ", measured.Select(m => $"parallelism={(m.ParallelismEnabled ? "true" : "false")} {Math.Round(m.TotalMs, 4)} ms"));
 
     private static double Median(List<double> values)
     {
@@ -154,4 +166,15 @@ public sealed class GrillMasterPerformanceTest(ITestOutputHelper output)
             ? sorted[mid]
             : (sorted[mid - 1] + sorted[mid]) / 2;
     }
+}
+
+/// <summary>
+/// Planner settings for one benchmark row: the node budget and the search mode. The API URL and
+/// logging do not affect planning.
+/// </summary>
+internal sealed record BenchmarkPlannerSettings(long MaxNodes, bool EnableParallelism, int Parallelism = 0) : IGrillMasterSettings
+{
+    public Uri GrillMenuApiUrl => new("http://localhost");
+
+    public bool VerboseLogging => false;
 }

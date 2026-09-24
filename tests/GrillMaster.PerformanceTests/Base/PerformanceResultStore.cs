@@ -66,14 +66,14 @@ public static class PerformanceResultStore
     /// Captures the results (with the current UTC timestamp and git commit) and serialises them to
     /// the baseline file.
     /// </summary>
-    public static void SaveBefore(IReadOnlyList<PerformancePlannerResult> planners) =>
+    public static void SaveBefore(IReadOnlyList<PlannerPerformanceResult> planners) =>
         Save(BeforePath, planners);
 
     /// <summary>
     /// Captures the results (with the current UTC timestamp and git commit) and serialises them to
     /// the after file, replacing any previous latest measurement.
     /// </summary>
-    public static void SaveAfter(IReadOnlyList<PerformancePlannerResult> planners) =>
+    public static void SaveAfter(IReadOnlyList<PlannerPerformanceResult> planners) =>
         Save(AfterPath, planners);
 
     private static PerformanceResult? Load(string path) =>
@@ -81,7 +81,7 @@ public static class PerformanceResultStore
             ? JsonSerializer.Deserialize<PerformanceResult>(File.ReadAllText(path), JsonOptions)
             : null;
 
-    private static void Save(string path, IReadOnlyList<PerformancePlannerResult> planners)
+    private static void Save(string path, IReadOnlyList<PlannerPerformanceResult> planners)
     {
         var results = new PerformanceResult(DateTime.UtcNow.ToString("o"), GitCommit(), planners);
         File.WriteAllText(path, JsonSerializer.Serialize(results, JsonOptions));

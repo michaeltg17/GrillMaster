@@ -8,9 +8,9 @@ namespace GrillMaster.UnitTests.Tests.Application.Features.Plans;
 
 /// <summary>
 /// GrillPlanner invariants the generic contract tests do not cover: the node budget never
-/// produces a false proof, rotation-forced and identical-piece menus stay optimal, and the
-/// stateless planner gives identical results under concurrent use. Ground truth for the small
-/// cases comes from <see cref="BruteForceRoundSolver"/>.
+/// produces a false proof (serial and parallel), rotation-forced and identical-piece menus stay
+/// optimal, and the stateless planner gives identical results under concurrent use. Ground
+/// truth for the small cases comes from <see cref="BruteForceRoundSolver"/>.
 /// </summary>
 public sealed class GrillPlannerInvariantTests
 {
@@ -40,7 +40,7 @@ public sealed class GrillPlannerInvariantTests
     [Fact]
     public void SearchCase_IsSolvedAndProven()
     {
-        var result = new GrillPlanner { MaxNodes = BigBudget }
+        var result = new GrillPlanner(new TestGrillSettings(BigBudget))
             .Plan(GrillPlannerTests.BuildMenu(SearchCasePieces), Grill10x10);
 
         result.Rounds.Count.Should().Be(2);
@@ -56,11 +56,42 @@ public sealed class GrillPlannerInvariantTests
     {
         // The proof for the search case needs more than two nodes, so these budgets run out
         // mid-search: the plan must come back honest (unproven) and still be a valid packing.
-        var result = new GrillPlanner { MaxNodes = maxNodes }
+        var result = new GrillPlanner(new TestGrillSettings(maxNodes))
             .Plan(GrillPlannerTests.BuildMenu(SearchCasePieces), Grill10x10);
 
         result.IsProvenOptimal.Should().BeFalse($"a budget of {maxNodes} nodes cannot complete the proof");
         result.SearchNodes.Should().BeLessThanOrEqualTo(maxNodes);
+        result.Rounds.Count.Should()
+            .BeInRange(1, 2, "an unfinished search still owes a plan between the floor and the incumbent");
+        GrillPlanValidator.Validate(result, Grill10x10);
+    }
+
+    [Fact]
+    public void Parallel_SearchCase_IsSolvedAndProven()
+    {
+        var result = new GrillPlanner(new TestGrillSettings(BigBudget, EnableParallelism: true))
+            .Plan(GrillPlannerTests.BuildMenu(SearchCasePieces), Grill10x10);
+
+        result.Rounds.Count.Should().Be(2);
+        result.IsProvenOptimal.Should().BeTrue("the work-queue search must prove the same optimum");
+        result.LowerBound.Should().Be(1);
+        GrillPlanValidator.Validate(result, Grill10x10);
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void Parallel_BudgetExceeded_NeverReportsFalseProof(long maxNodes)
+    {
+        // The proof for the search case needs far more nodes than these budgets, so the search
+        // is cut short: the plan must come back honest (unproven) and still be a valid packing.
+        // The parallel budget is batched per worker, so the count may overshoot the cap — by at
+        // most one node batch per worker, never more.
+        var result = new GrillPlanner(new TestGrillSettings(maxNodes, EnableParallelism: true))
+            .Plan(GrillPlannerTests.BuildMenu(SearchCasePieces), Grill10x10);
+
+        result.IsProvenOptimal.Should().BeFalse($"a budget of {maxNodes} nodes cannot complete the proof");
+        result.SearchNodes.Should().BeLessThanOrEqualTo(maxNodes + (Environment.ProcessorCount * 1024));
         result.Rounds.Count.Should()
             .BeInRange(1, 2, "an unfinished search still owes a plan between the floor and the incumbent");
         GrillPlanValidator.Validate(result, Grill10x10);
@@ -74,7 +105,7 @@ public sealed class GrillPlannerInvariantTests
         var menu = GrillPlannerTests.BuildMenu(SearchCasePieces);
         var greedyRounds = GreedyShelf.Place(menu.ExpandPieces(), Grill10x10);
 
-        var result = new GrillPlanner { MaxNodes = maxNodes }.Plan(menu, Grill10x10);
+        var result = new GrillPlanner(new TestGrillSettings(maxNodes)).Plan(menu, Grill10x10);
 
         result.IsProvenOptimal.Should().BeFalse("without a search there is no proof");
         result.SearchNodes.Should().Be(0);
@@ -98,7 +129,7 @@ public sealed class GrillPlannerInvariantTests
         BruteForceRoundSolver.MinRounds(pieces, grill).Should()
             .Be(2, "ground truth for the rotation case");
 
-        var result = new GrillPlanner { MaxNodes = BigBudget }.Plan(GrillPlannerTests.BuildMenu(pieces), grill);
+        var result = new GrillPlanner(new TestGrillSettings(BigBudget)).Plan(GrillPlannerTests.BuildMenu(pieces), grill);
 
         result.Rounds.Count.Should().Be(2);
         result.IsProvenOptimal.Should().BeTrue();
@@ -116,7 +147,7 @@ public sealed class GrillPlannerInvariantTests
         BruteForceRoundSolver.MinRounds(pieces, Grill10x10).Should()
             .Be(2, "ground truth for the identical-pieces case");
 
-        var result = new GrillPlanner { MaxNodes = BigBudget }.Plan(GrillPlannerTests.BuildMenu(pieces), Grill10x10);
+        var result = new GrillPlanner(new TestGrillSettings(BigBudget)).Plan(GrillPlannerTests.BuildMenu(pieces), Grill10x10);
 
         result.Rounds.Count.Should().Be(2);
         result.IsProvenOptimal.Should().BeTrue();
@@ -129,7 +160,7 @@ public sealed class GrillPlannerInvariantTests
         var grill = Grill10x10;
         var menuA = GrillPlannerTests.BuildMenu(SearchCasePieces);
         var menuB = GrillPlannerTests.BuildMenu(Enumerable.Repeat(new GrillPiece("Patty", 3, 3), 10).ToList());
-        var planner = new GrillPlanner { MaxNodes = BigBudget };
+        var planner = new GrillPlanner(new TestGrillSettings(BigBudget));
 
         var serialA = Fingerprint(planner.Plan(menuA, grill));
         var serialB = Fingerprint(planner.Plan(menuB, grill));
@@ -146,6 +177,28 @@ public sealed class GrillPlannerInvariantTests
         mixed.Select((plan, i) => (Fingerprint(plan), i))
             .Should().OnlyContain(t => t.Item1 == (t.i % 2 == 0 ? serialA : serialB),
                 "interleaved menus on one instance must not leak state between plans");
+    }
+
+    [Fact]
+    public async Task ConcurrentParallelPlans_OnSharedInstance_ProduceValidOptimalResults()
+    {
+        // Eight parallel plans (each spawning its own worker team) interleave on one planner
+        // instance: no plan may leak state into another, and every one must still solve and
+        // prove its menu. Node counts are scheduling-dependent, so only the plans are checked.
+        var grill = Grill10x10;
+        var menuA = GrillPlannerTests.BuildMenu(SearchCasePieces);
+        var menuB = GrillPlannerTests.BuildMenu(Enumerable.Repeat(new GrillPiece("Patty", 3, 3), 10).ToList());
+        var planner = new GrillPlanner(new TestGrillSettings(BigBudget, EnableParallelism: true));
+
+        var plans = await Task.WhenAll(
+            Enumerable.Range(0, 8).Select(i => Task.Run(() => planner.Plan(i % 2 == 0 ? menuA : menuB, grill))));
+
+        foreach (var (plan, i) in plans.Select((p, i) => (p, i)))
+        {
+            plan.Rounds.Count.Should().Be(2, $"menu {i} must still be solved optimally");
+            plan.IsProvenOptimal.Should().BeTrue($"menu {i} must still be proven");
+            GrillPlanValidator.Validate(plan, grill);
+        }
     }
 
     // A comparable projection of a plan: every placement (piece, position, rotation), per round,

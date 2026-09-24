@@ -13,12 +13,6 @@
   is explicit: `dotnet run --project tests/GrillMaster.Verification -- --explicit only`.
   Run the full suite after a change that touches the planner's search or proof logic.
   Keep the two engines independent: no shared search code, different encodings.
-- Wall-clock speed is measured, not gated:
-  `dotnet run --project tests/GrillMaster.PerformanceTests -- --explicit only` benchmarks the
-  planners. The first run writes a local baseline
-  `tests/GrillMaster.PerformanceTests/before.json`; later runs rewrite `after.json` beside it and
-  print the delta against the baseline in the test output. Run it before and after a
-  performance-relevant change to see the perf diff. The files are local artifacts, not committed.
 
 ## Workflow
 Commit on `dev` → push `dev` → open (or update) the `dev` → `main` PR.
