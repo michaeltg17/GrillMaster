@@ -60,9 +60,10 @@ public sealed class ExactBacktrackingPlanner : IGrillPlanner
         return state.BuildPlan(menu, Name, stopwatch.Elapsed);
     }
 
-    // Fail-first ordering for the exact search: largest area first (big pieces have the fewest
-    // legal placements), then the fattest piece (largest short side) of the remaining area, then
-    // the longest side, then name for determinism. Identical pieces end up adjacent, which the
+    // Search ordering heuristic: place restrictive pieces first. Largest area first, then the
+    // fattest piece (largest short side) of the remaining area, then the longest side, then name
+    // for determinism. Large pieces generally have the fewest legal placements, so failing on
+    // them early prunes large subtrees. Identical pieces end up adjacent, which the
     // identical-piece symmetry breaking relies on.
     private static IReadOnlyList<GrillPiece> OrderForSearch(IReadOnlyList<GrillPiece> pieces)
     {
@@ -108,9 +109,9 @@ public sealed class ExactBacktrackingPlanner : IGrillPlanner
 
         // The rounds under construction. _maxRounds is the greedy incumbent's round count: the
         // search only ever opens rounds while that many (or fewer) can still beat the incumbent.
-        // Placements are kept as raw value types on per-round stacks (no record allocation per
-        // candidate); they are materialized into GrillPiecePlacement only when a round set is
-        // snapshotted as the new champion.
+        // Placements are kept as raw value types on per-round stacks, so the hot loop stores a
+        // few ints instead of a GrillPiecePlacement object per candidate; they are materialized
+        // into GrillPiecePlacement only when a round set is snapshotted as the new champion.
         private readonly RoundOccupancy[] _roundOccupancies;
         private readonly RawPlacement[][] _roundStacks;
         private readonly int[] _roundStackDepth;
@@ -123,7 +124,7 @@ public sealed class ExactBacktrackingPlanner : IGrillPlanner
         private int _best;
         private List<GrillRound>? _bestRounds;
         private long _nodes;
-        private bool _budgetExceeded;
+        private SearchOutcome _outcome = SearchOutcome.ProvenOptimal;
 
         public SearchState(GrillSize grill, IReadOnlyList<GrillPiece> ordered, int lowerBound, GrillPlan greedy, long maxNodes)
         {
@@ -194,7 +195,7 @@ public sealed class ExactBacktrackingPlanner : IGrillPlanner
 
         public void Search(int index)
         {
-            if (_budgetExceeded)
+            if (_outcome == SearchOutcome.BudgetExceeded)
             {
                 return;
             }
@@ -202,7 +203,7 @@ public sealed class ExactBacktrackingPlanner : IGrillPlanner
             // Hard budget: no node beyond _maxNodes is explored.
             if (_nodes >= _maxNodes)
             {
-                _budgetExceeded = true;
+                _outcome = SearchOutcome.BudgetExceeded;
                 return;
             }
 
@@ -259,8 +260,11 @@ public sealed class ExactBacktrackingPlanner : IGrillPlanner
                 var occupancy = _roundOccupancies[round];
 
                 // Both orientations, unrotated first: the exact same candidate order
-                // EnumerateSkylinePositions produces, walked without allocation.
-                for (var orientation = 0; orientation < 2; orientation++)
+                // EnumerateSkylinePositions produces, walked without allocation. A square
+                // piece's second orientation is the same geometry, so it would only be
+                // searched twice.
+                var orientations = w0 == h0 ? 1 : 2;
+                for (var orientation = 0; orientation < orientations; orientation++)
                 {
                     var rotated = orientation == 1;
                     var w = rotated ? _pieceWidth[index] : w0;
@@ -294,7 +298,7 @@ public sealed class ExactBacktrackingPlanner : IGrillPlanner
 
                         Undo(round, x, y, w, h, pieceArea);
 
-                        if (_budgetExceeded || _best == _lowerBound)
+                        if (_outcome == SearchOutcome.BudgetExceeded || _best == _lowerBound)
                         {
                             return;
                         }
@@ -317,13 +321,18 @@ public sealed class ExactBacktrackingPlanner : IGrillPlanner
         }
 
         // Lower bound on the total number of rounds any completion of this node uses, from the
-        // pieces still to place (index..n-1):
-        //  - area: the remaining area must fit into the free space of the open rounds plus new
-        //    rounds of full grill area;
-        //  - per type: the remaining pieces of each type beyond what the open rounds can still
-        //    hold (relaxed to free area only) must go into new rounds, each holding at most the
-        //    type's single-round capacity.
-        // Both floors are area relaxations, so they hold regardless of the geometry.
+        // pieces still to place (index..n-1). Invariant: the result is <= the round count of
+        // every possible completion, so pruning a branch on it can never hide the optimum.
+        //  - area: the remaining area must fit into the open rounds' free space plus whole new
+        //    rounds of grill area;
+        //  - per type: the remaining pieces of type t beyond what the open rounds could still
+        //    hold must go into new rounds, each of which holds at most _typeCapacity[t] of them.
+        // Every step can only undercount the work, never overcount it: summing
+        // floor(freeArea / typeArea) over the open rounds overestimates how many type-t pieces
+        // they can still absorb (geometry ignored), which shrinks the deficit; and
+        // _typeCapacity[t] is a valid upper bound on how many type-t pieces fit one empty grill
+        // (SingleRoundCapacity lowers its area estimate only on a proven non-fit), so
+        // ceil(deficit / _typeCapacity[t]) underestimates the new rounds the deficit forces.
         private int RoundsLowerBound(int index)
         {
             var openFree = (_nonEmptyRounds * _grillArea) - _totalUsedArea;
@@ -367,11 +376,11 @@ public sealed class ExactBacktrackingPlanner : IGrillPlanner
 
         public GrillPlan BuildPlan(GrillMenu menu, string plannerName, TimeSpan elapsed)
         {
-            // Honest: the search stops early only when it has proved the answer (the floor is
-            // reached, or the whole search space was explored); the one stop that is not a
-            // proof is the node budget running out. "Proven" is exactly "finished within
-            // budget".
-            var proven = !_budgetExceeded;
+            // _outcome records how the search finished: ProvenOptimal is a proof (the champion
+            // reached the lower bound, or the whole search space was explored); BudgetExceeded
+            // is the one finish that is not a proof, and the plan is the best incumbent found
+            // up to that point.
+            var proven = _outcome == SearchOutcome.ProvenOptimal;
             return new GrillPlan(menu, _bestRounds!, plannerName, _lowerBound, proven, SearchNodes: _nodes, elapsed);
         }
 
@@ -418,14 +427,23 @@ public sealed class ExactBacktrackingPlanner : IGrillPlanner
         }
 
         // A stack-only record of one placement: coordinates plus the index of the piece in
-        // _pieces. The hot loop stores and loads these instead of GrillPiecePlacement records,
-        // which would box-allocate one object per candidate position.
+        // _pieces. The hot loop stores and loads these instead of GrillPiecePlacement objects,
+        // which would allocate one object per candidate position.
         private readonly struct RawPlacement(int x, int y, int pieceIndex, bool rotated)
         {
             public readonly int X = x;
             public readonly int Y = y;
             public readonly int PieceIndex = pieceIndex;
             public readonly bool Rotated = rotated;
+        }
+
+        // The two ways the search can finish. ProvenOptimal means the returned plan is a proof:
+        // the champion reached the lower bound, or the whole search space was explored.
+        // BudgetExceeded is the only finish that is not a proof.
+        private enum SearchOutcome
+        {
+            ProvenOptimal,
+            BudgetExceeded,
         }
     }
 }
