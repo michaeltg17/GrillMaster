@@ -32,6 +32,10 @@ public sealed class RoundOccupancy
     public Centimeters Width => _width;
     public Centimeters Height => _height;
 
+    // Raw grid access for the parallel search's node snapshots (same assembly only).
+    internal uint[] RowBits => _rowBits;
+    internal uint[] ColBits => _colBits;
+
     /// <summary>True when the axis-aligned rectangle <c>[x, x+w) × [y, y+h)</c> is fully inside the grill and unoccupied.</summary>
     public bool IsFree(Point position, Centimeters w, Centimeters h) =>
         IsFreeCells(_colBits, _width, _height, position.X.Value, position.Y.Value, w.Value, h.Value);

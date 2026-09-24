@@ -7,11 +7,13 @@ using Xunit;
 namespace GrillMaster.UnitTests.Tests.Application.Features.Plans;
 
 /// <summary>
-/// Pins the packing quality of the planner over the full 15-menu fixture. The planner is
-/// deterministic, so the totals are machine-independent and must match the committed snapshot
-/// exactly — the same quality figures the performance suite records in its local
-/// <c>before.json</c> / <c>after.json</c> files. Update the snapshot when a change deliberately
-/// alters packing quality.
+/// Pins the packing quality of the planner over the full 15-menu fixture. The serial planner
+/// is deterministic, so its totals are machine-independent and must match the committed
+/// snapshot exactly — the same quality figures the performance suite records in its local
+/// <c>before.json</c> / <c>after.json</c> files. The parallel planner explores the same search
+/// tree on a shared work queue, so it returns the same plans (and the same search-node count in
+/// practice), but its node count is formally scheduling-dependent and is therefore not pinned.
+/// Update the snapshot when a change deliberately alters packing quality.
 /// </summary>
 public sealed class PlannerFullFixtureQualityTests
 {
@@ -56,12 +58,15 @@ public sealed class PlannerFullFixtureQualityTests
     /// production 20 000 000-node budget Menu 01 takes ~6.1M nodes (~5 s in Release, much longer
     /// in Debug), and the bounded budget returns the same plans, so the pinned quality is
     /// unchanged — only Menu 01's search-node count is cut at the cap.
+    /// The parallel row proves the same quality on the work-queue search: same plans, and the
+    /// node count left unpinned because it is formally scheduling-dependent.
     /// </summary>
     public static TheoryData<GrillPlanner, int, int, long?> PlannerSnapshots()
     {
         var snapshots = new TheoryData<GrillPlanner, int, int, long?>
         {
             { new GrillPlanner { MaxNodes = 1_000_000 }, 38, 37, 1_000_619 },
+            { new GrillPlanner { MaxNodes = 1_000_000, MaxParallelism = 8 }, 38, 37, null },
         };
         return snapshots;
     }

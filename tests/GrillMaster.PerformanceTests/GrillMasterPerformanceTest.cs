@@ -8,9 +8,10 @@ using Xunit;
 namespace GrillMaster.PerformanceTests;
 
 /// <summary>
-/// Benchmarks the grill planner over the full 15-menu fixture. The first run stores the
-/// measurement as the local <c>before.json</c> baseline; every later run rewrites
-/// <c>after.json</c> and prints the measurements with the delta against the baseline, so the
+/// Benchmarks the grill planner over the full 15-menu fixture in both search modes (serial and
+/// parallel over all logical cores). The first run stores the measurement as the local
+/// <c>before.json</c> baseline; every later run rewrites <c>after.json</c> and prints the
+/// measurements with the delta against the baseline of the same configuration name, so the
 /// before/after comparison is visible in the test output. This is a measurement, not a gate: it
 /// never fails and is marked explicit, so it only runs on demand with
 /// <c>dotnet run --project tests/GrillMaster.PerformanceTests -- --explicit only</c>, for example
@@ -48,9 +49,10 @@ public sealed class GrillMasterPerformanceTest(ITestOutputHelper output)
 
         PerformanceResultStore.SaveAfter(measured);
 
-        var previous = before.Planners.Count > 0 ? before.Planners[0] : null;
+        var beforeByName = before.Planners.ToDictionary(PlannerName, StringComparer.OrdinalIgnoreCase);
         foreach (var m in measured)
         {
+            beforeByName.TryGetValue(PlannerName(m), out var previous);
             _output.WriteLine(Describe(m, previous));
         }
 
@@ -58,11 +60,27 @@ public sealed class GrillMasterPerformanceTest(ITestOutputHelper output)
         _output.WriteLine($"After results written to {PerformanceResultStore.AfterPath}");
     }
 
-    /// <summary>Benchmarks the planner over the full 15-menu fixture.</summary>
+    /// <summary>
+    /// The comparison key of a measurement: its configuration name. Baselines written before the
+    /// name existed carry no name and are the serial measurement, so an empty name reads as
+    /// "serial".
+    /// </summary>
+    private static string PlannerName(PerformancePlannerResult result) =>
+        string.IsNullOrEmpty(result.Planner) ? "serial" : result.Planner;
+
+    /// <summary>
+    /// Benchmarks the planner over the full 15-menu fixture in both search modes: serial
+    /// (deterministic) and parallel (all logical cores, the app default), so the before/after
+    /// report shows the serial path is unchanged and the parallel speedup.
+    /// </summary>
     private static IReadOnlyList<PerformancePlannerResult> MeasurePlanners()
     {
         var menus = GrillMenusProvider.GetGrillMenus();
-        return [Benchmark(new GrillPlanner() { MaxNodes = 1_000_000 }, menus)];
+        return
+        [
+            Benchmark("serial", new GrillPlanner() { MaxNodes = 1_000_000 }, menus),
+            Benchmark("parallel", new GrillPlanner() { MaxNodes = 1_000_000, MaxParallelism = Environment.ProcessorCount }, menus),
+        ];
     }
 
     /// <summary>
@@ -71,7 +89,7 @@ public sealed class GrillMasterPerformanceTest(ITestOutputHelper output)
     /// median and the sum of elapsed milliseconds over all runs. The planner is deterministic,
     /// so every run produces identical totals.
     /// </summary>
-    private static PerformancePlannerResult Benchmark(GrillPlanner planner, IReadOnlyList<GrillMenu> menus)
+    private static PerformancePlannerResult Benchmark(string name, GrillPlanner planner, IReadOnlyList<GrillMenu> menus)
     {
         var elapsed = new List<double>(Runs * menus.Count);
         var totalRounds = 0;
@@ -95,6 +113,7 @@ public sealed class GrillMasterPerformanceTest(ITestOutputHelper output)
         }
 
         return new PerformancePlannerResult(
+            name,
             totalRounds,
             lowerBound,
             searchNodes,
@@ -142,9 +161,9 @@ public sealed class GrillMasterPerformanceTest(ITestOutputHelper output)
     private static string FormatDelta(double delta) =>
         $"{(delta < 0 ? '-' : '+')}{Math.Abs(delta):0.0}";
 
-    /// <summary>The one-line report: the measured planner's combined totals.</summary>
+    /// <summary>The one-line report: the measured configurations' combined wall clock.</summary>
     private static string Summary(IReadOnlyList<PerformancePlannerResult> measured) =>
-        $"Total: {measured.Sum(m => m.TotalRounds)} rounds, {Math.Round(measured.Sum(m => m.MedianMs), 4)} ms";
+        "Total: " + string.Join(", ", measured.Select(m => $"{PlannerName(m)} {Math.Round(m.TotalMs, 4)} ms"));
 
     private static double Median(List<double> values)
     {
