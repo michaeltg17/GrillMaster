@@ -68,8 +68,10 @@ this dataset the area bound is the binding one. Most menus settle at the floor d
 pre-pass itself; Menu 01 (nine square centimetres of slack across three full rounds) defeats
 the floor — the search finds the 4-round plan, and its verification pass (which re-checks
 every possible position, because only that complete search is a real proof) cannot finish
-within the default budget, so Menu 01 comes back flagged *not* proven. An external CP-SAT
-solver given two minutes cannot settle it either.
+within the default budget, so Menu 01 comes back flagged *not* proven. This is a genuinely
+hard instance: the 3-round space is over 500 million search nodes, and an external CP-SAT
+solver given ten minutes cannot prove 3 rounds impossible either. Whether 3 rounds are
+actually possible is unknown.
 
 ## Honest corners
 
