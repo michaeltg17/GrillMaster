@@ -89,14 +89,20 @@ public static class GrillPlannerHelpers
     internal sealed record OneRoundResult(Fit Fits, IReadOnlyList<GrillPiecePlacement> Pattern);
 
     // Decides whether `count` identical pieces fit on one empty grill, returning a witness packing
-    // when they do. Identical-piece symmetry: placements are explored in non-decreasing slot
-    // order, so each multiset of positions is visited once.
+    // when they do. Every free position is tried (not just resting/pushed-left ones, for the same
+    // completeness reason as the exact search): only a proven non-fit may lower the capacity, so
+    // this search must not be able to miss a fit. Identical-piece symmetry: placements are
+    // explored in non-decreasing slot order, so each multiset of positions is visited once.
     private static OneRoundResult SolveOneRound(GrillPiece type, GrillSize grill, int count)
     {
         var occupancy = new RoundOccupancy(grill);
         var placements = new List<GrillPiecePlacement>(count);
         var nodeCount = 0L;
         var grillWidth = grill.Width.Value;
+        var grillHeight = grill.Height.Value;
+        var length = type.Length.Value;
+        var pieceWidth = type.Width.Value;
+        var orientations = length == pieceWidth ? 1 : 2;
 
         return Search(0, long.MinValue);
 
@@ -112,23 +118,38 @@ public static class GrillPlannerHelpers
                 return new OneRoundResult(Fit.Unknown, []);
             }
 
-            foreach (var placement in occupancy.EnumerateSkylinePositions(type))
+            for (var orientation = 0; orientation < orientations; orientation++)
             {
-                var slot = SlotOrder(placement);
-                if (slot <= previousSlot)
-                {
-                    continue;
-                }
+                var rotated = orientation == 1;
+                var w = rotated ? pieceWidth : length;
+                var h = rotated ? length : pieceWidth;
 
-                occupancy.MarkOccupied(placement.Position, placement.FootprintWidth, placement.FootprintHeight);
-                placements.Add(placement);
-                var result = Search(index + 1, slot);
-                placements.RemoveAt(placements.Count - 1);
-                occupancy.MarkFree(placement.Position, placement.FootprintWidth, placement.FootprintHeight);
-
-                if (result.Fits != Fit.NotFits)
+                for (var y = 0; y + h <= grillHeight; y++)
                 {
-                    return result;
+                    for (var x = 0; x + w <= grillWidth; x++)
+                    {
+                        if (!occupancy.IsFreeCells(x, y, w, h))
+                        {
+                            continue;
+                        }
+
+                        var slot = SlotOrder(y, x, rotated);
+                        if (slot <= previousSlot)
+                        {
+                            continue;
+                        }
+
+                        occupancy.MarkOccupiedCells(x, y, w, h);
+                        placements.Add(new GrillPiecePlacement(type, new Point(x, y), rotated));
+                        var result = Search(index + 1, slot);
+                        placements.RemoveAt(placements.Count - 1);
+                        occupancy.MarkFreeCells(x, y, w, h);
+
+                        if (result.Fits != Fit.NotFits)
+                        {
+                            return result;
+                        }
+                    }
                 }
             }
 
@@ -138,10 +159,10 @@ public static class GrillPlannerHelpers
         // One total order over slots (y, then x, then rotation) for identical-piece symmetry
         // breaking. The grill width is the radix of the coordinate pair, so the x coordinate
         // (always < grill width) can never spill into the y term.
-        long SlotOrder(GrillPiecePlacement p)
+        long SlotOrder(int y, int x, bool rotated)
         {
-            var rotation = p.Rotated ? 1L : 0L;
-            var row = ((long)p.Position.Y.Value * grillWidth) + p.Position.X.Value;
+            var rotation = rotated ? 1L : 0L;
+            var row = ((long)y * grillWidth) + x;
             return (row * 2L) + rotation;
         }
     }

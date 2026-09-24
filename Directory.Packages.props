@@ -11,6 +11,9 @@
     <PackageVersion Include="Serilog.Settings.Configuration" Version="10.0.1" />
     <PackageVersion Include="Serilog.Sinks.Console" Version="6.1.1" />
 
+    <!-- Verification -->
+    <PackageVersion Include="Google.OrTools" Version="9.15.6755" />
+
     <!-- Testing -->
     <PackageVersion Include="AwesomeAssertions" Version="9.6.0" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />

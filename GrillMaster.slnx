@@ -22,5 +22,6 @@
     <Project Path="tests/GrillMaster.EndToEndTests/GrillMaster.EndToEndTests.csproj" />
     <Project Path="tests/GrillMaster.PerformanceTests/GrillMaster.PerformanceTests.csproj" />
     <Project Path="tests/GrillMaster.Testing/GrillMaster.Testing.csproj" />
+    <Project Path="tests/GrillMaster.Verification/GrillMaster.Verification.csproj" />
   </Folder>
 </Solution>

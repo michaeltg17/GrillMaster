@@ -136,14 +136,22 @@ saying "this whole family of arrangements is hopeless or pointless — skip it":
 2. **Biggest first.** Big pieces have the fewest options; placing them early means
    hopeless branches are discovered early, when there is the least to abandon.
 
-3. **Resting, pushed-in spots only (the "skyline" rule).** A piece must sit on the
-   grill's bottom edge or on top of another piece — it may never *float* — and it must
-   be pushed as far **left** as it will go: if the piece could slide left into empty
-   space, the slid-left version is considered instead. Every "real" arrangement can be
-   slid up and left into exactly one such spot, so nothing is missed, and huge families
-   of equivalent positions are thrown away. (It's the same rule as stacking boxes:
-   every box rests on the floor or on another box, and is slid left until it bumps
-   into something.)
+3. **Two spot sets: one to find fast, one to prove complete.** The search runs in
+   two passes with different spot sets. The **fast pass** only tries "resting,
+   pushed-in" ("skyline") spots: a piece must sit on the grill's bottom edge or on top
+   of another piece — it may never *float* — and it must be pushed as far **left** as
+   it will go. (It's the same rule as stacking boxes: every box rests on the floor or
+   on another box, and is slid left until it bumps into something.) This throws away
+   huge families of equivalent positions and is what makes the fast pass fast — but
+   **alone it is not complete**: the pieces are placed in a fixed order (biggest
+   first), and in the optimal packing a piece's left wall or support can be provided
+   by a piece that is placed *later* in that order, so the skyline-only search can
+   miss the optimum — and worse, "prove" a suboptimal one. (The differential harness
+   against an external CP-SAT solver found exactly this: a 9×7 grill with six pieces
+   whose optimum is one round, where the skyline search found none.) The
+   **verification pass** therefore re-runs the search over **every** free position:
+   only that complete set makes "no better arrangement exists" a true proof, and only
+   then is `IsProvenOptimal` allowed to be true.
 
 4. **Don't open a later grill while an earlier one is empty.** Grills are
    indistinguishable boxes: "put the steak on grill 3 while grill 2 is empty" is the *same plan* as
@@ -161,18 +169,21 @@ is hopeless by definition — the search ends, and the answer is *proven*.
 
 ## 5. The budget: an honest time limit
 
-Real menus can be nasty, and "try everything promising" can still be large. So the
-search counts every decision it makes against a **budget** (default: 20,000,000
-decisions). On the full 15-menu fixture, thirteen menus need no decisions at all
-(the pre-pass is already on the floor and is accepted without searching), Menu 07
-uses 619, and Menu 01 (1791 cm² of meat against three rounds of 600 cm²: nine
-squares of slack) uses 6,124,767 — about 5 s in Release. The search stops on its own
-the moment it has *proved* the answer: the champion reached the floor, or every
-promising arrangement has been checked. If a menu blows the budget before that, the
-planner stops and returns the best arrangement it had found so far, honestly flagged
-as **not proven optimal**. It never lies: `IsProvenOptimal` is true exactly when the
-search finished within its budget — the proof is either the floor or the exhausted
-search space.
+Real menus can be nasty, and "try everything" can still be large. So the search
+counts every decision it makes against a **budget** (default: 20,000,000 decisions),
+shared across both passes. On the full 15-menu fixture, thirteen menus need no
+decisions at all (the pre-pass is already on the floor and is accepted without
+searching), Menu 07 settles in 619, and Menu 01 (1791 cm² of meat against three
+rounds of 600 cm²: nine squares of slack) spends the whole budget: the fast pass uses
+about 6.1M decisions and comes up short of the floor, then the verification pass
+spends the remaining ~14M trying to prove that no 3-round arrangement exists — and
+does not finish in time, so Menu 01 is returned as **not proven**. (An external
+CP-SAT solver given 120 seconds cannot settle Menu 01 either, so the honest flag is
+the correct behaviour, not a planner failure.) If a menu blows the budget before a
+proof, the planner stops and returns the best arrangement it had found so far,
+honestly flagged as **not proven optimal**. It never lies: `IsProvenOptimal` is true
+exactly when the champion reached the floor or the *complete* position set was
+exhausted within the budget.
 
 ## 6. How the code does this
 
@@ -192,43 +203,54 @@ Code, translated into the story:
 | `opensNewRound && _nonEmptyRounds + 1 >= _best → break` | Rule 1 (champion edition): opening this grill can't beat the champion. |
 | `RoundsLowerBound(index) >= _best → return` | Rule 1 (look-ahead edition): the waiting meat can't fit in the open grills' leftover room plus fresh full grills — abandon the branch. |
 | `hasPrevSame` / `SlotOrder(y, x, rotated)` | Rule 5: the identical-piece ordering. |
-| `occupancy.CreateSkylineScan(w, h)` | Rule 3: walks this piece's "resting, pushed-in" spots one at a time, without allocating. |
+| `new SearchState(..., allPositions: false)` then `new SearchState(..., allPositions: true)` | The two passes: first the fast skyline search, then — only if the champion is still above the floor — the complete re-proof seeded with the fast pass's champion. |
+| `occupancy.CreateSkylineScan(w, h)` | Rule 3 (fast pass): walks this piece's "resting, pushed-in" spots one at a time, without allocating. |
+| `occupancy.CreateAllFreePositionsScan(w, h)` | Rule 3 (verification pass): walks *every* free spot one at a time, without allocating — the complete set the proof rests on. |
 | `var orientations = w0 == h0 ? 1 : 2;` | A square piece's 90° turn is the same geometry, so it is tried once, not twice. |
 | `MarkOccupiedCells(...)` / `MarkFreeCells(...)` | Putting the piece on the grill / lifting it back off (the undo). |
 | `RawPlacement` stacks | The arrangements under construction, kept as raw numbers — no bookkeeping object per candidate. |
 | `Search(index + 1)` | Recurse: the same game with the next piece. |
 | `_best = _nonEmptyRounds; _bestRounds = SnapshotRounds()` | A new champion! Save the arrangement. |
 | `_nodes` / `MaxNodes` | The tally of decisions tried / the budget. |
-| `SearchOutcome` / `IsProvenOptimal` | The honesty clause, made explicit: the search either ends `ProvenOptimal` (the floor was reached, or every promising arrangement was checked) or `BudgetExceeded` — the one finish that is not a proof. |
+| `SearchOutcome` / `IsProvenOptimal` | The honesty clause, made explicit: the search either ends `ProvenOptimal` (the floor was reached, or the *complete* position set was exhausted) or `BudgetExceeded` — the one finish that is not a proof. |
 
-The shared grill map and the "resting, pushed-in" rule live in
+The shared grill map and both spot-set walkers live in
 `RoundOccupancy.cs`. The map holds the grill as one 32-bit word per row and one per
-column, so "is this rectangle free?" is a handful of bit operations, and
+column, so "is this rectangle free?" is a handful of bit operations.
 `CreateSkylineScan` walks only the spots where a piece would actually rest (the bottom
-edge, then the tops of whatever is already down) and could not be slid left — without
-allocating anything per spot.
+edge, then the tops of whatever is already down) and could not be slid left, and
+`CreateAllFreePositionsScan` walks every free spot in row-major order — both as
+allocation-free `ref struct` iterators.
 
 ## 7. The numbers
 
 - **Speed:** thirteen of the 15 menus cost essentially nothing (the pre-pass is
-  already on the floor and is accepted without searching); Menu 07 uses 619 decisions;
-  Menu 01 uses 6,124,767 — about 5 s in Release at the default 20,000,000 budget.
-- **Quality:** 38 rounds on the 15-menu fixture, proven optimal on all 15 menus at the
-  default budget: 14 menus reach the floor (37 in total), and on Menu 01 the search
-  explores the whole space and proves 4 rounds is best (its floor is 3, but no
-  3-round arrangement exists).
-- **Guarantees:** a valid plan, and — within budget — a *proof* that nothing is better,
-  by reaching the floor or exhausting the promising arrangements. If the budget is
-  ever exceeded, the best-so-far plan is returned and honestly flagged
-  `IsProvenOptimal: false`.
+  already on the floor and is accepted without searching); Menu 07 settles in 619
+  decisions; Menu 01 spends the full 20,000,000 budget (fast pass: ~6.1M skyline
+  decisions, verification pass: the rest over the complete set) — about 10 s in
+  Release at the default budget, and ends **not proven** because the verification
+  pass cannot finish in time.
+- **Quality:** 38 rounds on the 15-menu fixture, unchanged by the two-pass search:
+  14 menus reach the floor (37 in total), and Menu 01's best-found plan is 4 rounds
+  (its floor is 3; no solver — this planner or the external CP-SAT oracle — has
+  found a 3-round arrangement).
+- **Guarantees:** a valid plan, and — within budget — a *proof* that nothing is
+  better, by reaching the floor or exhausting the *complete* position set. If the
+  budget is ever exceeded before that, the best-so-far plan is returned and honestly
+  flagged `IsProvenOptimal: false`.
 
 ## 8. What you get (and when the proof stops)
 
 - Menus that settle at the lower bound cost essentially nothing: the pre-pass's plan
   is accepted as proven optimal with zero search.
-- Small-to-medium menus (a few dozen pieces) get a full proof, which is all the
-  search handles comfortably.
-- On huge or adversarial menus the search could hit its budget; then you get the best
-  arrangement found within budget, honestly flagged as **not proven optimal**
-  (`GrillPlan.IsProvenOptimal == false`). The pre-pass alone comes within a round of
-  the final answer on our fixture, so the fallback is still a good plan.
+- Small-to-medium menus (a few dozen pieces) get a full proof: the fast pass finds
+  the answer, and the verification pass confirms it by exhausting the complete set —
+  which is all the search handles comfortably at that size.
+- Tight menus that miss the floor by one round (like Menu 01) can spend the whole
+  budget on the verification pass and still come back flagged as **not proven
+  optimal** (`GrillPlan.IsProvenOptimal == false`): the best-found plan is usually
+  the true optimum, but the planner no longer claims a proof it cannot complete.
+- On huge or adversarial menus the search hits its budget sooner; then you get the
+  best arrangement found within budget, honestly flagged the same way. The pre-pass
+  alone comes within a round of the final answer on our fixture, so the fallback is
+  still a good plan.

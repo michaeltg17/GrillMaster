@@ -6,6 +6,13 @@
 - Packing quality over the full 15-menu fixture is pinned by `PlannerFullFixtureQualityTests` in
   the unit tests (deterministic, always run, machine-independent). Update the snapshot when a
   change deliberately alters packing quality.
+- The exact planner is verified against an independent OR-Tools CP-SAT oracle in
+  `tests/GrillMaster.Verification` (deterministic, always run): small random + edge
+  corpora compare planner round counts against CP-SAT optima. The heavy
+  `LargeAttackCorpus_MatchCpSatOptimum` test (1000 adversarial cases, a few minutes)
+  is explicit: `dotnet run --project tests/GrillMaster.Verification -- --explicit only`.
+  Run the full suite after a change that touches the planner's search or proof logic.
+  Keep the two engines independent: no shared search code, different encodings.
 - Wall-clock speed is measured, not gated:
   `dotnet run --project tests/GrillMaster.PerformanceTests -- --explicit only` benchmarks the
   planners. The first run writes a local baseline

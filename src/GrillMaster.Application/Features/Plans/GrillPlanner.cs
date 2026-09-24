@@ -55,11 +55,30 @@ public sealed class GrillPlanner
             return new GrillPlan(menu, greedyRounds, Name, lowerBound, IsProvenOptimal: true, SearchNodes: 0, stopwatch.Elapsed);
         }
 
-        var state = new SearchState(grill, ordered, lowerBound, greedyRounds, MaxNodes);
+        // Phase 1: the skyline-restricted search. Its candidate set (resting, pushed-left
+        // positions) is what makes the search fast and its incumbent strong, but it is not
+        // complete: a piece's left wall or support in the optimal packing can be provided by a
+        // piece that is placed later in the search order. So an exhausted phase-1 space above
+        // the lower bound is not yet a proof.
+        var state = new SearchState(grill, ordered, lowerBound, greedyRounds, MaxNodes, allPositions: false);
         state.Search(0);
 
+        // Phase 1 ended either on the floor (a true proof) or over budget (nothing left to do).
+        if (state.Best == lowerBound || state.Outcome == SearchState.SearchOutcome.BudgetExceeded)
+        {
+            stopwatch.Stop();
+            return state.BuildPlan(menu, Name, stopwatch.Elapsed);
+        }
+
+        // Phase 2: re-run the search over the complete position set, seeded with phase 1's
+        // champion. It only has to beat that champion, and an exhausted complete space is the
+        // proof that no better plan exists. When the budget runs out mid-phase, the result is
+        // honestly flagged not-proven.
+        var verifier = new SearchState(grill, ordered, lowerBound, state.BestRounds, MaxNodes - state.Nodes, allPositions: true);
+        verifier.Search(0);
+
         stopwatch.Stop();
-        return state.BuildPlan(menu, Name, stopwatch.Elapsed);
+        return verifier.BuildPlan(menu, Name, stopwatch.Elapsed, totalNodes: state.Nodes + verifier.Nodes);
     }
 
     // Search ordering heuristic: place restrictive pieces first. Largest area first, then the
@@ -128,17 +147,30 @@ public sealed class GrillPlanner
         private long _nodes;
         private SearchOutcome _outcome = SearchOutcome.ProvenOptimal;
 
-        public SearchState(GrillSize grill, IReadOnlyList<GrillPiece> ordered, int lowerBound, IReadOnlyList<GrillRound> greedyRounds, long maxNodes)
+        // Candidate-set mode: the skyline-restricted set (phase 1, fast but incomplete) or the
+        // full set of free positions (phase 2, complete — only its exhaustion is a proof).
+        private readonly bool _allPositions;
+
+        // Phase-2 entry points: Plan() reads the outcome of a finished search phase to decide
+        // whether the complete-position verification phase has to run.
+        internal int Best => _best;
+        internal long Nodes => _nodes;
+        internal SearchOutcome Outcome => _outcome;
+        internal IReadOnlyList<GrillRound> BestRounds => _bestRounds!;
+
+        public SearchState(GrillSize grill, IReadOnlyList<GrillPiece> ordered, int lowerBound, IReadOnlyList<GrillRound> seedRounds, long maxNodes, bool allPositions)
         {
             _pieces = ordered;
             _grillWidth = grill.Width.Value;
             _grillArea = grill.Area.Value;
             _lowerBound = lowerBound;
             _maxNodes = maxNodes;
+            _allPositions = allPositions;
 
-            // The greedy incumbent seeds the champion; the search only has to beat it.
-            _best = greedyRounds.Count;
-            _bestRounds = greedyRounds.Select(r => new GrillRound(r.Placements)).ToList();
+            // The seed incumbent (the greedy plan for phase 1, phase 1's champion for phase 2)
+            // starts as the champion; the search only has to beat it.
+            _best = seedRounds.Count;
+            _bestRounds = seedRounds.Select(r => new GrillRound(r.Placements)).ToList();
             _maxRounds = _best;
 
             var n = ordered.Count;
@@ -261,10 +293,16 @@ public sealed class GrillPlanner
 
                 var occupancy = _roundOccupancies[round];
 
-                // Both orientations, unrotated first: the exact same candidate order
-                // EnumerateSkylinePositions produces, walked without allocation. A square
+                // Both orientations, unrotated first, walked without allocation. A square
                 // piece's second orientation is the same geometry, so it would only be
                 // searched twice.
+                //
+                // _allPositions selects the candidate set: the skyline set (resting,
+                // pushed-left positions) is fast but incomplete — with a fixed piece order a
+                // piece's left wall or support in the optimal packing can be provided by a
+                // piece placed later — while the full set of free positions is what makes the
+                // search complete. Only an exhausted complete space is a proof that no better
+                // plan exists, which is what makes the IsProvenOptimal claim sound.
                 var orientations = w0 == h0 ? 1 : 2;
                 for (var orientation = 0; orientation < orientations; orientation++)
                 {
@@ -272,37 +310,76 @@ public sealed class GrillPlanner
                     var w = rotated ? _pieceWidth[index] : w0;
                     var h = rotated ? w0 : h0;
 
-                    var scan = occupancy.CreateSkylineScan(w, h);
-                    while (scan.MoveNext())
+                    if (_allPositions)
                     {
-                        var x = scan.X;
-                        var y = scan.Y;
-                        var slot = SlotOrder(y, x, rotated);
-
-                        if (hasPrevSame && round == prevRound && slot <= prevSlot)
+                        var scan = occupancy.CreateAllFreePositionsScan(w, h);
+                        while (scan.MoveNext())
                         {
-                            continue;
+                            var x = scan.X;
+                            var y = scan.Y;
+                            var slot = SlotOrder(y, x, rotated);
+
+                            if (hasPrevSame && round == prevRound && slot <= prevSlot)
+                            {
+                                continue;
+                            }
+
+                            if (opensNewRound)
+                            {
+                                _nonEmptyRounds++;
+                            }
+
+                            occupancy.MarkOccupiedCells(x, y, w, h);
+                            _roundUsedArea[round] += pieceArea;
+                            _totalUsedArea += pieceArea;
+                            _roundStacks[round][_roundStackDepth[round]++] = new RawPlacement(x, y, index, rotated);
+                            _placementRound[index] = round;
+                            _placementSlot[index] = slot;
+
+                            Search(index + 1);
+
+                            Undo(round, x, y, w, h, pieceArea);
+
+                            if (_outcome == SearchOutcome.BudgetExceeded || _best == _lowerBound)
+                            {
+                                return;
+                            }
                         }
-
-                        if (opensNewRound)
+                    }
+                    else
+                    {
+                        var scan = occupancy.CreateSkylineScan(w, h);
+                        while (scan.MoveNext())
                         {
-                            _nonEmptyRounds++;
-                        }
+                            var x = scan.X;
+                            var y = scan.Y;
+                            var slot = SlotOrder(y, x, rotated);
 
-                        occupancy.MarkOccupiedCells(x, y, w, h);
-                        _roundUsedArea[round] += pieceArea;
-                        _totalUsedArea += pieceArea;
-                        _roundStacks[round][_roundStackDepth[round]++] = new RawPlacement(x, y, index, rotated);
-                        _placementRound[index] = round;
-                        _placementSlot[index] = slot;
+                            if (hasPrevSame && round == prevRound && slot <= prevSlot)
+                            {
+                                continue;
+                            }
 
-                        Search(index + 1);
+                            if (opensNewRound)
+                            {
+                                _nonEmptyRounds++;
+                            }
 
-                        Undo(round, x, y, w, h, pieceArea);
+                            occupancy.MarkOccupiedCells(x, y, w, h);
+                            _roundUsedArea[round] += pieceArea;
+                            _totalUsedArea += pieceArea;
+                            _roundStacks[round][_roundStackDepth[round]++] = new RawPlacement(x, y, index, rotated);
+                            _placementRound[index] = round;
+                            _placementSlot[index] = slot;
 
-                        if (_outcome == SearchOutcome.BudgetExceeded || _best == _lowerBound)
-                        {
-                            return;
+                            Search(index + 1);
+
+                            Undo(round, x, y, w, h, pieceArea);
+
+                            if (_outcome == SearchOutcome.BudgetExceeded || _best == _lowerBound)
+                            {
+                                return;
+                            }
                         }
                     }
                 }
@@ -376,14 +453,14 @@ public sealed class GrillPlanner
             return bound;
         }
 
-        public GrillPlan BuildPlan(GrillMenu menu, string plannerName, TimeSpan elapsed)
+        public GrillPlan BuildPlan(GrillMenu menu, string plannerName, TimeSpan elapsed, long? totalNodes = null)
         {
             // _outcome records how the search finished: ProvenOptimal is a proof (the champion
             // reached the lower bound, or the whole search space was explored); BudgetExceeded
             // is the one finish that is not a proof, and the plan is the best incumbent found
             // up to that point.
             var proven = _outcome == SearchOutcome.ProvenOptimal;
-            return new GrillPlan(menu, _bestRounds!, plannerName, _lowerBound, proven, SearchNodes: _nodes, elapsed);
+            return new GrillPlan(menu, _bestRounds!, plannerName, _lowerBound, proven, SearchNodes: totalNodes ?? _nodes, elapsed);
         }
 
         // Search-equivalence for the identical-piece symmetry breaking: same geometry and same
@@ -442,7 +519,7 @@ public sealed class GrillPlanner
         // The two ways the search can finish. ProvenOptimal means the returned plan is a proof:
         // the champion reached the lower bound, or the whole search space was explored.
         // BudgetExceeded is the only finish that is not a proof.
-        private enum SearchOutcome
+        internal enum SearchOutcome
         {
             ProvenOptimal,
             BudgetExceeded,
