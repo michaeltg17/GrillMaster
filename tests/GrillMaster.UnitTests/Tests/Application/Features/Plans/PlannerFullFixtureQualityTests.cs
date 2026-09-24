@@ -2,7 +2,6 @@ using AwesomeAssertions;
 using GrillMaster.Application.Features.Plans;
 using GrillMaster.Domain;
 using GrillMaster.Testing.Data;
-using GrillMaster.Testing.Plans;
 using Xunit;
 
 namespace GrillMaster.UnitTests.Tests.Application.Features.Plans;
@@ -54,16 +53,16 @@ public sealed class PlannerFullFixtureQualityTests
 
     /// <summary>
     /// Committed quality snapshot: (total rounds, area lower bound, search nodes) over the full
-    /// fixture. The planner is run with a bounded search budget (<see cref="TestPlanner"/>): at
-    /// the production 20 000 000-node budget Menu 01 takes ~6.1M nodes (~5 s in Release, much
-    /// longer in Debug), and the bounded budget returns the same plans, so the pinned quality is
+    /// fixture. The planner is run with a bounded search budget (1 000 000 nodes): at the
+    /// production 20 000 000-node budget Menu 01 takes ~6.1M nodes (~5 s in Release, much longer
+    /// in Debug), and the bounded budget returns the same plans, so the pinned quality is
     /// unchanged — only Menu 01's search-node count is cut at the cap.
     /// </summary>
     public static TheoryData<string, GrillPlanner, int, int, long?> PlannerSnapshots()
     {
         var snapshots = new TheoryData<string, GrillPlanner, int, int, long?>
         {
-            { "grill", TestPlanner.CreateGrillPlanner(), 38, 37, 1_000_619 },
+            { "grill", new GrillPlanner { MaxNodes = 1_000_000 }, 38, 37, 1_000_619 },
         };
         return snapshots;
     }

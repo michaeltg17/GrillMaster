@@ -9,9 +9,12 @@ namespace GrillMaster.EndToEndTests;
 /// <summary>
 /// The real end-to-end: launches the built console app as an external process exactly the way a user
 /// runs it — no mocks, configuration comes from the app's own <c>appsettings.json</c> (the live API) —
-/// captures its console output and validates the report the user would see. Console color is not
-/// validated: with stdout redirected (as here) .NET writes no color codes at all, so the captured text
-/// carries no color information — observing it would require a Windows pseudoconsole (ConPTY).
+/// captures its console output and validates the report the user would see. Two settings are
+/// overridden through environment variables: the planner's node budget is capped so the run stays
+/// fast (the cap returns the same per-menu round counts), and verbose logging is disabled so the
+/// report stays the plain per-menu lines this test validates. Console color is not validated: with
+/// stdout redirected (as here) .NET writes no color codes at all, so the captured text carries no
+/// color information — observing it would require a Windows pseudoconsole (ConPTY).
 /// </summary>
 public sealed partial class GrillMasterEndToEndTests
 {
@@ -64,13 +67,22 @@ public sealed partial class GrillMasterEndToEndTests
     {
         var fileName = RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? "GrillMaster.Console.exe" : "GrillMaster.Console";
 
-        using var process = Process.Start(new ProcessStartInfo
+        var processStartInfo = new ProcessStartInfo
         {
             FileName = Path.Combine(AppContext.BaseDirectory, fileName),
             UseShellExecute = false,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
-        }) ?? throw new InvalidOperationException("Failed to start the console app.");
+        };
+
+        // Environment-variable overrides of the app's own settings (see docs/planners.md): cap the
+        // planner's search budget so the live run stays fast, and disable verbose logging so the
+        // report is the plain per-menu lines this test validates.
+        processStartInfo.Environment["GrillMaster__MaxNodes"] = "1000000";
+        processStartInfo.Environment["GrillMaster__VerboseLogging"] = "false";
+
+        using var process = Process.Start(processStartInfo)
+            ?? throw new InvalidOperationException("Failed to start the console app.");
 
         var stdoutTask = process.StandardOutput.ReadToEndAsync();
         var stderrTask = process.StandardError.ReadToEndAsync();

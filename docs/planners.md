@@ -39,19 +39,30 @@ math — with pictures and worked examples:
 
 ## Configuration
 
-The only setting is the grill-menu API URL, in `src/GrillMaster.Console/appsettings.json`:
+The settings live in the `GrillMaster` section of
+`src/GrillMaster.Console/appsettings.json`:
 
 ```json
 {
   "GrillMaster": {
-    "GrillMenuApiUrl": "http://isol-grillassessment.azurewebsites.net"
+    "GrillMenuApiUrl": "http://isol-grillassessment.azurewebsites.net",
+    "MaxNodes": 20000000,
+    "VerboseLogging": true
   }
 }
 ```
 
+- `GrillMenuApiUrl` — the grill-menu API to fetch the menus from.
+- `MaxNodes` — the exact search's hard node budget, shared between its fast pass and its
+  verification pass. When the budget runs out, the best plan found so far is returned, flagged
+  as *not* proven.
+- `VerboseLogging` — when `true`, each menu is logged with its proven-optimal status
+  (`Menu 01: 4 rounds (Proven: False)`); when `false`, the plain line
+  (`Menu 01: 4 rounds`) is logged.
+
 Any setting can be overridden with an environment variable
-(e.g. `GRILLMASTER__GRILLMENUAPIURL`), so you can point at another API without touching the
-file.
+(e.g. `GRILLMASTER__GRILLMENUAPIURL`, `GRILLMASTER__MAXNODES`), so you can point at another API
+or change the budget without touching the file.
 
 ## Results on the live dataset (15 menus)
 

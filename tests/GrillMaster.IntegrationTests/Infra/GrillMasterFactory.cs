@@ -1,6 +1,4 @@
-using GrillMaster.Application.Features.Plans;
 using GrillMaster.Application.Settings;
-using GrillMaster.Testing.Plans;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog.Sinks.InMemory;
 using Serilog.Sinks.XUnit.Injectable;
@@ -16,6 +14,14 @@ namespace GrillMaster.IntegrationTests.Infra;
 /// </summary>
 internal static class GrillMasterFactory
 {
+    /// <summary>
+    /// The planner's search-node budget for the tests. The pipeline plans all 15 fixture menus;
+    /// with the production 20 000 000-node default the two menus that do not settle at the lower
+    /// bound exhaust the solver's budget (~30 s in Release, several minutes in Debug). The capped
+    /// budget returns the same per-menu round counts (pinned by the unit-test quality snapshot).
+    /// </summary>
+    private const long TestNodeBudget = 1_000_000;
+
     /// <summary>Creates an app hosting the application with the given settings.</summary>
     public static GrillMasterApp Create(Uri apiUrl, ITestOutputHelper output)
     {
@@ -33,31 +39,11 @@ internal static class GrillMasterFactory
                 services.Configure<GrillMasterSettings>(settings =>
                 {
                     settings.GrillMenuApiUrl = apiUrl;
+                    settings.MaxNodes = TestNodeBudget;
+                    settings.VerboseLogging = false;
                 });
-
-                // The pipeline plans all 15 fixture menus; with the production default the two
-                // menus that do not settle at the lower bound exhaust the solver's
-                // 20 000 000-node budget (~30 s in Release, several minutes in Debug). Swap in
-                // the budget-bounded test planner, which returns the same per-menu round counts
-                // (see TestPlanner).
-                ReplaceGrillPlanner(services, TestPlanner.CreateGrillPlanner);
             });
 
         return new GrillMasterApp(host, sink, testOutputSink);
-    }
-
-    /// <summary>
-    /// Swaps the registered <see cref="GrillPlanner"/> singleton for one built by
-    /// <paramref name="factory"/>.
-    /// </summary>
-    private static void ReplaceGrillPlanner(IServiceCollection services, Func<GrillPlanner> factory)
-    {
-        var descriptors = services.Where(d => d.ImplementationType == typeof(GrillPlanner)).ToList();
-        foreach (var descriptor in descriptors)
-        {
-            services.Remove(descriptor);
-        }
-
-        services.AddSingleton(_ => factory());
     }
 }
