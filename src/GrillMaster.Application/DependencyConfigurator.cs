@@ -28,7 +28,10 @@ public static class DependencyConfigurator
         });
         services.AddSingleton<GrillMenuService>();
 
-        services.AddSingleton<GrillPlanner>();
+        services.AddSingleton(sp => new GrillPlanner
+        {
+            MaxNodes = sp.GetRequiredService<IGrillMasterSettings>().MaxNodes,
+        });
 
         services.AddSingleton<GrillMasterApp>();
 

@@ -1,5 +1,6 @@
 using GrillMaster.Application.Features.Menus;
 using GrillMaster.Application.Features.Plans;
+using GrillMaster.Application.Settings;
 using GrillMaster.Domain;
 using Microsoft.Extensions.Logging;
 
@@ -12,7 +13,8 @@ namespace GrillMaster.Application;
 public sealed partial class GrillMasterApp(
     GrillMenuService menuService,
     ILogger<GrillMasterApp> logger,
-    GrillPlanner planner)
+    GrillPlanner planner,
+    IGrillMasterSettings settings)
 {
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
@@ -25,7 +27,14 @@ public sealed partial class GrillMasterApp(
         {
             var plan = planner.Plan(menu, grillSize);
             total += plan.Rounds.Count;
-            LogDebugMenuRounds(logger, plan.Menu.Name, plan.Rounds.Count, plan.IsProvenOptimal);
+            if (settings.VerboseLogging)
+            {
+                LogDebugMenuRounds(logger, plan.Menu.Name, plan.Rounds.Count, plan.IsProvenOptimal);
+            }
+            else
+            {
+                LogMenuRounds(logger, plan.Menu.Name, plan.Rounds.Count);
+            }
         }
 
         LogTotalRounds(logger, total);
@@ -37,6 +46,6 @@ public sealed partial class GrillMasterApp(
     [LoggerMessage(Level = LogLevel.Information, Message = "Total: {TotalRounds} rounds")]
     private static partial void LogTotalRounds(ILogger<GrillMasterApp> logger, int totalRounds);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "{MenuName}: {RoundCount} rounds (Proven: {proven})")]
+    [LoggerMessage(Level = LogLevel.Information, Message = "{MenuName}: {RoundCount} rounds (Proven: {Proven})")]
     private static partial void LogDebugMenuRounds(ILogger<GrillMasterApp> logger, string menuName, int roundCount, bool proven);
 }

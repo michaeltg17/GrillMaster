@@ -22,7 +22,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\GrillMaster.Console\GrillMaster.Console.csproj" />
-    <ProjectReference Include="..\GrillMaster.Testing\GrillMaster.Testing.csproj" />
   </ItemGroup>
 
   <ItemGroup>
