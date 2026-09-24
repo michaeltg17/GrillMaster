@@ -36,7 +36,9 @@ public sealed class RoundOccupancy
     public bool IsFree(Point position, Centimeters w, Centimeters h) =>
         IsFreeCells(_colBits, _width, _height, position.X.Value, position.Y.Value, w.Value, h.Value);
 
-    private bool IsFreeCells(int x, int y, int w, int h) =>
+    // Raw-coordinate free-check, also used by cold paths that work on ints instead of the
+    // domain value types (their operators are not inlined).
+    internal bool IsFreeCells(int x, int y, int w, int h) =>
         IsFreeCells(_colBits, _width, _height, x, y, w, h);
 
     public void MarkOccupied(Point position, Centimeters w, Centimeters h)
@@ -57,6 +59,9 @@ public sealed class RoundOccupancy
 
     // Entry point of the allocation-free skyline scan, for the exact search's hot loop.
     internal SkylinePositions CreateSkylineScan(int w, int h) => new(_rowBits, _colBits, _width, _height, w, h);
+
+    // Entry point of the allocation-free all-free-positions scan, for the exact search's hot loop.
+    internal AllFreePositions CreateAllFreePositionsScan(int w, int h) => new(_colBits, _width, _height, w, h);
 
     private void Mark(int x, int y, int w, int h, bool occupy)
     {
@@ -301,6 +306,56 @@ public sealed class RoundOccupancy
                     continue;
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// An allocation-free, stack-only scan of every free position of one orientation, in
+    /// bottom-left-first order (y ascending, then x ascending). Unlike
+    /// <see cref="SkylinePositions"/>, it also visits positions that do not rest or are not
+    /// pushed left. The exact search needs the full set: a piece's left wall or its support in
+    /// the optimal packing may be provided by a piece that is placed later in the search order,
+    /// and a resting/pushed-left-only candidate set can therefore miss the optimum.
+    /// </summary>
+    internal ref struct AllFreePositions(uint[] colBits, int width, int height, int w, int h)
+    {
+        private readonly uint[] _colBits = colBits;
+        private readonly int _lastX = width - w;
+        private readonly int _lastY = height - h;
+        private readonly int _w = w;
+        private readonly int _h = h;
+
+        private int _x;
+        private int _y;
+
+        /// <summary>The x coordinate of the current position (valid after <see cref="MoveNext"/>).</summary>
+        public int X { get; private set; }
+
+        /// <summary>The y coordinate of the current position (valid after <see cref="MoveNext"/>).</summary>
+        public int Y { get; private set; }
+
+        public bool MoveNext()
+        {
+            while (_y <= _lastY)
+            {
+                while (_x <= _lastX)
+                {
+                    if (IsFreeCells(_colBits, _w, _h, _x, _y))
+                    {
+                        X = _x;
+                        Y = _y;
+                        _x++;
+                        return true;
+                    }
+
+                    _x++;
+                }
+
+                _x = 0;
+                _y++;
+            }
+
+            return false;
         }
     }
 

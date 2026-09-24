@@ -53,6 +53,37 @@ public sealed class GrillPlannerBruteForceComparisonTests
         }
     }
 
+    [Fact]
+    public void FindsOneRound_WhenTheOptimumNeedsANonSkylinePosition()
+    {
+        // Regression case from the CP-SAT differential harness: the optimal 1-round packing
+        // needs the second 3x4 to sit with an empty column to its left at placement time, its
+        // left wall provided by the 2x4 that the search order places last. A skyline-only
+        // candidate set cannot reach that packing, so the search must not rely on it for the
+        // proof. Verified optimum: 1 round (brute force and CP-SAT agree).
+        var grill = new GrillSize(9, 7);
+        var pieces = new List<GrillPiece>
+        {
+            new("Steak", 2, 5),
+            new("Wing", 2, 4),
+            new("Kebab", 3, 4),
+            new("Pepper", 3, 4),
+            new("Wing", 3, 4),
+            new("Mushroom", 4, 2),
+        };
+
+        var optimum = BruteForceRoundSolver.MinRounds(pieces, grill);
+        optimum.Should().Be(1, "the witness packing exists, so the brute-force oracle must agree");
+
+        var result = new GrillPlanner { MaxNodes = Budget }
+            .Plan(GrillPlannerTests.BuildMenu(pieces), grill);
+
+        result.Rounds.Count.Should()
+            .Be(optimum, $"planner found {result.Rounds.Count} rounds, the optimum needs {optimum}");
+        result.IsProvenOptimal.Should().BeTrue($"search used {result.SearchNodes} nodes");
+        GrillPlanValidator.Validate(result, grill);
+    }
+
     private static GrillPiece[] PiecePool(GrillSize grill)
     {
         var width = grill.Width.Value;
@@ -60,8 +91,10 @@ public sealed class GrillPlannerBruteForceComparisonTests
         var shapes = new[] { (1, 1), (2, 1), (2, 2), (3, 1), (3, 2), (4, 2), (3, 3), (4, 3), (5, 2), (4, 4) };
         var names = new[] { "Sausage", "Steak", "Patty", "Wing", "Corn", "Burger", "Kebab", "Prawn", "Mushroom", "Pepper" };
 
+        // Take enough distinct shapes that mixed-size menus (the class of instances where the
+        // optimal packing can need a non-skyline position) occur in the random corpus.
         var pool = new List<GrillPiece>();
-        for (var i = 0; i < shapes.Length && pool.Count < 4; i++)
+        for (var i = 0; i < shapes.Length && pool.Count < 7; i++)
         {
             if ((shapes[i].Item1 <= width && shapes[i].Item2 <= height) || (shapes[i].Item2 <= width && shapes[i].Item1 <= height))
             {

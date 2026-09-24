@@ -55,9 +55,9 @@ file.
 
 ## Results on the live dataset (15 menus)
 
-| Total rounds | Notes                                                            |
-|--------------|------------------------------------------------------------------|
-| **38**       | proven on all 15 menus: floor on 14, Menu 01 by full search      |
+| Total rounds | Notes                                                              |
+|--------------|--------------------------------------------------------------------|
+| **38**       | proven on 14 menus (all at their floor); Menu 01 best-found, unproven |
 
 The greedy pre-pass alone would use 39 rounds on this dataset; the search improves one menu
 and proves the rest.
@@ -66,16 +66,19 @@ and proves the rest.
 (`ceil(totalArea / 600)`) and the per-type bound — so no solution can use fewer rounds; on
 this dataset the area bound is the binding one. Most menus settle at the floor during the
 pre-pass itself; Menu 01 (nine square centimetres of slack across three full rounds) defeats
-the floor — the search finds the 4-round plan and proves three rounds is impossible by
-exploring the whole search space within its budget.
+the floor — the search finds the 4-round plan, and its verification pass (which re-checks
+every possible position, because only that complete search is a real proof) cannot finish
+within the default budget, so Menu 01 comes back flagged *not* proven. An external CP-SAT
+solver given two minutes cannot settle it either.
 
 ## Honest corners
 
 - **Axis-aligned placement only.** Pieces may be turned 90°, but not at an arbitrary angle.
-- **The exact search has a node budget** (default 20 000 000). On this data it proves the
-  optimum on all 15 menus: 14 in well under a second, Menu 01 in about 5 s (6.1M nodes). A
-  much larger or adversarial menu could still exhaust the budget and come back flagged as
-  *not* proven (`GrillPlan.IsProvenOptimal == false`).
+- **The exact search has a node budget** (default 20 000 000), shared between its fast
+  pass and its verification pass. On this data it proves the optimum on 14 menus in well
+  under a second; Menu 01 spends the whole budget (~20M nodes, ~10 s) and comes back
+  flagged as *not* proven (`GrillPlan.IsProvenOptimal == false`). A much larger or
+  adversarial menu would do the same.
 - **Assumes every piece fits the grill.** The largest piece in this data is 22 cm, which fits
   the 30 cm side. A piece that cannot fit the grill in either orientation makes the planner
   throw an error instead of guessing.
