@@ -4,11 +4,11 @@ using GrillMaster.Domain;
 namespace GrillMaster.UnitTests.Helpers;
 
 /// <summary>
-/// Checks that a plan is a valid packing of its menu on the given grill: every piece appears
+/// Checks that a grill plan is a valid packing of its menu on the given grill: every piece appears
 /// exactly once, every placement sits inside the grill with a footprint matching the piece's
 /// dimensions (rotated or not), and no two placements of a round overlap.
 /// </summary>
-public static class PlanValidator
+public static class GrillPlanValidator
 {
     public static void Validate(GrillPlan plan, GrillSize grill)
     {

@@ -50,7 +50,7 @@ public sealed class ExactBruteForceComparisonTests
             // The 10 000 000-node budget must be enough for these small instances: a completed
             // search is a proof, so the plan must report as proven.
             result.IsProvenOptimal.Should().BeTrue($"trial {trial}: search used {result.SearchNodes} nodes");
-            PlanValidator.Validate(result, grill);
+            GrillPlanValidator.Validate(result, grill);
         }
     }
 

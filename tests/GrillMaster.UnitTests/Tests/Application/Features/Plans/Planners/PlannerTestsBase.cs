@@ -103,5 +103,5 @@ public abstract class PlannerTestsBase
             .Select(g => new GrillMenuItem(Guid.NewGuid(), g.Key.Name, g.Key.Length, g.Key.Width, "10 min", g.Count()))
             .ToList());
 
-    protected static void Validate(GrillPlan result) => PlanValidator.Validate(result, Grill);
+    protected static void Validate(GrillPlan result) => GrillPlanValidator.Validate(result, Grill);
 }

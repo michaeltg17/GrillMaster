@@ -47,7 +47,7 @@ public sealed class ExactBacktrackingPlannerInvariantTests
         result.Rounds.Count.Should().Be(2);
         result.IsProvenOptimal.Should().BeTrue();
         result.LowerBound.Should().Be(1);
-        PlanValidator.Validate(result, Grill10x10);
+        GrillPlanValidator.Validate(result, Grill10x10);
     }
 
     [Theory]
@@ -64,7 +64,7 @@ public sealed class ExactBacktrackingPlannerInvariantTests
         result.SearchNodes.Should().BeLessThanOrEqualTo(maxNodes);
         result.Rounds.Count.Should()
             .BeInRange(1, 2, "an unfinished search still owes a plan between the floor and the incumbent");
-        PlanValidator.Validate(result, Grill10x10);
+        GrillPlanValidator.Validate(result, Grill10x10);
     }
 
     [Theory]
@@ -80,7 +80,7 @@ public sealed class ExactBacktrackingPlannerInvariantTests
         result.IsProvenOptimal.Should().BeFalse("without a search there is no proof");
         result.SearchNodes.Should().Be(0);
         result.Rounds.Count.Should().Be(greedy.Rounds.Count, "the greedy incumbent is returned as is");
-        PlanValidator.Validate(result, Grill10x10);
+        GrillPlanValidator.Validate(result, Grill10x10);
     }
 
     [Fact]
@@ -105,7 +105,7 @@ public sealed class ExactBacktrackingPlannerInvariantTests
         result.IsProvenOptimal.Should().BeTrue();
         result.Rounds.SelectMany(r => r.Placements)
             .Should().OnlyContain(p => p.Rotated, "the natural 10 cm side exceeds the grill width");
-        PlanValidator.Validate(result, grill);
+        GrillPlanValidator.Validate(result, grill);
     }
 
     [Fact]
@@ -121,7 +121,7 @@ public sealed class ExactBacktrackingPlannerInvariantTests
 
         result.Rounds.Count.Should().Be(2);
         result.IsProvenOptimal.Should().BeTrue();
-        PlanValidator.Validate(result, Grill10x10);
+        GrillPlanValidator.Validate(result, Grill10x10);
     }
 
     [Fact]
