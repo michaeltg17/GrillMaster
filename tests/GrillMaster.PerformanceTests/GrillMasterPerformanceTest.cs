@@ -1,4 +1,5 @@
 using GrillMaster.Application.Features.Plans;
+using GrillMaster.Application.Settings;
 using GrillMaster.Domain;
 using GrillMaster.PerformanceTests.Base;
 using GrillMaster.PerformanceTests.Base.Models;
@@ -78,8 +79,8 @@ public sealed class GrillMasterPerformanceTest(ITestOutputHelper output)
         var menus = GrillMenusProvider.GetGrillMenus();
         return
         [
-            Benchmark("serial", new GrillPlanner() { MaxNodes = 1_000_000 }, menus),
-            Benchmark("parallel", new GrillPlanner() { MaxNodes = 1_000_000, MaxParallelism = Environment.ProcessorCount }, menus),
+            Benchmark("serial", new GrillPlanner(new BenchmarkPlannerSettings(1_000_000, EnableParallelism: false)), menus),
+            Benchmark("parallel", new GrillPlanner(new BenchmarkPlannerSettings(1_000_000, EnableParallelism: true)), menus),
         ];
     }
 
@@ -173,4 +174,15 @@ public sealed class GrillMasterPerformanceTest(ITestOutputHelper output)
             ? sorted[mid]
             : (sorted[mid - 1] + sorted[mid]) / 2;
     }
+}
+
+/// <summary>
+/// Planner settings for one benchmark row: the node budget and the search mode. The API URL and
+/// logging do not affect planning.
+/// </summary>
+internal sealed record BenchmarkPlannerSettings(long MaxNodes, bool EnableParallelism) : IGrillMasterSettings
+{
+    public Uri GrillMenuApiUrl => new("http://localhost");
+
+    public bool VerboseLogging => false;
 }

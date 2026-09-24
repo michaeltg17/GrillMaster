@@ -1,6 +1,7 @@
 using AwesomeAssertions;
 using GrillMaster.Application.Features.Plans;
 using GrillMaster.Domain;
+using GrillMaster.UnitTests.Helpers;
 using Xunit;
 
 namespace GrillMaster.UnitTests.Tests.Application.Features.Plans;
@@ -18,7 +19,7 @@ public sealed class GrillPlanOptimalityTests
     {
         var menu = GrillPlannerTests.BuildMenu(BuildMixedPieces());
 
-        var plan = new GrillPlanner().Plan(menu, Grill);
+        var plan = new GrillPlanner(new TestGrillSettings()).Plan(menu, Grill);
         var greedyRounds = GreedyShelf.Place(menu.ExpandPieces(), Grill);
 
         plan.Rounds.Count.Should().BeLessThanOrEqualTo(greedyRounds.Count, "the search should beat or tie the greedy seed");

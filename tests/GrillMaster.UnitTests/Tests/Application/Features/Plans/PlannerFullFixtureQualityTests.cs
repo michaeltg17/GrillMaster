@@ -2,6 +2,7 @@ using AwesomeAssertions;
 using GrillMaster.Application.Features.Plans;
 using GrillMaster.Domain;
 using GrillMaster.Testing.Data;
+using GrillMaster.UnitTests.Helpers;
 using Xunit;
 
 namespace GrillMaster.UnitTests.Tests.Application.Features.Plans;
@@ -65,8 +66,8 @@ public sealed class PlannerFullFixtureQualityTests
     {
         var snapshots = new TheoryData<GrillPlanner, int, int, long?>
         {
-            { new GrillPlanner { MaxNodes = 1_000_000 }, 38, 37, 1_000_619 },
-            { new GrillPlanner { MaxNodes = 1_000_000, MaxParallelism = 8 }, 38, 37, null },
+            { new GrillPlanner(new TestGrillSettings(1_000_000)), 38, 37, 1_000_619 },
+            { new GrillPlanner(new TestGrillSettings(1_000_000, EnableParallelism: true)), 38, 37, null },
         };
         return snapshots;
     }

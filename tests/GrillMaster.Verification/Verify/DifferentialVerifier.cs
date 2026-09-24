@@ -1,4 +1,5 @@
 using GrillMaster.Application.Features.Plans;
+using GrillMaster.Application.Settings;
 using GrillMaster.Domain;
 using GrillMaster.Verification.Cases;
 using GrillMaster.Verification.Oracle;
@@ -52,7 +53,7 @@ public static class DifferentialVerifier
     public static VerificationOutcome Verify(GrillTestCase testCase, double oracleTimeLimitSeconds)
     {
         var grill = new GrillSize(testCase.GrillWidth, testCase.GrillHeight);
-        var plan = new GrillPlanner { MaxNodes = PlannerBudget }.Plan(BuildMenu(testCase), grill);
+        var plan = new GrillPlanner(new PlannerSettings(PlannerBudget)).Plan(BuildMenu(testCase), grill);
 
         var problems = new List<string>();
         problems.AddRange(PlacementValidator.Validate(plan, grill).Select(p => $"placement: {p}"));
@@ -126,4 +127,17 @@ public static class DifferentialVerifier
             .ToList();
         return new GrillMenu(Guid.Empty, testCase.Description, items);
     }
+}
+
+/// <summary>
+/// Planner settings for the verification corpus: a fixed node budget, serial search. The API
+/// URL and logging do not affect planning.
+/// </summary>
+internal sealed record PlannerSettings(long MaxNodes) : IGrillMasterSettings
+{
+    public Uri GrillMenuApiUrl => new("http://localhost");
+
+    public bool EnableParallelism => false;
+
+    public bool VerboseLogging => false;
 }

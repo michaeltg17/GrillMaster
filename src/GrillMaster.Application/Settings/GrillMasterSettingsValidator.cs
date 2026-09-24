@@ -12,9 +12,6 @@ public sealed class GrillMasterSettingsValidator : IValidateOptions<GrillMasterS
         if (grillMasterSettings.GrillMenuApiUrl is null or { IsAbsoluteUri: false })
             validationErrors.Add($"The '{nameof(grillMasterSettings.GrillMenuApiUrl)}' setting is required and must be an absolute URI");
 
-        if (grillMasterSettings.MaxParallelism < 1)
-            validationErrors.Add($"The '{nameof(grillMasterSettings.MaxParallelism)}' setting must be at least 1");
-
         return validationErrors.Count > 0 ? ValidateOptionsResult.Fail(validationErrors) : ValidateOptionsResult.Success;
     }
 }

@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using GrillMaster.Application.Settings;
 using GrillMaster.Domain;
 
 namespace GrillMaster.Application.Features.Plans;
@@ -9,30 +10,15 @@ namespace GrillMaster.Application.Features.Plans;
 /// proven optimal whenever the node budget is not exceeded. A greedy shelf placement runs first
 /// as a cheap upper bound: when it already sits on the lower bound, the answer is proven without
 /// searching at all. See <c>docs/grill-planner.md</c> for a full walkthrough.
-/// The planner itself is stateless: every call to <see cref="Plan"/> builds its own search
-/// state, so one instance can plan concurrently from several threads. With
-/// <see cref="MaxParallelism"/>&gt;1 the search additionally runs on that many threads, each
-/// owning its own state; only the incumbent, the node budget and a work queue of subtree tasks
-/// are shared.
+/// The search budget (<see cref="IGrillMasterSettings.MaxNodes"/>) and mode
+/// (<see cref="IGrillMasterSettings.EnableParallelism"/>) come from the settings: with
+/// <see cref="IGrillMasterSettings.EnableParallelism"/> set, the search runs on all logical
+/// cores, each owning its own state; only the incumbent, the node budget and a work queue of
+/// subtree tasks are shared. The planner itself is stateless: every call to <see cref="Plan"/>
+/// builds its own search state, so one instance can plan concurrently from several threads.
 /// </summary>
-public sealed class GrillPlanner
+public sealed class GrillPlanner(IGrillMasterSettings settings)
 {
-    /// <summary>
-    /// Hard node budget: at most this many search nodes are explored before the search stops
-    /// and falls back to the best incumbent found so far. Values &lt;= 0 disable the search and
-    /// return the greedy incumbent directly.
-    /// </summary>
-    public long MaxNodes { get; init; } = 20_000_000;
-
-    /// <summary>
-    /// The number of search threads one plan may use. 1 (the default) keeps the search serial
-    /// and fully deterministic, including the exact search-node count; any higher value runs the
-    /// same branch-and-bound over a shared work queue of subtree tasks, so workers balance
-    /// themselves on large budgets. Parallel plans find the same round counts, but the node
-    /// count (and, when the budget cuts the search short, the exact placements) becomes
-    /// scheduling-dependent.
-    /// </summary>
-    public int MaxParallelism { get; init; } = 1;
 
     // TEMPORARY debug instrumentation — remove before commit.
     private static long _debugTasksCreated;
@@ -76,9 +62,9 @@ public sealed class GrillPlanner
             return new GrillPlan(menu, greedyRounds, lowerBound, IsProvenOptimal: true, SearchNodes: 0, stopwatch.Elapsed);
         }
 
-        return MaxParallelism <= 1
-            ? PlanSerial(menu, grill, ordered, lowerBound, greedyRounds, stopwatch)
-            : PlanParallel(menu, grill, ordered, lowerBound, greedyRounds, stopwatch);
+        return settings.EnableParallelism
+            ? PlanParallel(menu, grill, ordered, lowerBound, greedyRounds, stopwatch)
+            : PlanSerial(menu, grill, ordered, lowerBound, greedyRounds, stopwatch);
     }
 
     // The two search phases, exactly as described in the class summary: a fast
@@ -86,7 +72,7 @@ public sealed class GrillPlanner
     // a complete-position verification pass seeded with the first pass's champion.
     private GrillPlan PlanSerial(GrillMenu menu, GrillSize grill, IReadOnlyList<GrillPiece> ordered, int lowerBound, IReadOnlyList<GrillRound> greedyRounds, Stopwatch stopwatch)
     {
-        var state = new SearchState(PlanData.Create(grill, ordered, lowerBound, allPositions: false), greedyRounds, MaxNodes);
+        var state = new SearchState(PlanData.Create(grill, ordered, lowerBound, allPositions: false), greedyRounds, settings.MaxNodes);
         state.Search(0);
 
         // Phase 1 ended either on the floor (a true proof) or over budget (nothing left to do).
@@ -96,7 +82,7 @@ public sealed class GrillPlanner
             return state.BuildPlan(menu, stopwatch.Elapsed);
         }
 
-        var verifier = new SearchState(PlanData.Create(grill, ordered, lowerBound, allPositions: true), state.BestRounds, MaxNodes - state.Nodes);
+        var verifier = new SearchState(PlanData.Create(grill, ordered, lowerBound, allPositions: true), state.BestRounds, settings.MaxNodes - state.Nodes);
         verifier.Search(0);
 
         stopwatch.Stop();
@@ -105,14 +91,14 @@ public sealed class GrillPlanner
 
     private GrillPlan PlanParallel(GrillMenu menu, GrillSize grill, IReadOnlyList<GrillPiece> ordered, int lowerBound, IReadOnlyList<GrillRound> greedyRounds, Stopwatch stopwatch)
     {
-        if (MaxNodes <= 0)
+        if (settings.MaxNodes <= 0)
         {
             // No budget, no search: the greedy incumbent is returned as is, unproven.
             stopwatch.Stop();
             return new GrillPlan(menu, greedyRounds, lowerBound, IsProvenOptimal: false, SearchNodes: 0, stopwatch.Elapsed);
         }
 
-        var phase1 = new ParallelPhase(PlanData.Create(grill, ordered, lowerBound, allPositions: false), greedyRounds, MaxNodes, MaxParallelism);
+        var phase1 = new ParallelPhase(PlanData.Create(grill, ordered, lowerBound, allPositions: false), greedyRounds, settings.MaxNodes, Environment.ProcessorCount);
         phase1.Run();
 
         if (phase1.Best == lowerBound || phase1.Outcome == SearchOutcome.BudgetExceeded)
@@ -121,7 +107,7 @@ public sealed class GrillPlanner
             return phase1.BuildPlan(menu, stopwatch.Elapsed);
         }
 
-        var phase2 = new ParallelPhase(PlanData.Create(grill, ordered, lowerBound, allPositions: true), phase1.BestRounds, MaxNodes - phase1.Nodes, MaxParallelism);
+        var phase2 = new ParallelPhase(PlanData.Create(grill, ordered, lowerBound, allPositions: true), phase1.BestRounds, settings.MaxNodes - phase1.Nodes, Environment.ProcessorCount);
         phase2.Run();
 
         stopwatch.Stop();

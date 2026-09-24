@@ -41,7 +41,7 @@ public sealed class GrillPlannerBruteForceComparisonTests
             lowerBound.Should()
                 .BeLessThanOrEqualTo(optimum, $"trial {trial}: lower bound {lowerBound} exceeds the brute-force optimum {optimum}");
 
-            var result = new GrillPlanner { MaxNodes = Budget }
+            var result = new GrillPlanner(new TestGrillSettings(Budget))
                 .Plan(GrillPlannerTests.BuildMenu(pieces), grill);
 
             result.Rounds.Count.Should()
@@ -75,7 +75,7 @@ public sealed class GrillPlannerBruteForceComparisonTests
         var optimum = BruteForceRoundSolver.MinRounds(pieces, grill);
         optimum.Should().Be(1, "the witness packing exists, so the brute-force oracle must agree");
 
-        var result = new GrillPlanner { MaxNodes = Budget }
+        var result = new GrillPlanner(new TestGrillSettings(Budget))
             .Plan(GrillPlannerTests.BuildMenu(pieces), grill);
 
         result.Rounds.Count.Should()
