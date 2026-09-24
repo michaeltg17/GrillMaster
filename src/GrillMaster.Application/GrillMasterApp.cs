@@ -23,9 +23,9 @@ public sealed partial class GrillMasterApp(
         var total = 0;
         foreach (var menu in menus.OrderBy(m => m.Name, StringComparer.Ordinal))
         {
-            var result = planner.Plan(menu, grillSize);
-            total += result.Rounds.Count;
-            LogMenuRounds(logger, result.Menu.Name, result.Rounds.Count);
+            var plan = planner.Plan(menu, grillSize);
+            total += plan.Rounds.Count;
+            LogDebugMenuRounds(logger, plan.Menu.Name, plan.Rounds.Count, plan.IsProvenOptimal);
         }
 
         LogTotalRounds(logger, total);
@@ -36,4 +36,7 @@ public sealed partial class GrillMasterApp(
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Total: {TotalRounds} rounds")]
     private static partial void LogTotalRounds(ILogger<GrillMasterApp> logger, int totalRounds);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "{MenuName}: {RoundCount} rounds (Proven: {proven})")]
+    private static partial void LogDebugMenuRounds(ILogger<GrillMasterApp> logger, string menuName, int roundCount, bool proven);
 }
