@@ -1,5 +1,4 @@
 using GrillMaster.Application.Features.Plans;
-using GrillMaster.Application.Features.Plans.Planners;
 using GrillMaster.Domain;
 using GrillMaster.PerformanceTests.Base;
 using GrillMaster.PerformanceTests.Base.Models;
@@ -9,7 +8,7 @@ using Xunit;
 namespace GrillMaster.PerformanceTests;
 
 /// <summary>
-/// Benchmarks every grill planner over the full 15-menu fixture. The first run stores the
+/// Benchmarks the grill planner over the full 15-menu fixture. The first run stores the
 /// measurement as the local <c>before.json</c> baseline; every later run rewrites
 /// <c>after.json</c> and prints the measurements with the delta against the baseline, so the
 /// before/after comparison is visible in the test output. This is a measurement, not a gate: it
@@ -58,26 +57,20 @@ public sealed class GrillMasterPerformanceTest(ITestOutputHelper output)
         _output.WriteLine($"After results written to {PerformanceResultStore.AfterPath}");
     }
 
-    /// <summary>Benchmarks every planner over the full 15-menu fixture.</summary>
+    /// <summary>Benchmarks the planner over the full 15-menu fixture.</summary>
     private static IReadOnlyList<PerformancePlannerResult> MeasurePlanners()
     {
         var menus = GrillMenusProvider.GetGrillMenus();
-        return Planners().Select(planner => Benchmark(planner, menus)).ToList();
+        return [Benchmark(new GrillPlanner(), menus)];
     }
-
-    private static IReadOnlyList<IGrillPlanner> Planners() => new IGrillPlanner[]
-    {
-        new GreedyShelfPlanner(),
-        new ExactBacktrackingPlanner(),
-    };
 
     /// <summary>
     /// Runs the planner over every menu <see cref="Runs"/> times and returns the deterministic
     /// totals for a single pass over all menus (rounds, lower bound, search nodes) plus the
-    /// median and the sum of elapsed milliseconds over all runs. The planners are
-    /// deterministic, so every run produces identical totals.
+    /// median and the sum of elapsed milliseconds over all runs. The planner is deterministic,
+    /// so every run produces identical totals.
     /// </summary>
-    private static PerformancePlannerResult Benchmark(IGrillPlanner planner, IReadOnlyList<GrillMenu> menus)
+    private static PerformancePlannerResult Benchmark(GrillPlanner planner, IReadOnlyList<GrillMenu> menus)
     {
         var elapsed = new List<double>(Runs * menus.Count);
         var totalRounds = 0;
@@ -110,7 +103,7 @@ public sealed class GrillMasterPerformanceTest(ITestOutputHelper output)
     }
 
     /// <summary>
-    /// One report line per planner: the measured quality and speed with the delta against the
+    /// One report line: the measured quality and speed with the delta against the
     /// baseline, so the before/after comparison is printed instead of leaving the reader to
     /// diff the files. Wall-clock values use the default shortest round-trip format, the same
     /// numbers the JSON result files store. The median is per-menu over the whole fixture (cheap
@@ -149,9 +142,9 @@ public sealed class GrillMasterPerformanceTest(ITestOutputHelper output)
     private static string FormatDelta(double delta) =>
         $"{(delta < 0 ? '-' : '+')}{Math.Abs(delta):0.0}";
 
-    /// <summary>The one-line report: how many planners were measured and their combined totals.</summary>
+    /// <summary>The one-line report: the measured planner's combined totals.</summary>
     private static string Summary(IReadOnlyList<PerformancePlannerResult> measured) =>
-        $"Total: {measured.Count} planners, {measured.Sum(m => m.TotalRounds)} rounds, {Math.Round(measured.Sum(m => m.MedianMs), 4)} ms";
+        $"Total: {measured.Sum(m => m.TotalRounds)} rounds, {Math.Round(measured.Sum(m => m.MedianMs), 4)} ms";
 
     private static double Median(List<double> values)
     {

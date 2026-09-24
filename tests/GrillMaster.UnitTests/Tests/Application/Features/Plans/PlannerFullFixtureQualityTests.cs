@@ -1,6 +1,5 @@
 using AwesomeAssertions;
 using GrillMaster.Application.Features.Plans;
-using GrillMaster.Application.Features.Plans.Planners;
 using GrillMaster.Domain;
 using GrillMaster.Testing.Data;
 using GrillMaster.Testing.Plans;
@@ -9,7 +8,7 @@ using Xunit;
 namespace GrillMaster.UnitTests.Tests.Application.Features.Plans;
 
 /// <summary>
-/// Pins the packing quality of every planner over the full 15-menu fixture. The planners are
+/// Pins the packing quality of the planner over the full 15-menu fixture. The planner is
 /// deterministic, so the totals are machine-independent and must match the committed snapshot
 /// exactly — the same quality figures the performance suite records in its local
 /// <c>before.json</c> / <c>after.json</c> files. Update the snapshot when a change deliberately
@@ -23,7 +22,7 @@ public sealed class PlannerFullFixtureQualityTests
     [MemberData(nameof(PlannerSnapshots))]
     public void FullFixture_MatchesQualitySnapshot(
         string plannerName,
-        IGrillPlanner planner,
+        GrillPlanner planner,
         int expectedTotalRounds,
         int expectedLowerBound,
         long? expectedSearchNodes)
@@ -54,19 +53,17 @@ public sealed class PlannerFullFixtureQualityTests
     }
 
     /// <summary>
-    /// Committed per-planner quality snapshot: (total rounds, area lower bound, search nodes) over
-    /// the full fixture. The exact planner is run with a bounded search budget
-    /// (<see cref="TestPlanners"/>): at the production 20 000 000-node budget Menu 01 takes
-    /// ~6.1M nodes (~5 s in Release, much longer in Debug), and the bounded budget returns the
-    /// same plans, so the pinned quality is unchanged — only Menu 01's search-node count is cut
-    /// at the cap.
+    /// Committed quality snapshot: (total rounds, area lower bound, search nodes) over the full
+    /// fixture. The planner is run with a bounded search budget (<see cref="TestPlanner"/>): at
+    /// the production 20 000 000-node budget Menu 01 takes ~6.1M nodes (~5 s in Release, much
+    /// longer in Debug), and the bounded budget returns the same plans, so the pinned quality is
+    /// unchanged — only Menu 01's search-node count is cut at the cap.
     /// </summary>
-    public static TheoryData<string, IGrillPlanner, int, int, long?> PlannerSnapshots()
+    public static TheoryData<string, GrillPlanner, int, int, long?> PlannerSnapshots()
     {
-        var snapshots = new TheoryData<string, IGrillPlanner, int, int, long?>
+        var snapshots = new TheoryData<string, GrillPlanner, int, int, long?>
         {
-            { "greedy", new GreedyShelfPlanner(), 39, 37, 0 },
-            { "exact", TestPlanners.CreateExact(), 38, 37, 1_000_619 },
+            { "grill", TestPlanner.CreateGrillPlanner(), 38, 37, 1_000_619 },
         };
         return snapshots;
     }

@@ -1,30 +1,28 @@
 using AwesomeAssertions;
-using GrillMaster.Application.Features.Plans.Planners;
+using GrillMaster.Application.Features.Plans;
 using GrillMaster.Domain;
-using GrillMaster.UnitTests.Tests.Application.Features.Plans.Planners;
 using Xunit;
 
 namespace GrillMaster.UnitTests.Tests.Application.Features.Plans;
 
 /// <summary>
-/// Cross-planner quality checks: the exact search is never worse than the heuristic, and the
-/// heuristic never beats the area lower bound. Per-planner contract tests live in
-/// <see cref="PlannerTestsBase"/> and its derived classes.
+/// Quality invariants of <see cref="GrillPlanner"/>: the final plan is never worse than the
+/// greedy seed it starts from, and the greedy seed never beats the area lower bound.
 /// </summary>
-public class GrillPlanOptimalityTests
+public sealed class GrillPlanOptimalityTests
 {
     private static readonly GrillSize Grill = GrillSize.Standard;
 
     [Fact]
-    public void Exact_IsNeverWorseThanGreedy()
+    public void Plan_IsNeverWorseThanTheGreedySeed()
     {
-        var menu = PlannerTestsBase.BuildMenu(BuildMixedPieces());
+        var menu = GrillPlannerTests.BuildMenu(BuildMixedPieces());
 
-        var exact = new ExactBacktrackingPlanner().Plan(menu, Grill);
-        var greedy = new GreedyShelfPlanner().Plan(menu, Grill);
+        var plan = new GrillPlanner().Plan(menu, Grill);
+        var greedyRounds = GreedyShelf.Place(menu.ExpandPieces(), Grill);
 
-        exact.Rounds.Count.Should().BeLessThanOrEqualTo(greedy.Rounds.Count, "exact should beat or tie greedy");
-        greedy.Rounds.Count.Should().BeGreaterThanOrEqualTo(exact.LowerBound, "greedy cannot beat the lower bound");
+        plan.Rounds.Count.Should().BeLessThanOrEqualTo(greedyRounds.Count, "the search should beat or tie the greedy seed");
+        greedyRounds.Count.Should().BeGreaterThanOrEqualTo(plan.LowerBound, "the greedy seed cannot beat the lower bound");
     }
 
     private static List<GrillPiece> BuildMixedPieces()

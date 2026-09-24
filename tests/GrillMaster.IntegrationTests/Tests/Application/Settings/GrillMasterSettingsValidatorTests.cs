@@ -1,5 +1,4 @@
 using AwesomeAssertions;
-using GrillMaster.Application.Features.Plans;
 using Serilog.Events;
 using Serilog.Sinks.InMemory.Assertions;
 using Xunit;
@@ -15,19 +14,15 @@ public sealed class GrillMasterSettingsValidatorTests(ITestOutputHelper output) 
 {
     private const string ErrorMessageTemplate = "{Message}";
     private const string UrlErrorMessage = "The 'GrillMenuApiUrl' setting is required and must be an absolute URI";
-    private const string PlannerRequiredErrorMessage = "The 'Planner' setting is required";
-    private static readonly string PlannerKnownErrorMessage =
-        $"The 'Planner' setting must be one of: {string.Join(", ", PlannerNames.All)}";
 
-    private static readonly Uri AbsoluteUrl = new("https://grill-menus.local/menus");
     private static readonly Uri RelativeUrl = new("menus", UriKind.Relative);
 
     [Fact]
-    public async Task SucceedsWhenUrlIsAbsoluteAndPlannerIsKnown()
+    public async Task SucceedsWhenUrlIsAbsolute()
     {
         GrillMenuApiMock.SetGetMenus();
 
-        using var app = await RunGrillMaster(PlannerNames.Greedy, GrillMenuApiMock.Url);
+        using var app = await RunGrillMaster(GrillMenuApiMock.Url);
 
         app.ExitCode.Should().Be(0);
         GrillMenuApiMock.AssertGetMenusRequest();
@@ -37,7 +32,7 @@ public sealed class GrillMasterSettingsValidatorTests(ITestOutputHelper output) 
     [Fact]
     public async Task FailsFastWhenUrlIsNotAbsolute()
     {
-        using var app = await RunGrillMaster(PlannerNames.Greedy, RelativeUrl);
+        using var app = await RunGrillMaster(RelativeUrl);
 
         app.ExitCode.Should().Be(1);
         app.Sink.Should()
@@ -47,52 +42,5 @@ public sealed class GrillMasterSettingsValidatorTests(ITestOutputHelper output) 
             .WithLevel(LogEventLevel.Error)
             .WithProperty("Message")
             .WithValue(UrlErrorMessage);
-    }
-
-    [Fact]
-    public async Task FailsFastWhenPlannerIsMissing()
-    {
-        using var app = await RunGrillMaster(string.Empty, AbsoluteUrl);
-
-        app.ExitCode.Should().Be(1);
-        app.Sink.Should()
-            .HaveMessage(ErrorMessageTemplate)
-            .Appearing()
-            .Once()
-            .WithLevel(LogEventLevel.Error)
-            .WithProperty("Message")
-            .WithValue(PlannerRequiredErrorMessage);
-    }
-
-    [Fact]
-    public async Task FailsFastWhenPlannerIsUnknown()
-    {
-        GrillMenuApiMock.SetGetMenus();
-
-        using var app = await RunGrillMaster("not-a-planner", AbsoluteUrl);
-
-        app.ExitCode.Should().Be(1);
-        app.Sink.Should()
-            .HaveMessage(ErrorMessageTemplate)
-            .Appearing()
-            .Once()
-            .WithLevel(LogEventLevel.Error)
-            .WithProperty("Message")
-            .WithValue(PlannerKnownErrorMessage);
-    }
-
-    [Fact]
-    public async Task FailsWithBothMessagesWhenUrlAndPlannerAreInvalid()
-    {
-        using var app = await RunGrillMaster("not-a-planner", RelativeUrl);
-
-        app.ExitCode.Should().Be(1);
-        app.Sink.Should()
-            .HaveMessage(ErrorMessageTemplate)
-            .Appearing()
-            .Times(2)
-            .WithLevel(LogEventLevel.Error)
-            .WithProperty("Message")
-            .WithValues(UrlErrorMessage, PlannerKnownErrorMessage);
     }
 }

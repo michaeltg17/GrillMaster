@@ -17,8 +17,8 @@ no pieces overlapping — cooks together. Pieces may be turned sideways (a 15×7
 7×15), but they must stay on the grill, on whole centimetres.
 
 That is the whole problem. It is the same kind of puzzle as fitting boxes into a lorry: obvious
-for one or two boxes, genuinely hard in general — which is why the app ships two different
-strategies (we call them *planners*) and lets you compare them.
+for one or two boxes, genuinely hard in general — which is why the app's planner combines a
+fast heuristic pass with an exact search that can *prove* the answer is the best possible.
 
 ## How to run it
 
@@ -44,11 +44,12 @@ Total: 38 rounds
 
 ## How it thinks (one paragraph)
 
-The app arranges the meat with a *planner* — a strategy for deciding what goes on the grill in
-each round. There are **two** of them: a fast "biggest first, tuck it in" cook, and a patient
-one that tries arrangements until it can *prove* no better answer exists. You pick one in a
-single line of a configuration file. The plain-language explanations, the results table, and
-the configuration details all live in [`docs/planners.md`](docs/planners.md).
+The app arranges the meat with a single *planner* — `GrillPlanner`. It first lays the meat
+down with a fast "biggest first, tuck it in" pass; when that already hits the theoretical
+minimum, the answer is proven instantly. Otherwise a patient exact search tries arrangements
+until it can *prove* no better answer exists — or until it runs out of its node budget, in
+which case it returns the best plan found, clearly flagged as not proven. The plain-language
+explanations and the results table live in [`docs/planners.md`](docs/planners.md).
 
 ## Testing
 
@@ -80,8 +81,8 @@ change to see the perf diff. The files are local artifacts, not committed.
 ## What's in the repo
 
 - `src/` — the app itself, in three small parts: the plain data (menus, pieces, rounds), the
-  plan logic (the two planners) with its configuration, and the console program that ties
-  them together.
+  plan logic (one planner: a greedy pre-pass feeding an exact search) with its configuration,
+  and the console program that ties them together.
 - `tests/` — the four test suites above, plus the shared `GrillMaster.Testing` project carrying
   the full-fixture `grill-menus.json` and the test helpers the suites draw from.
 - `docs/` — the plain-language planner explanations, starting from
@@ -90,8 +91,8 @@ change to see the perf diff. The files are local artifacts, not committed.
 ## Things it does not do
 
 - Pieces may be turned 90°, but not at an arbitrary angle.
-- The "prove it's the best" planners have a time budget; on this data they finish almost
-  instantly, but on a huge or hostile menu they may stop and return the best plan found so
+- The planner's exact search has a time budget; on this data it finishes almost
+  instantly, but on a huge or hostile menu it may stop and return the best plan found so
   far, clearly marked as *not proven*.
 - Every piece is assumed to fit the grill (the largest piece in this data is 22 cm; the grill
   is 30 cm wide). A piece that cannot fit in either orientation is an error, not a guess.

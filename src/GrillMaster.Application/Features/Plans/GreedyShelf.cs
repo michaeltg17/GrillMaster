@@ -1,21 +1,18 @@
-using System.Diagnostics;
 using GrillMaster.Domain;
 
-namespace GrillMaster.Application.Features.Plans.Planners;
+namespace GrillMaster.Application.Features.Plans;
 
 /// <summary>
-/// Greedy best-fit shelf placement: largest pieces first, each into the tightest fitting spot;
-/// no optimality guarantee. See <c>docs/greedy-planner.md</c> for a full walkthrough.
+/// Greedy shelf placement: the biggest pieces first, each tucked into the tightest free spot,
+/// a fresh round when nothing fits. No optimality guarantee — it exists to give
+/// <see cref="GrillPlanner"/> a cheap incumbent before the exact search starts, and an instant
+/// proof when the incumbent already sits on the lower bound. See <c>docs/greedy-prepass.md</c>
+/// for a full walkthrough.
 /// </summary>
-public sealed class GreedyShelfPlanner : IGrillPlanner
+internal static class GreedyShelf
 {
-    public string Name { get; } = PlannerNames.Greedy;
-
-    public GrillPlan Plan(GrillMenu menu, GrillSize grill)
+    public static IReadOnlyList<GrillRound> Place(IReadOnlyList<GrillPiece> pieces, GrillSize grill)
     {
-        var stopwatch = Stopwatch.StartNew();
-        var pieces = menu.ExpandPieces();
-        var lowerBound = GrillPlannerHelpers.ComputeLowerBound(pieces, grill);
         var ordered = OrderPieces(pieces);
 
         var rounds = new List<GrillRound>();
@@ -45,8 +42,7 @@ public sealed class GreedyShelfPlanner : IGrillPlanner
             }
         }
 
-        stopwatch.Stop();
-        return new GrillPlan(menu, rounds, Name, lowerBound, IsProvenOptimal: false, SearchNodes: 0, stopwatch.Elapsed);
+        return rounds;
     }
 
     // Best fit: the existing round whose free space is smallest after the piece is added, along
@@ -76,12 +72,10 @@ public sealed class GreedyShelfPlanner : IGrillPlanner
         return best;
     }
 
-    /// <summary>
-    /// Canonical, deterministic ordering for greedy placement: largest area first, then longest
-    /// side, then shortest side, then name. Placing big pieces first leaves the awkward leftover
-    /// space for the small pieces.
-    /// </summary>
-    public static IReadOnlyList<GrillPiece> OrderPieces(IReadOnlyList<GrillPiece> pieces)
+    // Canonical, deterministic ordering for greedy placement: largest area first, then longest
+    // side, then shortest side, then name. Placing big pieces first leaves the awkward leftover
+    // space for the small pieces.
+    private static IReadOnlyList<GrillPiece> OrderPieces(IReadOnlyList<GrillPiece> pieces)
     {
         return pieces
             .OrderByDescending(p => p.Area)

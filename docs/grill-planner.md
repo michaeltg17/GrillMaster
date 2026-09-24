@@ -1,12 +1,13 @@
-# The Exact Planner (`exact`)
+# The GrillPlanner
 
 > "I will find the best possible number of rounds — and I will *prove* it to you.
 > I just need to skip the millions of arrangements that are obviously pointless."
 
-This is the only planner that can hand you a plan and say, with a straight face:
-**"no arrangement of this meat uses fewer rounds. I checked. Here is why."**
-It gets there by trying arrangements one at a time — but with a handful of rules that
-let it skip almost all of them. This file explains how, with pictures.
+`GrillPlanner` is the one planner the app ships, and it can hand you a plan and say,
+with a straight face: **"no arrangement of this meat uses fewer rounds. I checked.
+Here is why."** It gets there by trying arrangements one at a time — but with a
+handful of rules that let it skip almost all of them. This file explains how, with
+pictures.
 
 ---
 
@@ -39,14 +40,14 @@ need 2 rounds when a grill holds at most 30, even if the area says 1 — that pa
 computed exactly by a small cached search over one empty grill. The floor is the larger
 of the two.
 
-**The champion.** Run the [greedy planner](greedy-planner.md) first and keep *its*
+**The champion.** Run the [greedy pre-pass](greedy-prepass.md) first and keep *its*
 answer as the current best — the **champion**. Now the search only has one job:
 *beat the champion*. Any arrangement that uses as many rounds as the champion (or more)
 is already worthless, so it can be abandoned the moment it becomes clear.
 
-A lovely side effect: if the champion is *already* standing on the floor (greedy found
-a plan that hits the lower bound), the search can stop before it even starts — a score
-below the floor is impossible, so the champion is proven optimal instantly.
+A lovely side effect: if the champion is *already* standing on the floor (the pre-pass
+found a plan that hits the lower bound), the search can stop before it even starts — a
+score below the floor is impossible, so the champion is proven optimal instantly.
 
 ## 3. The search: place one piece, look ahead, undo, try the next spot
 
@@ -67,14 +68,14 @@ same place. The grill's map is always perfectly restored after each try.
 
 ### Example A: two rumpsteaks (15×7)
 
-Area: 2 × 105 = 210 cm² → floor = 1 round. Greedy's champion: 1 round.
+Area: 2 × 105 = 210 cm² → floor = 1 round. The pre-pass's champion: 1 round.
 Champion is on the floor → **stop immediately**. Result: 1 round, **proven optimal**,
 after exploring a single decision.
 
 ### Example B: four big squares (15×15)
 
 Area: 4 × 225 = 900 cm² → floor = **2** rounds (one 30×20 grill can hold at most two
-15×15 squares, side by side, filling a 30×15 strip). Greedy's
+15×15 squares, side by side, filling a 30×15 strip). The pre-pass's
 champion: 2 rounds — again on the floor → stop immediately.
 
 Each round looks like this (two 15×15 squares side by side, 30 wide × 15 tall,
@@ -105,11 +106,11 @@ AAAAAAAAAAAAAAAABBBBBBBBBBBBBBBB
 
 Proven: you cannot do this in one round (the floor says 2), and two rounds work.
 
-### Example C: the menu that fools greedy
+### Example C: the menu that fools the pre-pass
 
-Recall the menu from the [greedy doc](greedy-planner.md): 2 spare ribs (24×5),
+Recall the menu from the [pre-pass doc](greedy-prepass.md): 2 spare ribs (24×5),
 1 pork chop (20×6), 1 sirloin (18×6), 1 steak (10×5), 1 sausage (6×3), 2 patties (4×4).
-Area 568 cm² → floor = 1. Greedy's champion: 2 rounds.
+Area 568 cm² → floor = 1. The pre-pass's champion: 2 rounds.
 
 Now the search has real work: it must find a 1-round arrangement, or prove none
 exists. It explores **25 decision points** (that's all) and finds the 1-round packing
@@ -163,7 +164,7 @@ is hopeless by definition — the search ends, and the answer is *proven*.
 Real menus can be nasty, and "try everything promising" can still be large. So the
 search counts every decision it makes against a **budget** (default: 20,000,000
 decisions). On the full 15-menu fixture, thirteen menus need no decisions at all
-(the greedy plan is already on the floor and is accepted without searching), Menu 07
+(the pre-pass is already on the floor and is accepted without searching), Menu 07
 uses 619, and Menu 01 (1791 cm² of meat against three rounds of 600 cm²: nine
 squares of slack) uses 6,124,767 — about 5 s in Release. The search stops on its own
 the moment it has *proved* the answer: the champion reached the floor, or every
@@ -176,14 +177,14 @@ search space.
 ## 6. How the code does this
 
 The planner lives in
-`src/GrillMaster.Application/Features/Plans/Planners/ExactBacktrackingPlanner.cs`.
+`src/GrillMaster.Application/Features/Plans/GrillPlanner.cs`.
 Code, translated into the story:
 
 | Code | What it is in the story |
 |------|--------------------------|
-| `Plan(menu, grill)` | Takes the job: builds the floor, hires the champion, starts the search. |
-| `new GreedyShelfPlanner().Plan(...)` | Hiring the fast cook to set the champion's score. |
-| `greedy.Rounds.Count == lowerBound → return` | The champion is already on the floor: proven with zero search. |
+| `Plan(menu, grill)` | Takes the job: builds the floor, runs the pre-pass, starts the search. |
+| `GreedyShelf.Place(...)` | Hiring the fast cook to set the champion's score. |
+| `greedyRounds.Count == lowerBound → return` | The champion is already on the floor: proven with zero search. |
 | `GrillPlannerHelpers.ComputeLowerBound(...)` | The floor: the larger of total area ÷ 600 and the per-type capacity count. Computed once, per-type capacities cached. |
 | `SearchState` | The patient person's notebook: everything mutable about the search, one per `Plan` call. |
 | `Search(index)` | The patient person, mid-arrangement: `index` = "which piece am I placing now?". |
@@ -209,7 +210,7 @@ allocating anything per spot.
 
 ## 7. The numbers
 
-- **Speed:** thirteen of the 15 menus cost essentially nothing (the greedy plan is
+- **Speed:** thirteen of the 15 menus cost essentially nothing (the pre-pass is
   already on the floor and is accepted without searching); Menu 07 uses 619 decisions;
   Menu 01 uses 6,124,767 — about 5 s in Release at the default 20,000,000 budget.
 - **Quality:** 38 rounds on the 15-menu fixture, proven optimal on all 15 menus at the
@@ -221,12 +222,13 @@ allocating anything per spot.
   ever exceeded, the best-so-far plan is returned and honestly flagged
   `IsProvenOptimal: false`.
 
-## 8. When to use it (and when not to)
+## 8. What you get (and when the proof stops)
 
-- Use it when you need the **proof** — or when the menu is small-to-medium (a few
-  dozen pieces), which is all the search handles comfortably.
-- On huge or adversarial menus it could hit its budget; then you get
-  the best arrangement found within budget, not a proof. For everyday use
-  [greedy](greedy-planner.md) comes within a round of `exact`'s answer on our fixture
-  with a fraction of the machinery — `exact` is the one to reach for when
-  "I must know this is the best" matters.
+- Menus that settle at the lower bound cost essentially nothing: the pre-pass's plan
+  is accepted as proven optimal with zero search.
+- Small-to-medium menus (a few dozen pieces) get a full proof, which is all the
+  search handles comfortably.
+- On huge or adversarial menus the search could hit its budget; then you get the best
+  arrangement found within budget, honestly flagged as **not proven optimal**
+  (`GrillPlan.IsProvenOptimal == false`). The pre-pass alone comes within a round of
+  the final answer on our fixture, so the fallback is still a good plan.
