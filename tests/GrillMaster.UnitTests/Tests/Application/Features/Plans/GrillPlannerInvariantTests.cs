@@ -1,19 +1,18 @@
 using AwesomeAssertions;
 using GrillMaster.Application.Features.Plans;
-using GrillMaster.Application.Features.Plans.Planners;
 using GrillMaster.Domain;
 using GrillMaster.UnitTests.Helpers;
 using Xunit;
 
-namespace GrillMaster.UnitTests.Tests.Application.Features.Plans.Planners;
+namespace GrillMaster.UnitTests.Tests.Application.Features.Plans;
 
 /// <summary>
-/// Exact planner invariants the generic contract tests do not cover: the node budget never
+/// GrillPlanner invariants the generic contract tests do not cover: the node budget never
 /// produces a false proof, rotation-forced and identical-piece menus stay optimal, and the
 /// stateless planner gives identical results under concurrent use. Ground truth for the small
 /// cases comes from <see cref="BruteForceRoundSolver"/>.
 /// </summary>
-public sealed class ExactBacktrackingPlannerInvariantTests
+public sealed class GrillPlannerInvariantTests
 {
     private static readonly GrillSize Grill10x10 = new(10, 10);
 
@@ -41,8 +40,8 @@ public sealed class ExactBacktrackingPlannerInvariantTests
     [Fact]
     public void SearchCase_IsSolvedAndProven()
     {
-        var result = new ExactBacktrackingPlanner { MaxNodes = BigBudget }
-            .Plan(PlannerTestsBase.BuildMenu(SearchCasePieces), Grill10x10);
+        var result = new GrillPlanner { MaxNodes = BigBudget }
+            .Plan(GrillPlannerTests.BuildMenu(SearchCasePieces), Grill10x10);
 
         result.Rounds.Count.Should().Be(2);
         result.IsProvenOptimal.Should().BeTrue();
@@ -57,8 +56,8 @@ public sealed class ExactBacktrackingPlannerInvariantTests
     {
         // The proof for the search case needs more than two nodes, so these budgets run out
         // mid-search: the plan must come back honest (unproven) and still be a valid packing.
-        var result = new ExactBacktrackingPlanner { MaxNodes = maxNodes }
-            .Plan(PlannerTestsBase.BuildMenu(SearchCasePieces), Grill10x10);
+        var result = new GrillPlanner { MaxNodes = maxNodes }
+            .Plan(GrillPlannerTests.BuildMenu(SearchCasePieces), Grill10x10);
 
         result.IsProvenOptimal.Should().BeFalse($"a budget of {maxNodes} nodes cannot complete the proof");
         result.SearchNodes.Should().BeLessThanOrEqualTo(maxNodes);
@@ -72,14 +71,14 @@ public sealed class ExactBacktrackingPlannerInvariantTests
     [InlineData(-5)]
     public void NonPositiveBudget_DisablesTheSearch(long maxNodes)
     {
-        var menu = PlannerTestsBase.BuildMenu(SearchCasePieces);
-        var greedy = new GreedyShelfPlanner().Plan(menu, Grill10x10);
+        var menu = GrillPlannerTests.BuildMenu(SearchCasePieces);
+        var greedyRounds = GreedyShelf.Place(menu.ExpandPieces(), Grill10x10);
 
-        var result = new ExactBacktrackingPlanner { MaxNodes = maxNodes }.Plan(menu, Grill10x10);
+        var result = new GrillPlanner { MaxNodes = maxNodes }.Plan(menu, Grill10x10);
 
         result.IsProvenOptimal.Should().BeFalse("without a search there is no proof");
         result.SearchNodes.Should().Be(0);
-        result.Rounds.Count.Should().Be(greedy.Rounds.Count, "the greedy incumbent is returned as is");
+        result.Rounds.Count.Should().Be(greedyRounds.Count, "the greedy incumbent is returned as is");
         GrillPlanValidator.Validate(result, Grill10x10);
     }
 
@@ -99,7 +98,7 @@ public sealed class ExactBacktrackingPlannerInvariantTests
         BruteForceRoundSolver.MinRounds(pieces, grill).Should()
             .Be(2, "ground truth for the rotation case");
 
-        var result = new ExactBacktrackingPlanner { MaxNodes = BigBudget }.Plan(PlannerTestsBase.BuildMenu(pieces), grill);
+        var result = new GrillPlanner { MaxNodes = BigBudget }.Plan(GrillPlannerTests.BuildMenu(pieces), grill);
 
         result.Rounds.Count.Should().Be(2);
         result.IsProvenOptimal.Should().BeTrue();
@@ -117,7 +116,7 @@ public sealed class ExactBacktrackingPlannerInvariantTests
         BruteForceRoundSolver.MinRounds(pieces, Grill10x10).Should()
             .Be(2, "ground truth for the identical-pieces case");
 
-        var result = new ExactBacktrackingPlanner { MaxNodes = BigBudget }.Plan(PlannerTestsBase.BuildMenu(pieces), Grill10x10);
+        var result = new GrillPlanner { MaxNodes = BigBudget }.Plan(GrillPlannerTests.BuildMenu(pieces), Grill10x10);
 
         result.Rounds.Count.Should().Be(2);
         result.IsProvenOptimal.Should().BeTrue();
@@ -128,9 +127,9 @@ public sealed class ExactBacktrackingPlannerInvariantTests
     public async Task ConcurrentPlans_OnSharedInstance_ProduceIdenticalResults()
     {
         var grill = Grill10x10;
-        var menuA = PlannerTestsBase.BuildMenu(SearchCasePieces);
-        var menuB = PlannerTestsBase.BuildMenu(Enumerable.Repeat(new GrillPiece("Patty", 3, 3), 10).ToList());
-        var planner = new ExactBacktrackingPlanner { MaxNodes = BigBudget };
+        var menuA = GrillPlannerTests.BuildMenu(SearchCasePieces);
+        var menuB = GrillPlannerTests.BuildMenu(Enumerable.Repeat(new GrillPiece("Patty", 3, 3), 10).ToList());
+        var planner = new GrillPlanner { MaxNodes = BigBudget };
 
         var serialA = Fingerprint(planner.Plan(menuA, grill));
         var serialB = Fingerprint(planner.Plan(menuB, grill));

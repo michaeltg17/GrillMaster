@@ -1,4 +1,4 @@
-# Grill Master — how the two planners think
+# Grill Master — how the planner thinks
 
 The problem in one sentence: **we have a pile of meat pieces of different sizes, one grill that
 holds 30 cm × 20 cm, and we want to cook everything in as few "rounds" (batches) as possible.**
@@ -13,71 +13,68 @@ A *round* is everything that sits on the grill at the same time. The rules:
 The grill is 30 cm wide and 20 cm tall, so it is a grid of **600 one-centimetre squares**.
 The total size of a piece is its *area*: length × width (a 15×7 steak covers 105 squares).
 The absolute minimum number of rounds is therefore the meat's total area divided by 600,
-rounded up. No planner can ever do better than that — it's just the floor.
+rounded up. No plan can ever do better than that — it's just the floor.
 
 There is a second floor, for menus full of one meat: if a menu has 40 sausages and a grill
 can hold at most 30 of them, the sausages alone need 2 rounds — even if the *area* says one.
-Every planner reports the maximum of the two floors ("the lower bound"), and the per-type
+The planner reports the maximum of the two floors ("the lower bound"), and the per-type
 part is computed exactly by a small cached single-round search (the machinery lives in
 `src/GrillMaster.Application/Features/Plans/GrillPlannerHelpers.cs`).
 
-There are two planners. They are like two different cooks with the same ingredients:
+There is one planner, `GrillPlanner`, and it works in two phases — like a cook who first lays
+the meat down quickly, and then checks the arrangement until they can *prove* it is the best:
 
-| Planner | One-line idea                                                                    | Speed  | Quality                                                                  |
-|---------|----------------------------------------------------------------------------------|--------|--------------------------------------------------------------------------|
-| `greedy`| Put the biggest pieces down first, tuck each one into the tightest free spot.   | Fast   | Very good, but it can be 1–2 rounds off the best and it can't prove it.  |
-| `exact` | Try arrangements one by one, but skip millions of pointless ones with smart rules. | Slower | **Proves** the answer is the best possible (within its time budget).     |
+| Phase           | One-line idea                                                                              | Speed       | Role                                                                                     |
+|-----------------|--------------------------------------------------------------------------------------------|-------------|------------------------------------------------------------------------------------------|
+| greedy pre-pass | Put the biggest pieces down first, tuck each one into the tightest free spot.              | Fast (~2 ms) | Gives the search a starting "champion". When it already lands on the lower bound, the answer is proven with zero search. |
+| exact search    | Try arrangements one by one, but skip millions of pointless ones with smart rules.         | Slower      | **Proves** the answer is the best possible (within its time budget).                     |
 
-Each planner is explained in its own file, written for a person who has never coded or done
+Each phase is explained in its own file, written for a person who has never coded or done
 math — with pictures and worked examples:
 
-- [greedy-planner.md](greedy-planner.md) — the quick, intuitive cook.
-- [exact-planner.md](exact-planner.md) — the cook who refuses to stop until they can *prove* they did their best.
+- [greedy-prepass.md](greedy-prepass.md) — the quick, intuitive first pass (an internal
+  optimization of the planner, not a planner of its own).
+- [grill-planner.md](grill-planner.md) — the exact search that refuses to stop until it can
+  *prove* it did its best.
 
-## Picking one (the configuration)
+## Configuration
 
-The program runs one planner at a time; you choose it in
-`src/GrillMaster.Console/appsettings.json`:
+The only setting is the grill-menu API URL, in `src/GrillMaster.Console/appsettings.json`:
 
 ```json
 {
   "GrillMaster": {
-    "GrillMenuApiUrl": "http://isol-grillassessment.azurewebsites.net",
-    "Planner": "exact"
+    "GrillMenuApiUrl": "http://isol-grillassessment.azurewebsites.net"
   }
 }
 ```
 
-`"Planner"` is either of the two names above. Any setting can be overridden with an
-environment variable (e.g. `GRILLMASTER__GRILLMENUAPIURL`, `GRILLMASTER__PLANNER`), so you
-can try a planner without touching the file.
-
-- `exact` is the default: it proves the answer is the best possible within its node budget —
-  on this data it proves all 15 menus: 14 in well under a second, and Menu 01 in about 5 s
-  (6.1M of its 20M-node budget).
-- `greedy` is the fast option: very good answers in about 2 ms per menu, but without the
-  proof.
+Any setting can be overridden with an environment variable
+(e.g. `GRILLMASTER__GRILLMENUAPIURL`), so you can point at another API without touching the
+file.
 
 ## Results on the live dataset (15 menus)
 
-| Planner  | Total rounds | Notes                                                    |
-|----------|--------------|----------------------------------------------------------|
-| `greedy` | 39           | fast baseline                                            |
-| `exact`  | **38**       | proven on all 15 menus: floor on 14, Menu 01 by full search |
+| Total rounds | Notes                                                            |
+|--------------|------------------------------------------------------------------|
+| **38**       | proven on all 15 menus: floor on 14, Menu 01 by full search      |
+
+The greedy pre-pass alone would use 39 rounds on this dataset; the search improves one menu
+and proves the rest.
 
 `37` is the sum of the per-menu lower bounds — the maximum of the area bound
 (`ceil(totalArea / 600)`) and the per-type bound — so no solution can use fewer rounds; on
-this dataset the area bound is the binding one. Both planners reach it on most menus;
-Menu 01 (nine square centimetres of slack across three full rounds) defeats the floor —
-`exact` finds the 4-round plan and proves three rounds is impossible by exploring the
-whole search space within its budget.
+this dataset the area bound is the binding one. Most menus settle at the floor during the
+pre-pass itself; Menu 01 (nine square centimetres of slack across three full rounds) defeats
+the floor — the search finds the 4-round plan and proves three rounds is impossible by
+exploring the whole search space within its budget.
 
 ## Honest corners
 
 - **Axis-aligned placement only.** Pieces may be turned 90°, but not at an arbitrary angle.
-- **`exact` has a node budget** (default 20 000 000). On this data it proves the optimum on
-  all 15 menus: 14 in well under a second, Menu 01 in about 5 s (6.1M nodes). A much
-  larger or adversarial menu could still exhaust the budget and come back flagged as
+- **The exact search has a node budget** (default 20 000 000). On this data it proves the
+  optimum on all 15 menus: 14 in well under a second, Menu 01 in about 5 s (6.1M nodes). A
+  much larger or adversarial menu could still exhaust the budget and come back flagged as
   *not* proven (`GrillPlan.IsProvenOptimal == false`).
 - **Assumes every piece fits the grill.** The largest piece in this data is 22 cm, which fits
   the 30 cm side. A piece that cannot fit the grill in either orientation makes the planner

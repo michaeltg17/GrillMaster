@@ -1,6 +1,5 @@
 using GrillMaster.Application.Features.Menus;
 using GrillMaster.Application.Features.Plans;
-using GrillMaster.Application.Features.Plans.Planners;
 using GrillMaster.Application.Settings;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -12,8 +11,7 @@ public static class DependencyConfigurator
     /// <summary>
     /// Registers the application layer: the settings (the <c>GrillMaster</c> configuration section,
     /// validated on start and exposed as <see cref="IGrillMasterSettings"/>), the grill-menu HTTP
-    /// client and service, the grill planners (all as <see cref="IGrillPlanner"/> singletons) and
-    /// the app.
+    /// client and service, the grill planner (as a <see cref="GrillPlanner"/> singleton) and the app.
     /// </summary>
     public static IServiceCollection AddApplicationDependencies(this IServiceCollection services)
     {
@@ -30,8 +28,7 @@ public static class DependencyConfigurator
         });
         services.AddSingleton<GrillMenuService>();
 
-        services.AddSingleton<IGrillPlanner, GreedyShelfPlanner>();
-        services.AddSingleton<IGrillPlanner, ExactBacktrackingPlanner>();
+        services.AddSingleton<GrillPlanner>();
 
         services.AddSingleton<GrillMasterApp>();
 

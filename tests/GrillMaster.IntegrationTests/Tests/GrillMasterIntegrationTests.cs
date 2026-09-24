@@ -1,5 +1,4 @@
 using AwesomeAssertions;
-using GrillMaster.Application.Features.Plans;
 using GrillMaster.IntegrationTests.Mocks.GrillMenuApi;
 using GrillMaster.IntegrationTests.Extensions;
 using Serilog.Events;
@@ -20,14 +19,12 @@ public sealed class GrillMasterIntegrationTests(ITestOutputHelper output) : Gril
     private const string MenuMessageTemplate = "{MenuName}: {RoundCount} rounds";
     private const string TotalMessageTemplate = "Total: {TotalRounds} rounds";
 
-    [Theory]
-    [InlineData(PlannerNames.Greedy)]
-    [InlineData(PlannerNames.Exact)]
-    public async Task LogsPerMenuRoundsAndTotal(string plannerName)
+    [Fact]
+    public async Task LogsPerMenuRoundsAndTotal()
     {
         GrillMenuApiMock.SetGetMenus();
 
-        using var app = await RunGrillMaster(plannerName, GrillMenuApiMock.Url);
+        using var app = await RunGrillMaster(GrillMenuApiMock.Url);
 
         app.ExitCode.Should().Be(0);
         GrillMenuApiMock.AssertGetMenusRequest();
@@ -76,7 +73,7 @@ public sealed class GrillMasterIntegrationTests(ITestOutputHelper output) : Gril
     {
         GrillMenuApiMock.SetGetMenus(body: "[]");
 
-        using var app = await RunGrillMaster(PlannerNames.Greedy, GrillMenuApiMock.Url);
+        using var app = await RunGrillMaster(GrillMenuApiMock.Url);
 
         app.ExitCode.Should().Be(0);
         GrillMenuApiMock.AssertGetMenusRequest();
@@ -100,7 +97,7 @@ public sealed class GrillMasterIntegrationTests(ITestOutputHelper output) : Gril
     {
         GrillMenuApiMock.SetGetMenus(body: "boom", statusCode: 500);
 
-        using var app = CreateApp(PlannerNames.Greedy, GrillMenuApiMock.Url);
+        using var app = CreateApp(GrillMenuApiMock.Url);
         var act = () => app.RunAsync(TestContext.Current.CancellationToken);
 
         // API failures surface as the raw .NET exception and reach the top (unhandled -> non-zero exit).
@@ -113,7 +110,7 @@ public sealed class GrillMasterIntegrationTests(ITestOutputHelper output) : Gril
     {
         GrillMenuApiMock.SetGetMenus(body: "this is not json");
 
-        using var app = CreateApp(PlannerNames.Greedy, GrillMenuApiMock.Url);
+        using var app = CreateApp(GrillMenuApiMock.Url);
         var act = () => app.RunAsync(TestContext.Current.CancellationToken);
 
         await act.Should().ThrowAsync<JsonException>();

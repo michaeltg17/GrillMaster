@@ -1,11 +1,17 @@
-# The Greedy Planner (`greedy`)
+# The Greedy Pre-Pass (inside GrillPlanner)
 
 > "Lay the big things down first, tuck each new piece into the snuggest free spot,
 > and if it doesn't fit anywhere, get out another tray."
 
 That is the whole strategy. No looking back, no second-guessing. It is fast, it is
 intuitive, and it is *almost* always good — but it can be fooled, and it will never
-*prove* it did the best job. This file explains exactly how it works, with pictures.
+*prove* it did the best job.
+
+It is not a planner of its own: it is the fast first pass inside `GrillPlanner`. It
+places every meat piece without searching, hands the result to the exact search as its
+starting "champion", and — when it already lands on the lower bound — lets the planner
+return the plan as proven optimal without searching at all. This file explains exactly
+how the pre-pass works, with pictures.
 
 ---
 
@@ -109,9 +115,9 @@ When several grills are in use, the piece goes to the grill that would be **full
 afterwards** (least free squares left). We want to finish grills off before starting
 new ones.
 
-## 4. Where greedy goes wrong
+## 4. Where the pre-pass goes wrong
 
-Greedy never thinks about the future. Sometimes a spot that looks perfect *now* leaves
+The pre-pass never thinks about the future. Sometimes a spot that looks perfect *now* leaves
 a gap that is the wrong shape for a piece coming later. Here is a real, verified
 example from this codebase.
 
@@ -136,11 +142,11 @@ Why not? Look at the free space left on grill #1 after step 4:
 - a 6×2 corner.
 
 The steak needs a gap 10 wide and 5 tall (or 5 wide and 10 tall). A 4 cm wide column is
-too narrow; a 4 cm tall strip is too short. So greedy — which never takes pieces back
-out — opens **grill #2** for a single steak. The sausage and the two patties (small
+too narrow; a 4 cm tall strip is too short. So the pre-pass — which never takes pieces
+back out — opens **grill #2** for a single steak. The sausage and the two patties (small
 enough) still sneak into grill #1's gaps afterwards.
 
-Greedy's two-round answer (each square is 1 cm; every letter is one piece):
+The pre-pass's two-round answer (each square is 1 cm; every letter is one piece):
 
 ```
 grill 1 (7 pieces)                grill 2 (just the steak)
@@ -169,10 +175,10 @@ EEEEEGGGG....................     ..............................
 `A,B` = spare ribs, `C` = pork chop, `D` = sirloin, `E` = sausage, `F,G` = patties,
 `A` on grill 2 = the steak (letters restart at 1 for each grill), `.` = empty grill.
 
-The fix is simple to *see* but impossible for greedy to *find*: stand the pork chop up
-vertically along the right edge (6 wide × 20 tall) instead of laying it flat. That
-opens the middle of the grill, where the steak fits comfortably. Then **everything
-fits in one round** — which the `exact` planner actually finds:
+The fix is simple to *see* but impossible for the pre-pass to *find*: stand the pork
+chop up vertically along the right edge (6 wide × 20 tall) instead of laying it flat.
+That opens the middle of the grill, where the steak fits comfortably. Then **everything
+fits in one round** — which the exact search actually finds:
 
 ```
 AAAAAAAAAAAAAAAAAAAAAAAACCCCCC
@@ -201,45 +207,47 @@ FFFFFFGGGGHHHH....EEEEE.CCCCCC
 `E` = steak (turned, middle-right), `F` = sausage, `G,H` = patties, `.` = empty.
 One round. Done.
 
-This is the fundamental trade-off: greedy makes each choice in an instant and never
-revisits it. When the choices line up (which is most of the time) it's excellent; when
-they don't, it pays for it with an extra round. On the full 15-menu fixture, greedy
-needs **39 rounds** where the best found is **38** — usually it ties the best answer,
-occasionally it is a round or two off.
+This is the fundamental trade-off: the pre-pass makes each choice in an instant and
+never revisits it. When the choices line up (which is most of the time) it's excellent;
+when they don't, it pays for it with an extra round. On the full 15-menu fixture the
+pre-pass needs **39 rounds** where the planner's final answer is **38** — usually it
+ties the final answer, occasionally it is a round or two off, and the search makes up
+the difference.
 
 ## 5. How the code does this
 
-The whole planner lives in
-`src/GrillMaster.Application/Features/Plans/Planners/GreedyShelfPlanner.cs`.
+The whole pre-pass lives in
+`src/GrillMaster.Application/Features/Plans/GreedyShelf.cs`.
 Here is each piece of code translated back into the story:
 
 | Code | What it is in the story |
 |------|--------------------------|
-| `Plan(menu, grill)` | The cook taking on the whole job. |
-| `menu.ExpandPieces()` | Unpacking the menu: "2 rumpsteaks" becomes two separate steak pieces. |
-| `GrillPlannerHelpers.OrderPieces(pieces)` | Step 1: sorting the meat biggest-first. |
-| `GrillPlannerHelpers.ComputeLowerBound(...)` | The floor: the larger of total meat area ÷ 600 and the per-type capacity count. Reported with the plan (but not used to place anything). |
+| `Place(pieces, grill)` | The first pass: every meat piece placed, no looking back. (The menu is unpacked into pieces by `GrillPlanner` before the call.) |
+| `OrderPieces(pieces)` | Step 1: sorting the meat biggest-first. |
 | `rounds` / `occupancies` | The list of grills in use, and each grill's map of which squares are taken. |
 | `FindBestRound(piece, ...)` | "Which of my grills should this piece go on?" Tries the piece on every grill, keeps the one that would be fullest afterwards (`freeAfter = 600 − used − piece`). |
 | `occupancy.FindBestPosition(piece)` | "And exactly *where* on that grill?" Looks at every possible position in both orientations, scores them, returns the snuggest. |
 | `Score(x, y, w, h)` | The snugness score: empty squares above × grill-width, plus empty squares to the left. Lower is snuggier. |
 | `occupancy.MarkOccupied(...)` | Draws the piece onto the grill's map so the next piece knows the squares are taken. |
 | `new GrillRound()` | "It fits nowhere — get me another grill." |
-| `IsProvenOptimal: false` | The honest disclaimer: greedy can't prove its answer is the best possible. |
+
+The pre-pass hands its rounds back to `GrillPlanner`, which compares the round count
+with the floor: equal, and the plan is returned as proven optimal with zero search;
+otherwise the rounds seed the exact search as its starting champion.
 
 The grill's map itself is `RoundOccupancy`
 (`src/GrillMaster.Application/Features/Plans/RoundOccupancy.cs`): a 30×20 grid of
-"taken / free" squares shared by `greedy` and `exact`.
+"taken / free" squares shared by the pre-pass and the exact search.
 
 ## 6. The numbers
 
 - **Speed:** about 2 ms per menu (median, over repeated runs of the 15-menu fixture).
   It never searches or backtracks — every piece gets exactly one decision.
-- **Quality:** 39 rounds on the 15-menu fixture (best found: 38). It ties the best
-  answer on most menus and is off by a round on two of them.
+- **Quality:** 39 rounds on the 15-menu fixture (the planner's final answer: 38). It
+  ties the final answer on most menus and is off by a round on two of them.
 - **Guarantees:** a valid plan (no overlaps, nothing off the grill), never fewer rounds
   than the lower bound, but no claim that it is optimal.
 
-If you want a better answer on a small-to-medium menu, look at
-[the exact planner](exact-planner.md) — it improves on this plan and can prove the
-answer is the best possible.
+The pre-pass is only a starting point: the exact search inside the same planner
+improves on it and can prove the answer is the best possible — see
+[grill-planner.md](grill-planner.md).

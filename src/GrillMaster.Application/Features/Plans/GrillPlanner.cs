@@ -1,17 +1,19 @@
 using System.Diagnostics;
 using GrillMaster.Domain;
 
-namespace GrillMaster.Application.Features.Plans.Planners;
+namespace GrillMaster.Application.Features.Plans;
 
 /// <summary>
-/// Exact branch-and-bound search for the minimum number of rounds; proven optimal whenever the
-/// node budget is not exceeded. See <c>docs/exact-planner.md</c> for a full walkthrough.
+/// The GrillMaster planner: an exact branch-and-bound search for the minimum number of rounds,
+/// proven optimal whenever the node budget is not exceeded. A greedy shelf placement runs first
+/// as a cheap upper bound: when it already sits on the lower bound, the answer is proven without
+/// searching at all. See <c>docs/grill-planner.md</c> for a full walkthrough.
 /// The planner itself is stateless: every call to <see cref="Plan"/> builds its own
 /// <see cref="SearchState"/>, so one instance can plan concurrently from several threads.
 /// </summary>
-public sealed class ExactBacktrackingPlanner : IGrillPlanner
+public sealed class GrillPlanner
 {
-    public string Name { get; } = PlannerNames.Exact;
+    public string Name { get; } = "grill";
 
     /// <summary>
     /// Hard node budget: at most this many search nodes are explored before the search stops
@@ -42,18 +44,18 @@ public sealed class ExactBacktrackingPlanner : IGrillPlanner
             }
         }
 
-        // Upper bound from the greedy heuristic; the search only has to beat it.
-        var greedy = new GreedyShelfPlanner().Plan(menu, grill);
+        // Upper bound from the greedy shelf heuristic; the search only has to beat it.
+        var greedyRounds = GreedyShelf.Place(pieces, grill);
 
-        if (greedy.Rounds.Count == lowerBound)
+        if (greedyRounds.Count == lowerBound)
         {
             // The champion is standing on the floor: no plan can do better, so it is proven
             // optimal without searching at all.
             stopwatch.Stop();
-            return new GrillPlan(menu, greedy.Rounds, Name, lowerBound, IsProvenOptimal: true, SearchNodes: 0, stopwatch.Elapsed);
+            return new GrillPlan(menu, greedyRounds, Name, lowerBound, IsProvenOptimal: true, SearchNodes: 0, stopwatch.Elapsed);
         }
 
-        var state = new SearchState(grill, ordered, lowerBound, greedy, MaxNodes);
+        var state = new SearchState(grill, ordered, lowerBound, greedyRounds, MaxNodes);
         state.Search(0);
 
         stopwatch.Stop();
@@ -126,7 +128,7 @@ public sealed class ExactBacktrackingPlanner : IGrillPlanner
         private long _nodes;
         private SearchOutcome _outcome = SearchOutcome.ProvenOptimal;
 
-        public SearchState(GrillSize grill, IReadOnlyList<GrillPiece> ordered, int lowerBound, GrillPlan greedy, long maxNodes)
+        public SearchState(GrillSize grill, IReadOnlyList<GrillPiece> ordered, int lowerBound, IReadOnlyList<GrillRound> greedyRounds, long maxNodes)
         {
             _pieces = ordered;
             _grillWidth = grill.Width.Value;
@@ -135,8 +137,8 @@ public sealed class ExactBacktrackingPlanner : IGrillPlanner
             _maxNodes = maxNodes;
 
             // The greedy incumbent seeds the champion; the search only has to beat it.
-            _best = greedy.Rounds.Count;
-            _bestRounds = greedy.Rounds.Select(r => new GrillRound(r.Placements)).ToList();
+            _best = greedyRounds.Count;
+            _bestRounds = greedyRounds.Select(r => new GrillRound(r.Placements)).ToList();
             _maxRounds = _best;
 
             var n = ordered.Count;

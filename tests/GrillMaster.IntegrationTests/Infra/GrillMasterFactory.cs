@@ -17,7 +17,7 @@ namespace GrillMaster.IntegrationTests.Infra;
 internal static class GrillMasterFactory
 {
     /// <summary>Creates an app hosting the application with the given settings.</summary>
-    public static GrillMasterApp Create(string planner, Uri apiUrl, ITestOutputHelper output)
+    public static GrillMasterApp Create(Uri apiUrl, ITestOutputHelper output)
     {
         var sink = new InMemorySink();
         var testOutputSink = new InjectableTestOutputSink(outputTemplate: "{Message:lj}{NewLine}");
@@ -32,36 +32,32 @@ internal static class GrillMasterFactory
                 services.AddSingleton(sink);
                 services.Configure<GrillMasterSettings>(settings =>
                 {
-                    settings.Planner = planner;
                     settings.GrillMenuApiUrl = apiUrl;
                 });
 
                 // The pipeline plans all 15 fixture menus; with the production default the two
-                // menus that do not settle at the lower bound exhaust the exact solver's
+                // menus that do not settle at the lower bound exhaust the solver's
                 // 20 000 000-node budget (~30 s in Release, several minutes in Debug). Swap in
                 // the budget-bounded test planner, which returns the same per-menu round counts
-                // (see TestPlanners).
-                ReplacePlanner(services, TestPlanners.CreateExact);
+                // (see TestPlanner).
+                ReplaceGrillPlanner(services, TestPlanner.CreateGrillPlanner);
             });
 
         return new GrillMasterApp(host, sink, testOutputSink);
     }
 
     /// <summary>
-    /// Swaps the registered <typeparamref name="TPlanner"/> singleton for one built by
-    /// <paramref name="factory"/>: the app picks its planner by a single name match over all the
-    /// <see cref="IGrillPlanner"/> registrations, so the default registration must be removed
-    /// rather than shadowed.
+    /// Swaps the registered <see cref="GrillPlanner"/> singleton for one built by
+    /// <paramref name="factory"/>.
     /// </summary>
-    private static void ReplacePlanner<TPlanner>(IServiceCollection services, Func<TPlanner> factory)
-        where TPlanner : IGrillPlanner
+    private static void ReplaceGrillPlanner(IServiceCollection services, Func<GrillPlanner> factory)
     {
-        var descriptors = services.Where(d => d.ImplementationType == typeof(TPlanner)).ToList();
+        var descriptors = services.Where(d => d.ImplementationType == typeof(GrillPlanner)).ToList();
         foreach (var descriptor in descriptors)
         {
             services.Remove(descriptor);
         }
 
-        services.AddSingleton<IGrillPlanner>(_ => factory());
+        services.AddSingleton(_ => factory());
     }
 }

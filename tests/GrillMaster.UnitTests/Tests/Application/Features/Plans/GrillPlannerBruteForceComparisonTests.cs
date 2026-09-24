@@ -1,21 +1,20 @@
 using AwesomeAssertions;
 using GrillMaster.Application.Features.Plans;
-using GrillMaster.Application.Features.Plans.Planners;
 using GrillMaster.Domain;
 using GrillMaster.UnitTests.Helpers;
 using Xunit;
 
-namespace GrillMaster.UnitTests.Tests.Application.Features.Plans.Planners;
+namespace GrillMaster.UnitTests.Tests.Application.Features.Plans;
 
 /// <summary>
-/// Cross-checks the exact planner against an independent brute-force oracle on small random
-/// instances. The oracle is the classic subset DP over "which subsets of pieces fit in one
-/// round", with single-round fit decided by plain all-positions backtracking and no skyline
-/// pruning at all. Agreement proves the planner's canonical-position restriction, the
+/// Cross-checks the <see cref="GrillPlanner"/> against an independent brute-force oracle on
+/// small random instances. The oracle is the classic subset DP over "which subsets of pieces
+/// fit in one round", with single-round fit decided by plain all-positions backtracking and no
+/// skyline pruning at all. Agreement proves the planner's canonical-position restriction, the
 /// identical-piece symmetry breaking, and the lower-bound pruning can only cut branches that
 /// cannot contain the optimum.
 /// </summary>
-public sealed class ExactBruteForceComparisonTests
+public sealed class GrillPlannerBruteForceComparisonTests
 {
     private const long Budget = 10_000_000;
 
@@ -42,8 +41,8 @@ public sealed class ExactBruteForceComparisonTests
             lowerBound.Should()
                 .BeLessThanOrEqualTo(optimum, $"trial {trial}: lower bound {lowerBound} exceeds the brute-force optimum {optimum}");
 
-            var result = new ExactBacktrackingPlanner { MaxNodes = Budget }
-                .Plan(PlannerTestsBase.BuildMenu(pieces), grill);
+            var result = new GrillPlanner { MaxNodes = Budget }
+                .Plan(GrillPlannerTests.BuildMenu(pieces), grill);
 
             result.Rounds.Count.Should()
                 .Be(optimum, $"trial {trial}: planner found {result.Rounds.Count} rounds, brute force says {optimum}");
