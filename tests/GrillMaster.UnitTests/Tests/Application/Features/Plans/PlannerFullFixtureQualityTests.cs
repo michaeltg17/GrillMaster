@@ -20,7 +20,6 @@ public sealed class PlannerFullFixtureQualityTests
     [Theory]
     [MemberData(nameof(PlannerSnapshots))]
     public void FullFixture_MatchesQualitySnapshot(
-        string plannerName,
         GrillPlanner planner,
         int expectedTotalRounds,
         int expectedLowerBound,
@@ -41,13 +40,13 @@ public sealed class PlannerFullFixtureQualityTests
 
         (totalRounds, lowerBound).Should()
             .Be((expectedTotalRounds, expectedLowerBound),
-                $"'{plannerName}' packing quality changed over the full 15-menu fixture");
+                "packing quality changed over the full 15-menu fixture");
 
         if (expectedSearchNodes is not null)
         {
             searchNodes.Should().Be(
                 expectedSearchNodes.Value,
-                $"'{plannerName}' search-node count changed over the full 15-menu fixture");
+                "search-node count changed over the full 15-menu fixture");
         }
     }
 
@@ -58,11 +57,11 @@ public sealed class PlannerFullFixtureQualityTests
     /// in Debug), and the bounded budget returns the same plans, so the pinned quality is
     /// unchanged — only Menu 01's search-node count is cut at the cap.
     /// </summary>
-    public static TheoryData<string, GrillPlanner, int, int, long?> PlannerSnapshots()
+    public static TheoryData<GrillPlanner, int, int, long?> PlannerSnapshots()
     {
-        var snapshots = new TheoryData<string, GrillPlanner, int, int, long?>
+        var snapshots = new TheoryData<GrillPlanner, int, int, long?>
         {
-            { "grill", new GrillPlanner { MaxNodes = 1_000_000 }, 38, 37, 1_000_619 },
+            { new GrillPlanner { MaxNodes = 1_000_000 }, 38, 37, 1_000_619 },
         };
         return snapshots;
     }

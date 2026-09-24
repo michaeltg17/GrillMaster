@@ -9,8 +9,8 @@ namespace GrillMaster.UnitTests.Tests.Application.Features.Plans;
 /// <summary>
 /// The contract <see cref="GrillPlanner"/> must satisfy: each piece placed exactly once, all
 /// pieces within the grill, no overlaps, footprints matching the piece dimensions (with or
-/// without a 90° rotation), the area lower bound never beaten, and the plan reporting the
-/// planner's own name — plus the planner-specific optimality cases.
+/// without a 90° rotation), the area lower bound never beaten — plus the planner-specific
+/// optimality cases.
 /// </summary>
 public sealed class GrillPlannerTests
 {
@@ -61,16 +61,7 @@ public sealed class GrillPlannerTests
         var lowerBound = GrillPlannerHelpers.ComputeLowerBound(menu.ExpandPieces(), Grill);
         var result = CreatePlanner().Plan(menu, Grill);
 
-        result.Rounds.Count.Should().BeGreaterThanOrEqualTo(lowerBound, $"{result.Planner} beat the lower bound");
-    }
-
-    [Fact]
-    public void Plan_ReportsPlannerName()
-    {
-        var planner = CreatePlanner();
-        var result = planner.Plan(BuildMenu(BuildFixturePieces()), Grill);
-
-        result.Planner.Should().Be(planner.Name);
+        result.Rounds.Count.Should().BeGreaterThanOrEqualTo(lowerBound, "the plan beat the lower bound");
     }
 
     [Fact]

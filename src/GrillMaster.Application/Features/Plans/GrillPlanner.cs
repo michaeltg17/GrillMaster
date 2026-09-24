@@ -13,8 +13,6 @@ namespace GrillMaster.Application.Features.Plans;
 /// </summary>
 public sealed class GrillPlanner
 {
-    public string Name { get; } = "grill";
-
     /// <summary>
     /// Hard node budget: at most this many search nodes are explored before the search stops
     /// and falls back to the best incumbent found so far. Values &lt;= 0 disable the search and
@@ -32,7 +30,7 @@ public sealed class GrillPlanner
 
         if (n == 0)
         {
-            return new GrillPlan(menu, [], Name, lowerBound, IsProvenOptimal: true, SearchNodes: 0, stopwatch.Elapsed);
+            return new GrillPlan(menu, [], lowerBound, IsProvenOptimal: true, SearchNodes: 0, stopwatch.Elapsed);
         }
 
         foreach (var p in ordered)
@@ -52,7 +50,7 @@ public sealed class GrillPlanner
             // The champion is standing on the floor: no plan can do better, so it is proven
             // optimal without searching at all.
             stopwatch.Stop();
-            return new GrillPlan(menu, greedyRounds, Name, lowerBound, IsProvenOptimal: true, SearchNodes: 0, stopwatch.Elapsed);
+            return new GrillPlan(menu, greedyRounds, lowerBound, IsProvenOptimal: true, SearchNodes: 0, stopwatch.Elapsed);
         }
 
         // Phase 1: the skyline-restricted search. Its candidate set (resting, pushed-left
@@ -67,7 +65,7 @@ public sealed class GrillPlanner
         if (state.Best == lowerBound || state.Outcome == SearchState.SearchOutcome.BudgetExceeded)
         {
             stopwatch.Stop();
-            return state.BuildPlan(menu, Name, stopwatch.Elapsed);
+            return state.BuildPlan(menu, stopwatch.Elapsed);
         }
 
         // Phase 2: re-run the search over the complete position set, seeded with phase 1's
@@ -78,7 +76,7 @@ public sealed class GrillPlanner
         verifier.Search(0);
 
         stopwatch.Stop();
-        return verifier.BuildPlan(menu, Name, stopwatch.Elapsed, totalNodes: state.Nodes + verifier.Nodes);
+        return verifier.BuildPlan(menu, stopwatch.Elapsed, totalNodes: state.Nodes + verifier.Nodes);
     }
 
     // Search ordering heuristic: place restrictive pieces first. Largest area first, then the
@@ -453,14 +451,14 @@ public sealed class GrillPlanner
             return bound;
         }
 
-        public GrillPlan BuildPlan(GrillMenu menu, string plannerName, TimeSpan elapsed, long? totalNodes = null)
+        public GrillPlan BuildPlan(GrillMenu menu, TimeSpan elapsed, long? totalNodes = null)
         {
             // _outcome records how the search finished: ProvenOptimal is a proof (the champion
             // reached the lower bound, or the whole search space was explored); BudgetExceeded
             // is the one finish that is not a proof, and the plan is the best incumbent found
             // up to that point.
             var proven = _outcome == SearchOutcome.ProvenOptimal;
-            return new GrillPlan(menu, _bestRounds!, plannerName, _lowerBound, proven, SearchNodes: totalNodes ?? _nodes, elapsed);
+            return new GrillPlan(menu, _bestRounds!, _lowerBound, proven, SearchNodes: totalNodes ?? _nodes, elapsed);
         }
 
         // Search-equivalence for the identical-piece symmetry breaking: same geometry and same

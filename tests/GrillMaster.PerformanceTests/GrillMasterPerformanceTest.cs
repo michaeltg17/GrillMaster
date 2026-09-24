@@ -48,9 +48,10 @@ public sealed class GrillMasterPerformanceTest(ITestOutputHelper output)
 
         PerformanceResultStore.SaveAfter(measured);
 
+        var previous = before.Planners.Count > 0 ? before.Planners[0] : null;
         foreach (var m in measured)
         {
-            _output.WriteLine(Describe(m, before.Planners.FirstOrDefault(s => s.Planner == m.Planner)));
+            _output.WriteLine(Describe(m, previous));
         }
 
         _output.WriteLine(Summary(measured));
@@ -94,7 +95,6 @@ public sealed class GrillMasterPerformanceTest(ITestOutputHelper output)
         }
 
         return new PerformancePlannerResult(
-            planner.Name,
             totalRounds,
             lowerBound,
             searchNodes,
@@ -113,7 +113,7 @@ public sealed class GrillMasterPerformanceTest(ITestOutputHelper output)
     {
         if (previous is null)
         {
-            return $"{measured.Planner}: {measured.TotalRounds} rounds, median {measured.MedianMs} ms, total {measured.TotalMs} ms (first measurement)";
+            return $"{measured.TotalRounds} rounds, median {measured.MedianMs} ms, total {measured.TotalMs} ms (first measurement)";
         }
 
         var rounds = measured.TotalRounds == previous.TotalRounds
@@ -125,7 +125,7 @@ public sealed class GrillMasterPerformanceTest(ITestOutputHelper output)
         var total = previous.TotalMs <= 0
             ? $"total {measured.TotalMs} ms (was {previous.TotalMs} ms)"
             : $"total {measured.TotalMs} ms (was {previous.TotalMs} ms, {FormatDelta(DeltaPercent(measured.TotalMs, previous.TotalMs))}%)";
-        return $"{measured.Planner}: {rounds}, {ms}, {total}";
+        return $"{rounds}, {ms}, {total}";
     }
 
     /// <summary>The relative change in percent between two measurements.</summary>
