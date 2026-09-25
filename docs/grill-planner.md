@@ -182,7 +182,13 @@ is returned as **not proven**. Menu 01 is a genuinely hard instance: the 3-round
 verification space is over 10,000,000,000 decisions (a 10-billion-node run across
 all 16 cores of a Ryzen 9800X3D — about 23 minutes — still had not exhausted it),
 and an external CP-SAT solver given 10 minutes cannot prove that 3 rounds are
-impossible either. The honest flag is therefore the correct behaviour, not a planner failure. If a menu blows the budget before a
+impossible either. The honest flag was therefore the correct behaviour, not a
+planner failure — and the instance has since been settled by an independent
+route: 3 rounds are provably infeasible (a hand proof plus an exhaustive
+machine proof, neither of which is the planner's search), so Menu 01's optimum
+is the greedy's 4. See `docs/menu-01-optimality.md`, which also records the
+plan to give the planner a third phase that can certify such tight instances.
+If a menu blows the budget before a
 proof, the planner stops and returns the best arrangement it had found so far,
 honestly flagged as **not proven optimal**. It never lies: `IsProvenOptimal` is true
 exactly when the champion reached the floor or the *complete* position set was
