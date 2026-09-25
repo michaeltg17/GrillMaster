@@ -9,7 +9,10 @@ namespace GrillMaster.Application.Features.Plans;
 /// The GrillMaster planner: an exact branch-and-bound search for the minimum number of rounds,
 /// proven optimal whenever the node budget is not exceeded. A greedy shelf placement runs first
 /// as a cheap upper bound: when it already sits on the lower bound, the answer is proven without
-/// searching at all. See <c>docs/grill-planner.md</c> for a full walkthrough.
+/// searching at all. When the budget runs out on a tight instance where the champion stands
+/// exactly one round above the lower bound, a composition-proof phase
+/// (<see cref="RoundCompositionProver"/>) can still settle optimality. See
+/// <c>docs/grill-planner.md</c> for a full walkthrough.
 /// The search budget (<see cref="IGrillMasterSettings.MaxNodes"/>) and mode
 /// (<see cref="IGrillMasterSettings.EnableParallelism"/>) come from the settings: with
 /// <see cref="IGrillMasterSettings.EnableParallelism"/> set, the search runs on all logical
@@ -58,23 +61,38 @@ public sealed class GrillPlanner(IGrillMasterSettings settings)
             : PlanSerial(menu, grill, ordered, lowerBound, greedyRounds, stopwatch);
     }
 
-    // The two search phases, exactly as described in the class summary: a fast
-    // skyline-restricted pass, then — only when the champion is still above the lower bound —
-    // a complete-position verification pass seeded with the first pass's champion.
+    // The search phases, exactly as described in the class summary: a fast skyline-restricted
+    // pass, then — only when the champion is still above the lower bound — a complete-position
+    // verification pass seeded with the first pass's champion, then — only when the budget ran
+    // out one above the lower bound on a tight instance — the composition-proof phase.
     private GrillPlan PlanSerial(GrillMenu menu, GrillSize grill, IReadOnlyList<GrillPiece> ordered, int lowerBound, IReadOnlyList<GrillRound> greedyRounds, Stopwatch stopwatch)
     {
         var state = new SearchState(PlanData.Create(grill, ordered, lowerBound, allPositions: false), greedyRounds, settings.MaxNodes);
         state.Search(0);
 
+        GrillPlan? proof;
+
         // Phase 1 ended either on the floor (a true proof) or over budget (nothing left to do).
         if (state.Best == lowerBound || state.Outcome == SearchOutcome.BudgetExceeded)
         {
+            proof = TryCompositionProof(menu, grill, ordered, lowerBound, state.Outcome, state.Nodes, state.BestRounds, stopwatch);
+            if (proof is not null)
+            {
+                return proof;
+            }
+
             stopwatch.Stop();
             return state.BuildPlan(menu, stopwatch.Elapsed);
         }
 
         var verifier = new SearchState(PlanData.Create(grill, ordered, lowerBound, allPositions: true), state.BestRounds, settings.MaxNodes - state.Nodes);
         verifier.Search(0);
+
+        proof = TryCompositionProof(menu, grill, ordered, lowerBound, verifier.Outcome, state.Nodes + verifier.Nodes, verifier.BestRounds, stopwatch);
+        if (proof is not null)
+        {
+            return proof;
+        }
 
         stopwatch.Stop();
         return verifier.BuildPlan(menu, stopwatch.Elapsed, totalNodes: state.Nodes + verifier.Nodes);
@@ -94,14 +112,28 @@ public sealed class GrillPlanner(IGrillMasterSettings settings)
         using var phase1 = new ParallelPhase(PlanData.Create(grill, ordered, lowerBound, allPositions: false), greedyRounds, settings.MaxNodes, parallelism);
         phase1.Run();
 
+        GrillPlan? proof;
+
         if (phase1.Best == lowerBound || phase1.Outcome == SearchOutcome.BudgetExceeded)
         {
+            proof = TryCompositionProof(menu, grill, ordered, lowerBound, phase1.Outcome, phase1.Nodes, phase1.BestRounds, stopwatch);
+            if (proof is not null)
+            {
+                return proof;
+            }
+
             stopwatch.Stop();
             return phase1.BuildPlan(menu, stopwatch.Elapsed);
         }
 
         using var phase2 = new ParallelPhase(PlanData.Create(grill, ordered, lowerBound, allPositions: true), phase1.BestRounds, settings.MaxNodes - phase1.Nodes, parallelism);
         phase2.Run();
+
+        proof = TryCompositionProof(menu, grill, ordered, lowerBound, phase2.Outcome, phase1.Nodes + phase2.Nodes, phase2.BestRounds, stopwatch);
+        if (proof is not null)
+        {
+            return proof;
+        }
 
         stopwatch.Stop();
         return phase2.BuildPlan(menu, stopwatch.Elapsed, totalNodes: phase1.Nodes + phase2.Nodes);
@@ -111,6 +143,49 @@ public sealed class GrillPlanner(IGrillMasterSettings settings)
     // back to a single worker (a parallel phase with one worker is just a work-queue search).
     private int ParallelismDegree() =>
         settings.Parallelism > 0 ? settings.Parallelism : Math.Max(1, Environment.ProcessorCount);
+
+    // Phase 3: the composition-proof phase. The joint search fails to prove optimality only
+    // when it runs out of budget with the champion still above the lower bound. When the
+    // champion stands exactly one above the lower bound on a tight instance, proving that the
+    // lower-bound round count is unreachable is a complete proof, so the planner asks the
+    // composition prover — a different algorithm: it splits the pieces into lower-bound-many
+    // groups and decides whether each group packs on one grill — to settle it. A conclusive
+    // verdict turns the plan into a proven one (a witness even replaces the champion with a
+    // lower-bound packing); an inconclusive one leaves the honest unproven flag in place.
+    // Disabled (the default) when CompositionProofNodes is 0.
+    private GrillPlan? TryCompositionProof(GrillMenu menu, GrillSize grill, IReadOnlyList<GrillPiece> ordered, int lowerBound, SearchOutcome outcome, long searchNodes, IReadOnlyList<GrillRound> champion, Stopwatch stopwatch)
+    {
+        if (outcome is not SearchOutcome.BudgetExceeded || champion.Count != lowerBound + 1 || lowerBound > 5 || settings.CompositionProofNodes <= 0)
+        {
+            return null;
+        }
+
+        var totalArea = 0;
+        foreach (var piece in ordered)
+        {
+            totalArea += piece.Area.Value;
+        }
+
+        // The enumeration cost grows with the free space each lower-bound round may have; the
+        // phase is only worth it while that slack stays small (Menu 01's is 9 cm^2).
+        var slack = (lowerBound * grill.Area.Value) - totalArea;
+        if (slack is < 0 or > 30)
+        {
+            return null;
+        }
+
+        var parallelism = settings.EnableParallelism ? ParallelismDegree() : 1;
+        var proof = RoundCompositionProver.Prove(ordered, grill, lowerBound, settings.CompositionProofNodes, parallelism);
+        stopwatch.Stop();
+        var nodes = searchNodes + proof.Nodes;
+        return proof.Verdict switch
+        {
+            CompositionVerdict.LbInfeasible => new GrillPlan(menu, champion, lowerBound, IsProvenOptimal: true, nodes, stopwatch.Elapsed),
+            CompositionVerdict.LbFeasible => new GrillPlan(menu, proof.Witness!, lowerBound, IsProvenOptimal: true, nodes, stopwatch.Elapsed),
+            CompositionVerdict.Unknown => null,
+            _ => throw new NotImplementedException(),
+        };
+    }
 
     // Search ordering heuristic: place restrictive pieces first. Largest area first, then the
     // fattest piece (largest short side) of the remaining area, then the longest side, then name

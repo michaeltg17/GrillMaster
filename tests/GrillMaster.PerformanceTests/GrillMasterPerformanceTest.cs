@@ -176,5 +176,8 @@ internal sealed record BenchmarkPlannerSettings(long MaxNodes, bool EnableParall
 {
     public Uri GrillMenuApiUrl => new("http://localhost");
 
+    // The benchmarks measure the joint search only; the composition-proof phase stays off.
+    public long CompositionProofNodes => 0;
+
     public bool VerboseLogging => false;
 }

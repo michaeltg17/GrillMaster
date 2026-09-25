@@ -19,7 +19,9 @@ internal static class GrillMasterFactory
     /// with the production 10 000 000-node default the menus that need a real search (Menu 01,
     /// which cannot settle at its lower bound within any practical budget, and Menu 07) would
     /// consume it. The capped budget returns the same per-menu round counts (pinned by the
-    /// unit-test quality snapshot) in a fraction of the time.
+    /// unit-test quality snapshot) in a fraction of the time. The composition-proof phase is
+    /// disabled for the same reason: on Menu 01 it would otherwise spend its (large) budget
+    /// proving optimality, adding minutes to the run without changing the round counts.
     /// </summary>
     private const long TestNodeBudget = 1_000_000;
 
@@ -41,6 +43,7 @@ internal static class GrillMasterFactory
                 {
                     settings.GrillMenuApiUrl = apiUrl;
                     settings.MaxNodes = TestNodeBudget;
+                    settings.CompositionProofNodes = 0;
                     settings.VerboseLogging = false;
                 });
             });

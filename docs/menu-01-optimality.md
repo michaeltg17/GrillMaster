@@ -6,9 +6,9 @@ proof in §4 (a different algorithm from both the planner's joint search and the
 CP-SAT oracle). Since the planner's greedy pass finds a 4-round plan, the optimum is
 exactly **4**.
 
-This document also records the plan for turning the machine proof into a third
-planner phase (§6), so that the product itself can certify tight instances like this
-one instead of returning an honest `IsProvenOptimal = false`.
+The machine proof is implemented as the planner's third phase (§6), so the product
+itself can certify tight instances like this one instead of returning an honest
+`IsProvenOptimal = false`.
 
 ## 1. The instance
 
@@ -194,8 +194,8 @@ into three groups, each packable on one empty grill. So:
      (`GrillPlannerHelpers.SingleRoundCapacity`, the same budgeted exact search
      the lower bound is built from).
 
-   This collapses the composition space from ~7.4 million raw splits to **244
-   canonical partitions**.
+    This collapses the composition space from ~300 million raw splits to **2936
+    canonical partitions**.
 
 2. **Check groups.** For each distinct piece group (memoized by its per-type
    count vector) run a *complete* one-round packing search: every free
@@ -221,18 +221,21 @@ lex-canonical representative of each round multiset); and a group's status
 depends only on its multiset of pieces (same-type pieces are interchangeable).
 An "infeasible" group is a genuine certificate.
 
-**Result** (Ryzen 9800X3D, single core, 26 min):
+**Result** (measured on 8 cores, ~24 min; the node count is exact and
+machine-independent, since each group's search is serialized by a per-group gate
+and the total budget does not bind):
 
 ```
-partitions=244 (resolved 244, undecided 0)
-groups checked=167 (feasible 108, infeasible 53, unknown 6)
-one-round nodes=459,276,288, largest single check=50,000,839
-=> 3 rounds INFEASIBLE (exhausted); with the greedy 4-round plan, optimum = 4
+partitions=2936
+groups checked=627 (feasible 316, infeasible 199, unknown 112)
+one-round nodes=7,441,921,295
+=> 3 rounds INFEASIBLE; with the greedy 4-round plan, optimum = 4
 ```
 
-Every one of the 244 partitions contains at least one group **proven**
-infeasible; the 6 budget-unknown groups are irrelevant (each partition they
-appear in has a proven-infeasible sibling group). No 3-round packing exists. ∎
+Every one of the 2936 partitions contains at least one group **proven**
+infeasible; the 112 budget-unknown groups are irrelevant (each hit the prover's
+50M per-group node budget, and every partition one appears in has a
+proven-infeasible sibling group). No 3-round packing exists. ∎
 
 ## 5. Why the planner's own search cannot see this
 
@@ -247,57 +250,64 @@ that subtree entirely by decoupling the rounds from each other: the area window
 makes each round *nearly full*, which is exactly the regime where per-group
 one-round proofs are cheap and the enumeration is tiny.
 
-## 6. Plan: a third planner phase for tight instances
+## 6. The third planner phase (implemented)
 
-Goal: let the planner itself certify instances like Menu 01 (where
-`best == lowerBound + 1` and the area slack for `lowerBound` rounds is small,
-here 3·600 − 1791 = 9) instead of returning `IsProvenOptimal = false`.
+The planner now certifies instances like Menu 01 itself (where the champion
+stands exactly one round above the lower bound and the area slack for the
+lower-bound rounds is small — here 3·600 − 1791 = 9) instead of returning
+`IsProvenOptimal = false`.
 
-1. **New engine** in `src/GrillMaster.Application/Features/Plans/`
-   (e.g. `RoundCompositionProver`): the §4 algorithm, generalized:
-   - inputs: pieces grouped by search-identical type, grill size, R =
-     `lowerBound` rounds, area window [totalArea − (R−1)·grillArea, grillArea];
-   - canonical type-count split enumeration (round symmetry breaking), pruned
-     by the area window and by the existing per-type single-round capacities;
-   - complete one-round feasibility search per group (all positions, both
-     orientations, identical-piece symmetry breaking, area/capacity bounds,
-     residual-capacity bounds at type-section starts);
-   - memoization by per-type count vector; per-group node budget with an
-     *unknown* status (never a false certificate); groups are independent →
-     checkable in parallel across cores;
-   - verdicts: `LbInfeasible` (no all-feasible partition; every partition has a
-     proven-infeasible group), `LbFeasible` (a full R-round witness — which
-     would mean the greedy was not optimal), `Unknown` (budgets exhausted).
-2. **Wiring into `GrillPlanner`.** After the verification pass, when the
-   champion is exactly one above the floor and the instance is "tight"
-   (area slack for the floor ≤ a threshold, and R small — keep the phase out
-   of the hot path for loose or large instances), run the composition prover
-   on a share of the remaining budget. `LbInfeasible` ⇒ `IsProvenOptimal =
-   true` (the champion at floor + 1 is optimal). `Unknown` ⇒ today's honest
-   flag. This preserves the existing guarantee: `IsProvenOptimal` is true only
-   on an exhaustive proof.
-3. **Consequences to accept deliberately.**
-   - Menu 01 flips to `IsProvenOptimal = true`; the pinned quality snapshot
-     (`PlannerFullFixtureQualityTests`) and the performance baseline change —
-     update them in the same change, with the reason.
-   - The other 14 fixture menus sit at the floor and are already proven by the
-     lower bound; they are unaffected (the new phase never runs for them).
-   - The planner/CP-SAT independence rule in AGENTS.md is preserved: the
-     composition prover is its own search engine (no shared search code with
-     the oracle), and the differential verification suite keeps comparing
-     planner results against CP-SAT optima.
-4. **Verification.**
-   - Keep `Menu01CompositionProbe` (and the CP-SAT `Menu01OracleProbe`) as the
-     standing Explicit witnesses for this instance.
-   - Add a deterministic corpus test: random tight instances (small slack,
-     mixed sizes) where the composition prover says `LbInfeasible`, the
-     planner must report the floor + 1 as proven — and cross-check a sample
-     against the CP-SAT oracle's *decision* result (`FitsInRounds(R)` must
-     agree: infeasible).
-5. **Performance guardrails.** Budget the phase as a fraction of `MaxNodes`
-   (e.g. min(MaxNodes/5, 2M) — the same split hygiene the earlier analysis
-   suggested for the two existing passes), keep a wall-clock cap, and never
-   let the phase run when the champion already equals the floor.
+**The engine** is `RoundCompositionProver` in
+`src/GrillMaster.Application/Features/Plans/RoundCompositionProver.cs`: the §4
+algorithm, generalized to any grill and round count.
+`Prove(pieces, grill, rounds, nodeBudget, parallelism)` returns a
+`CompositionProofResult` (the verdict, the witness, and the work counters).
+It first enumerates the canonical round compositions *serially up front* —
+the partition list is complete before any worker starts, which is what keeps
+the verdict sound under parallelism — and then checks the groups across
+`parallelism` workers. Each group is searched exactly once (a per-group gate
+serializes concurrent checks of the same group), so the total node count is
+the deterministic sum of the per-group searches and does not depend on the
+core count. A group is *infeasible* only when its complete search exhausts; a
+group that exceeds the 50M per-group node budget stays *unknown* and can never
+turn the verdict into a false proof. The verdicts are `LbInfeasible` (no
+all-feasible partition), `LbFeasible` (a full R-round witness), and `Unknown`
+(the total budget ran out first).
+
+**The wiring** is `GrillPlanner.TryCompositionProof`, called at every point a
+search phase ends (serial and parallel, both phase 1 and the verification
+pass). It runs only when the search ran out of budget, the champion stands
+exactly one above the lower bound, the lower bound is at most 5, and the area
+slack for the lower-bound rounds is at most 30 cm². The phase has its own
+budget, the `CompositionProofNodes` setting (0 disables it — the default in
+the test suites; the console is configured with 8,000,000,000, headroom over
+Menu 01's 7,441,921,295). An `LbInfeasible` verdict marks the champion plan
+proven optimal; an `LbFeasible` witness replaces the champion with a
+lower-bound packing and marks it proven; `Unknown` leaves the honest unproven
+flag in place. The existing guarantee is preserved: `IsProvenOptimal` is true
+only on an exhaustive proof.
+
+**Consequences, accepted deliberately.**
+
+- In the console, Menu 01 flips to `IsProvenOptimal = true` (the phase adds
+  ~7.4 billion one-round nodes, ~24 min on 8 cores, to the run).
+- The pinned quality snapshot (`PlannerFullFixtureQualityTests`) and the
+  performance baseline are unaffected: the test settings leave
+  `CompositionProofNodes` at 0, and the other 14 fixture menus sit on the
+  lower bound, where the phase never runs.
+- The planner/CP-SAT independence rule in AGENTS.md is preserved: the
+  composition prover is its own search engine (no shared search code with the
+  oracle), and the differential verification suite keeps comparing planner
+  results against CP-SAT optima.
+
+**Verification.**
+
+- `Menu01CompositionProbe` (and the CP-SAT `Menu01OracleProbe`) remain the
+  standing Explicit witnesses for this instance; the probe now runs the
+  planner's own prover and pins the §4 numbers.
+- The unit tests cover the engine directly (both verdicts, the witness, the
+  budget cutoff) and the wiring end to end on a tight 12×8 menu where the
+  joint search cannot prove optimality but the composition phase flips it.
 
 Out of scope (for now): integrating a generalized "long strip" lower bound
 into `ComputeLowerBound` — the composition prover achieves the same effect on

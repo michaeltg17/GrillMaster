@@ -186,8 +186,9 @@ impossible either. The honest flag was therefore the correct behaviour, not a
 planner failure — and the instance has since been settled by an independent
 route: 3 rounds are provably infeasible (a hand proof plus an exhaustive
 machine proof, neither of which is the planner's search), so Menu 01's optimum
-is the greedy's 4. See `docs/menu-01-optimality.md`, which also records the
-plan to give the planner a third phase that can certify such tight instances.
+is the greedy's 4. The planner can now make that proof itself with its third
+phase (§9) when the composition budget is enabled; the default keeps the phase
+off, so this two-pass behaviour is what runs unless a caller opts in.
 If a menu blows the budget before a
 proof, the planner stops and returns the best arrangement it had found so far,
 honestly flagged as **not proven optimal**. It never lies: `IsProvenOptimal` is true
@@ -274,3 +275,33 @@ count when it is enabled.
   best arrangement found within budget, honestly flagged the same way. The pre-pass
   alone comes within a round of the final answer on our fixture, so the fallback is
   still a good plan.
+
+## 9. The third phase: proving the round count when the search runs out
+
+The two passes settle most menus. A *tight* menu is the special case: the best
+plan found sits exactly one round above the floor (Menu 01: floor 3, best found
+4). For those, "the search ran out of budget with the champion one above the
+floor" is not a proof either way — 3 rounds might be possible (and the search
+just didn't find them) or impossible (and the search was too slow to show it).
+
+The planner settles this with a *different* algorithm — the **composition prover**
+(`RoundCompositionProver`) — because a packing in R rounds is exactly a split of
+the pieces into R groups that each pack on one empty grill. Instead of placing all
+the pieces across R rounds at once (the joint search's 10-billion-decision space
+for Menu 01), it:
+
+1. enumerates the *round compositions* — every canonical way to split the pieces
+   into R groups whose areas all land in the per-round window (2936 for Menu 01),
+   pruned by the area window and the exact per-type one-round capacities; then
+2. runs a *complete one-round* packing search for every distinct group (627 for
+   Menu 01). A group is infeasible only when its search exhausts; one that
+   exceeds its node budget stays unknown and can never become a false proof.
+
+If every composition has at least one proven-infeasible group, R rounds are
+impossible — a complete proof the floor is unreachable, so the champion at floor
++ 1 is optimal. For Menu 01 that proof costs 7,441,921,295 one-round decisions
+(~24 min on 8 cores), which the console budgets through the `CompositionProofNodes`
+setting (8,000,000,000). The phase is off by default (`CompositionProofNodes: 0`),
+so the two-pass behaviour — and every pinned number — is unchanged unless a
+caller opts in. The proof and the phase are documented in
+`docs/menu-01-optimality.md`.

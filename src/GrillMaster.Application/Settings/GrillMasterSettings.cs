@@ -8,6 +8,14 @@ public record GrillMasterSettings : IGrillMasterSettings
     public long MaxNodes { get; set; } = 1_000_000;
 
     /// <summary>
+    /// Node budget of the composition-proof phase (third phase), which runs after the joint
+    /// search on tight instances where the champion is exactly one round above the lower bound,
+    /// deciding whether the lower-bound round count is reachable. 0 (the default) disables the
+    /// phase.
+    /// </summary>
+    public long CompositionProofNodes { get; set; }
+
+    /// <summary>
     /// The planner's search mode: all logical cores by default, false to keep the search serial
     /// and fully deterministic (including the exact search-node count).
     /// </summary>
