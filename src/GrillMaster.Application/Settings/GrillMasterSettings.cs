@@ -5,7 +5,7 @@ public record GrillMasterSettings : IGrillMasterSettings
     public required Uri GrillMenuApiUrl { get; set; }
 
     /// <summary>The planner's hard search-node budget. Values &lt;= 0 disable the search.</summary>
-    public long MaxNodes { get; set; } = 1_000_000;
+    public long MaxNodes { get; set; }
 
     /// <summary>
     /// Node budget of the composition-proof phase (third phase), which runs after the joint
@@ -19,7 +19,7 @@ public record GrillMasterSettings : IGrillMasterSettings
     /// The planner's search mode: all logical cores by default, false to keep the search serial
     /// and fully deterministic (including the exact search-node count).
     /// </summary>
-    public bool EnableParallelism { get; set; } = true;
+    public bool EnableParallelism { get; set; }
 
     /// <summary>
     /// The number of search threads when <see cref="EnableParallelism"/> is set; 0 (the default)
