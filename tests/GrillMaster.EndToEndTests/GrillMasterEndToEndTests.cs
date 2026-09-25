@@ -9,10 +9,11 @@ namespace GrillMaster.EndToEndTests;
 /// <summary>
 /// The real end-to-end: launches the built console app as an external process exactly the way a user
 /// runs it — no mocks, configuration comes from the app's own <c>appsettings.json</c> (the live API) —
-/// captures its console output and validates the report the user would see. Two settings are
-/// overridden through environment variables: the planner's node budget is capped so the run stays
-/// fast (the cap returns the same per-menu round counts), and verbose logging is disabled so the
-/// report stays the plain per-menu lines this test validates. Console color is not validated: with
+/// captures its console output and validates the report the user would see. Three settings are
+/// overridden through environment variables: the planner's node budget is capped and the
+/// composition-proof phase is disabled so the run stays fast (neither changes the per-menu round
+/// counts), and verbose logging is disabled so the report stays the plain per-menu lines this
+/// test validates. Console color is not validated: with
 /// stdout redirected (as here) .NET writes no color codes at all, so the captured text carries no
 /// color information — observing it would require a Windows pseudoconsole (ConPTY).
 /// </summary>
@@ -76,9 +77,11 @@ public sealed partial class GrillMasterEndToEndTests
         };
 
         // Environment-variable overrides of the app's own settings (see docs/planners.md): cap the
-        // planner's search budget so the live run stays fast, and disable verbose logging so the
-        // report is the plain per-menu lines this test validates.
+        // planner's search budget and disable the composition-proof phase so the live run stays fast
+        // (neither changes the per-menu round counts this test validates), and disable verbose
+        // logging so the report is the plain per-menu lines this test validates.
         processStartInfo.Environment["GrillMaster__MaxNodes"] = "1000000";
+        processStartInfo.Environment["GrillMaster__CompositionProofNodes"] = "0";
         processStartInfo.Environment["GrillMaster__VerboseLogging"] = "false";
 
         using var process = Process.Start(processStartInfo)

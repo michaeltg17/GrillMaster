@@ -137,6 +137,10 @@ internal sealed record PlannerSettings(long MaxNodes) : IGrillMasterSettings
 {
     public Uri GrillMenuApiUrl => new("http://localhost");
 
+    // The verification corpus compares the planner's joint search against the oracle; the
+    // composition-proof phase stays out of the way.
+    public long CompositionProofNodes => 0;
+
     public bool EnableParallelism => false;
 
     public int Parallelism => 0;
